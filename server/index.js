@@ -771,6 +771,15 @@ const cfg = store.getConfig();
           facts: factUsed,
         });
         const firstReply = !(ctx.messages || []).some((m) => m.role === 'seller');
+        // 本地答案被质检拒绝，也是路由/事实缺口：记下来，别只统计 wide/empty
+        if (ctx.test && verdict.action !== 'keep' && result.source !== 'backend') {
+          factRegistry.recordGap({
+            buyerText: result.buyerText,
+            asks: (factPack && factPack.route.asks) || [(result.understanding || {}).ask].filter(Boolean),
+            mode: (factPack && factPack.route.mode) || 'local',
+            trigger: 'judge:' + (verdict.issues || []).join(','),
+          });
+        }
         if (verdict.action === 'replace') {
           // 只剔句子（cleaned）时保留原来源，别把本地知识说成 policy；
           // 整段换模板才算 policy。
@@ -1294,7 +1303,18 @@ const cfg = store.getConfig();
           // 必须真的能排第一，否则推了也没用
           const h = knowledge.retrieve(text, kb, { storeId });
           const rank = h.findIndex((x) => String(x.entry.id) === '__probe__');
-          if (rank === 0) out.push({ text, count, rank: 1 });
+          if (rank !== 0) continue;
+
+          // 光命中不算：问法带着条目答不了的槽位，推了就会制造错答。
+          // 用已有的槽位抽取判断（不是给推荐单写词表）：
+          //   问法里有地区 → 条目答案必须真的提到该地区或地区口径，否则不推
+          const slots = understand.extractSlots(text);
+          const ans = String(item.answer || '');
+          if (slots.region) {
+            const coversRegion = ans.includes(slots.region) || /地区|偏远|运费|包邮|港澳|海外|新疆|西藏|内蒙古/.test(ans);
+            if (!coversRegion) continue;
+          }
+          out.push({ text, count, rank: 1 });
         }
         return out;
       })();
