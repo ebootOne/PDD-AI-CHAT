@@ -110,3 +110,59 @@ node scripts/eval.js
 - 平均 tokens / 命中块分布 / 引用合法率
 ## 未完成与依赖
 ```
+
+---
+
+## 本轮（2026-11-09 第一刀：端到端最小闭环）
+
+| 任务 | 改的文件 | 回归(pro) | 结果 |
+|---|---|---|---|
+| 事实包路由/取数/预算/id | `server/facts.js`（新） | `scripts/test-facts.js` 39 条 | 全过 |
+| 后端事实包渲染 + `used` 契约 | `/Users/helu/Desktop/project/pdd-cs-backend/src/server.js` | 真实调用 | `used` 正确返回 |
+| 引用校验（存在/数字/多意图） | `server/judge.js` | 单测 + `ENGINE=pro` | 见下 |
+| Pro 接线（组装/多意图强制模型/日志） | `server/index.js` | `ENGINE=pro` | — |
+| 商品卡绑说明书 + 「多深」问法 | `server/facts.js` | 实测 | 覆土1厘米（原模型答2厘米） |
+| 关切焦点（问中毒时不给「适用对象」） | `server/facts.js` + 后端缺失口径 | 实测 | 不再答「都能用」 |
+| 侧栏「专业版 Pro」开关 + 「!」说明 | `desktop/renderer/{index.html,app.js,styles.css}` | 真机窗口实测 | 切换即生效 |
+| 计费改为 70% 毛利定价、模型下限 0.5；本地 0.5 点 | `server/index.js`、`server/quota.js`、`pdd-cs-backend/src/{pricing,server}.js` | `test-pricing` 12 条 + 双引擎 39/39 | 0 FAIL |
+| 回复日志：浏览/筛选/加入模板/编辑并加入/整个工具 | `desktop/renderer/{app.js,styles.css}`、`server/index.js` | 真机点击 | 通过 |
+| 本地路由表化 + 兜底扩召回（normal/wide/empty） | `server/fact-route.js`（新）、`server/facts.js`、`server/index.js` | `test-facts` 55 条 + 双引擎 | 见下 |
+| 事实包预览接口 | `server/index.js`（`/api/facts/preview`） | 实测三条 | 通过 |
+| 订单块（桌面右栏抓取） | `desktop/preload-cs.js`、`renderer/app.js`、`server/index.js` | 真实页取证 + 模拟订单实测 | 通过 |
+| 可更新路由注册表 + 测试缺口闭环 | `server/fact-registry.js`（新）、`server/fact-route.js`、`server/index.js`、`desktop/renderer/app.js`、后端 `/v1/registry` | 实测「发货了吗」+ 模型提议 | 通过 |
+| 规格块（商品 spec + 说明书兜底）+ 依据判定修正 | `server/facts.js`、`server/catalog.js`、`server/index.js`、`server/judge.js` | `test-facts` 63 条 + 双引擎 | 见下 |
+| 运行指标（按引擎拆分，内部） | `server/metrics.js`（新）、`server/index.js`、`scripts/metrics.js`、`scripts/test-metrics.js` | `test-metrics` 14 条 | 通过 |
+| 兜底计费文案修正 + 补模板引导 | `server/judge.js`、`desktop/renderer/app.js`、`docs/42` | 实测 fallback cost=0.5 | 通过 |
+| 模型侧同步「不替商家否定」（三套 prompt + 自检 + judge） | `pdd-cs-backend/src/server.js`、`server/prompt.js`、`server/judge.js` | 5 连测 + N01/N02 + 双引擎 39/39 | 0 FAIL |
+| 事实可信度（来源/时效/冲突） | `server/facts.js`、后端冲突提示、`docs/53` | `test-facts` M01–M04 | 见下 |
+| 客服人格抽到工具侧 + 后端只剩执行 | `server/persona.js`、后端注入、`docs/52` | `test-persona` 6 + 双引擎 | 见下 |
+| 日常对话层（事实 / 日常 / 混合） | `server/chat.js`、`server/index.js`、后端 prompt、`server/judge.js` | `test-chat` 6 + 双引擎 | 见下 |
+| 双引擎四个常规模板 + 模板库清空 | `server/templates.js`、`server/kb-templates.js`、`server/policy.js`、`docs/48` | `test-templates` 15 + 单测 + 双引擎 | 见下 |
+| 数字/单位溯源（本地校验） | `server/judge.js`、`server/index.js`、`docs/47` | `test-facts` N05–N08 + 双引擎 | 见下 |
+| 兜底话术给出口 + 温度（温度—边界模型） | `server/policy.js`、`server/engine.js`、`server/index.js`、三套 prompt | `test-commitment` 9/9 + 双引擎 39/39 | 通过 |
+| 规格问法 / 多意图 / 订单优先（ISS-018/020/008/021） | `server/understand.js`、`server/fact-route.js`、`server/facts.js`、`server/index.js` | 单测 68 + 双引擎 39/39 | 0 FAIL |
+| 协议与边界 | `docs/37-事实包协议.md`（新） | — | — |
+
+### 计费现状（已确认事实）
+
+- 模型一次实测：输入 561（命中 256/未命中 305）+ 输出 109 → 成本 0.00149 元 → ÷0.3 → 0.597 点 → 实扣 **0.597 点**（高于下限 0.5，不触底）；
+- 下限 0.5 点；原始点数不足 0.5（token 很少）才触底，其余按实际；不封顶；
+- 客户端只收到 `billing.points`，成本与毛利率只在服务端日志；
+- 套餐按**点**卖（已定）：5000 元 = 60 万点，一条 0.5~0.7 点，约 100 万条。
+
+### 事实包现状（已确认事实）
+
+- 12 条抽样：平均 **54 tokens**（硬上限 800，软上限 680），最大 93；
+- 命中块分布（29 个包）：policy 14 / product+policy 3 / manual 3 / order 2 / product 2 / 空 4；
+- 模型调用：12 条里 3 条走模型（其余本地高置信模板直答，符合 Pro 设计）；
+- 引用非法 **0**；`used` 为空时均为通用常识或缺失块回答。
+
+### 未完成与依赖（待确认）
+
+- 订单块：桌面端还没抓右栏，恒为 `missing`（模型只能给订单页口径）；
+- 规格字段：商品目录无 spec，恒为 `no-spec-field`；
+- 点单价已定：5000 元/60 万条 = 0.00833 元/点；毛利率 70%（售价=成本÷0.3）；模型下限 0.5 点、不封顶；
+- 套餐只做月/季/年，年费要让商家觉得最划算；点数与折扣比例待产品设计，本期不做真实支付；
+- 长回答不封顶（已确认）：原始点数超过 0.5 就按 70% 毛利往上，封顶会亏；
+- 法定节假日没有日历，但下限 0.5 覆盖了 token 极少的调用，影响只在长回答；
+- `pdd-cs-backend` 改动未提交（工作区已有其他未提交改动，需人工 review 后一起提交）。

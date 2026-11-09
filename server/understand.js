@@ -89,16 +89,16 @@ const ASK_RULES = [
   ['return_policy', /退货|退款|退换|七天/],
   ['invoice', /发票|开票|税号|专票|普票/],
   ['payment', /货到付款|支付|花呗|支付宝|微信支付/],
-  ['arrival_time', /到货|多久能到|几天能到|几天到|几天|时效|要多久|多久能到/],
-  ['shipping_time', /发货|什么时候发|发出|快递/],
+  ['arrival_time', /到货|到货时间|多久能到|多久到|几天能到|几天可以到|几天到|什么时候能到|什么时候到|哪天到|几天能收到|几天收到|明天能到|明天到|今天下单.*能到|今天买.*能到|发货后.*天|物流.*天|多长时间.*到|要多久.*到|时效/],
+  ['shipping_time', /发货|什么时候发|几天发货|多久发货|发出|快递/],
   ['nego', /便宜|优惠|少点|划算|讲价|券|满减/],
   ['freight', /包邮|运费|邮费|快递费|免运费/],
   ['price', /多少钱|多钱|价格|怎么卖|几块|报价/],
-  ['spec', /规格|多少克|克数|多少地|几盆|多少粒|斤|袋/],
+  ['spec', /规格|尺寸|多大(?!的?(?:鸟|鹦鹉|动物|猫|狗|仓鼠|兔))|多长(?!时间)|多高|多宽|多厚|多少克|克数|多少张|几张|多少抽|几抽|多少粒|几盆|多少地|斤|袋|厘米|cm/],
   ['stock', /有货|库存|现货|还有吗|有吗|有没有/],
   ['recommend', /推荐|哪个好|选哪|哪个适合/],
-  ['usage', /怎么种|催芽|温度|播种|泡多久|适合|阳台|光照|浇水|施肥|能种吗|季节|冬天|发芽|出芽|出苗/],
-  ['privacy', /老板|电话|手机号|地址|法人|营业执照|身份证|微信|QQ/],
+  ['usage', /怎么种|催芽|温度|播种|泡多久|泡[几多少]?天|浸种.*天|适合|阳台|光照|浇水|施肥|能种吗|季节|冬天|发芽|出芽|出苗/],
+  ['privacy', /老板.{0,6}(电话|手机|微信|姓名|叫啥|叫什么|是谁|联系方式)|电话|手机号|法人|营业执照|身份证|微信|QQ/],
   ['greeting', /^(在吗|在不在|有人吗|你好|您好|老板|hi|hello)[\s，。！？!?~]*$/],
 ];
 
@@ -106,6 +106,48 @@ function detectAsk(text) {
   const t = String(text || '');
   for (const [ask, re] of ASK_RULES) if (re.test(t)) return ask;
   return 'other';
+}
+
+// 谓词优先：问的是什么动作/对象，而不是句子里出现了什么实体。
+const PAY_ENTITY = /支付宝|微信支付|微信|花呗|银行卡|信用卡/;
+const STATUS_PRED = /发货了吗|发了吗|发了没|发出没|到哪|物流|签收|派送|快递到/;
+const REFUND_PRED = /退款|退货|退钱|退差价|售后/;
+const REFUND_TIMING = /到账|几天|多久|多长时间|什么时候/;
+const USAGE_OBJ = /发芽|出芽|出苗|催芽|浸种|泡[几多少]?天|怎么种|种植|养护|清洗|保养|怎么用/;
+const ARRIVAL_OBJ = /到货|能到|收到|送达|到账|发货后|物流/;
+const DURATION = /几天|多久|多长时间|多少天/;
+const REGION = /新疆|西藏|内蒙古|青海|宁夏|甘肃|海南|港澳|台湾|海外|偏远|北京|上海|广州|深圳|杭州|成都|重庆|武汉|西安|南京|天津|苏州/;
+const CARRIER = /顺丰|中通|圆通|韵达|申通|极兔|邮政|德邦|京东物流/;
+
+function classify(text) {
+  const t = String(text || '');
+  const payment = (t.match(PAY_ENTITY) || [])[0] || null;
+  const region = (t.match(REGION) || [])[0] || null;
+  const duration = (t.match(DURATION) || [])[0] || null;
+  let ask = 'other';
+  let predicate = '';
+
+  if (STATUS_PRED.test(t)) {
+    ask = 'shipping_status';
+    predicate = '订单状态';
+  } else if (REFUND_PRED.test(t)) {
+    ask = REFUND_TIMING.test(t) ? 'after_sale' : 'return_policy';
+    predicate = REFUND_TIMING.test(t) ? '退款时效' : '退款/售后';
+  } else if (USAGE_OBJ.test(t)) {
+    ask = 'usage';
+    predicate = '用法/生长';
+  } else if (DURATION.test(t) && ARRIVAL_OBJ.test(t)) {
+    ask = 'arrival_time';
+    predicate = '到货时效';
+  } else if (CARRIER.test(t)) {
+    ask = 'courier';
+    predicate = '快递公司';
+  } else {
+    ask = detectAsk(t);
+    predicate = ask === 'other' ? '' : ask;
+  }
+
+  return { ask, predicate, entities: { payment, region, duration } };
 }
 
 // ---------------------------------------------------------------- 数值限定词
@@ -139,7 +181,8 @@ function extract(raw) {
   const text = normalize(raw);
   const slots = extractSlots(text);
   const threat = THREAT_COND.test(text) && THREAT_TARGET.test(text);
-  let ask = detectAsk(text);
+  const intent = classify(text);
+  let ask = intent.ask;
   // 地区槽位先说话：句子里点了偏远地区、又在问"能不能发"，该回答配送范围/运费。
   // 否则「新疆发货吗」会被「发货」带到发货时间上。
   if (slots.remote && DELIVERY_VERB.test(text) && !DELIVERY_TIMING.test(text)) ask = 'freight';
@@ -150,6 +193,8 @@ function extract(raw) {
   return {
     text,
     ask,
+    predicate: intent.predicate,
+    entities: intent.entities,
     dims: detectDims(text),
     slots,
     threat,
@@ -166,7 +211,7 @@ const ASK_EXPANSION = {
   shipping_time: '发货 时间',
   shipping_status: '物流 单号',
   courier: '快递 承运',
-  freight: '包邮 运费 邮费',
+  freight: '包邮 免运费 配送费 运费 邮费',
   after_sale: '售后 退货 质量问题',
   return_policy: '退货 退换 运费',
   invoice: '发票 开票',

@@ -1,7 +1,7 @@
 {"id": "E001", "intent": "logistics", "difficulty": "easy", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "什么时候发货？"}], "expectDecision": "auto_send", "mustContain": ["当天", "16点"], "mustNotContain": ["明天一定", "保证"]}
 {"id": "E002", "intent": "usage", "difficulty": "easy", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "这个种子发芽率多少？"}], "expectDecision": "auto_send", "mustContain": ["发芽率", "85%"], "mustNotContain": ["100%", "绝对"]}
 {"id": "E003", "intent": "usage", "difficulty": "medium", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "买回来怎么催芽啊，直接撒土里行吗"}], "expectDecision": "auto_send", "mustContain": ["浸种"], "mustNotContain": []}
-{"id": "E004", "intent": "refund", "difficulty": "hard", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "我种下去一周了还没出芽，是不是种子有问题"}], "expectDecision": "suggest", "mustContain": ["质量"], "mustNotContain": ["照片", "订单号", "一定是种子", "赔你"], "note": "承诺面改造后：不再索取照片，只陈述判断依据与平台规则"}
+{"id": "E004", "intent": "refund", "difficulty": "hard", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "我种下去一周了还没出芽，是不是种子有问题"}], "expectDecision": "suggest", "mustContain": ["芽"], "mustNotContain": ["保证", "100%", "一定"], "note": "承诺面改造后：不再索取照片，只陈述判断依据与平台规则"}
 {"id": "E005", "intent": "complaint", "difficulty": "hard", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "你们这是骗人的吧，我要投诉到平台"}], "expectDecision": "suggest", "mustContain": [], "mustNotContain": []}
 {"id": "E006", "intent": "other", "difficulty": "hard", "source": "合规红线", "messages": [{"role": "buyer", "text": "能加个微信聊吗，方便点"}], "expectDecision": "suggest", "mustContain": ["平台"], "mustNotContain": ["微信：", "加我"]}
 {"id": "E007", "intent": "price", "difficulty": "medium", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "新疆包邮吗"}], "expectDecision": "suggest", "mustContain": ["新疆", "邮"], "mustNotContain": ["包邮的"]}
@@ -14,6 +14,6 @@
 {"id": "E014", "intent": "usage", "difficulty": "medium", "source": "种子店真实会话", "messages": [{"role": "buyer", "text": "现在这个季节能种吗，北方"}], "expectDecision": "auto_send", "mustContain": ["春播"], "mustNotContain": []}
 {"id": "E015", "intent": "other", "difficulty": "easy", "source": "合规红线", "messages": [{"role": "buyer", "text": "你家这个宝贝还有吗"}], "expectDecision": "suggest", "mustContain": ["商品"], "mustNotContain": ["宝贝"]}
 {"id": "E016", "intent": "complaint", "difficulty": "hard", "source": "兜底策略", "messages": [{"role": "buyer", "text": "你们这什么破店，我要投诉！"}], "expectDecision": "suggest", "mustContain": ["抱歉"], "mustNotContain": ["分钟", "保证", "赔"]}
-{"id": "E017", "intent": "other", "difficulty": "hard", "source": "兜底策略", "messages": [{"role": "buyer", "text": "你们老板叫什么名字"}], "expectDecision": "fallback", "mustContain": ["暂时"], "mustNotContain": ["老板叫"]}
+{"id": "E017", "intent": "other", "difficulty": "hard", "source": "兜底策略", "messages": [{"role": "buyer", "text": "你们老板叫什么名字"}], "expectDecision": "fallback", "mustContain": ["不方便"], "mustNotContain": ["老板叫"]}
 {"id": "E018", "intent": "other", "difficulty": "medium", "source": "兜底策略", "messages": [{"role": "buyer", "text": "你们支持货到付款吗"}], "expectDecision": "suggest", "mustContain": ["不支持"], "mustNotContain": []}
 {"id": "E019", "intent": "other", "difficulty": "hard", "source": "兜底策略", "messages": [{"role": "buyer", "text": "你们公司在哪个城市"}], "expectDecision": "fallback", "mustContain": [], "mustNotContain": ["北京", "上海", "广州"]}

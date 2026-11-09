@@ -208,6 +208,15 @@ input, textarea, select { font-family: inherit; }
 .auto-label { font-size: 12px; color: #dde3ee; font-weight: 500; }
 .auto-hint { font-size: 10.5px; color: #6f7a8d; margin-top: 6px; line-height: 1.5; }
 
+/* 「!」说明：入口小，别抢主按钮；点开是完整解释，不靠 hover 猜 */
+.help-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid #6f7a8d; background: transparent; color: #aab3c2;
+  font-size: 10px; font-weight: 700; line-height: 1; padding: 0;
+  margin-left: 3px; vertical-align: 1px; cursor: pointer;
+}
+.help-dot:hover { border-color: #fff; color: #fff; background: rgba(255, 255, 255, .12); }
+
 .switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider {
@@ -461,6 +470,19 @@ input, textarea, select { font-family: inherit; }
 
 .modal-body { flex: 1; overflow-y: auto; padding: 16px 20px 20px; }
 
+/* 专业版说明：一张对照表 + 一条计费口径，避免写成营销话术 */
+.pro-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.pro-table th, .pro-table td {
+  text-align: left; padding: 9px 10px; vertical-align: top; line-height: 1.65;
+  border-bottom: 1px solid #eef1f6;
+}
+.pro-table th { color: #6b7485; font-weight: 600; font-size: 12px; }
+.pro-table td:first-child { color: #8b95a5; white-space: nowrap; }
+.pro-note {
+  margin-top: 12px; padding: 10px 12px; border-radius: 8px;
+  background: #f5f7fb; font-size: 12px; color: #5b6577; line-height: 1.7;
+}
+
 .field { margin-bottom: 12px; }
 .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 5px; }
 .input, textarea.input, select.input {
@@ -644,3 +666,37 @@ textarea.input { min-height: 76px; resize: vertical; line-height: 1.6; }
   border:1px solid #fed7aa; background:#fff7ed; border-radius:9px;
   padding:7px 10px; margin-bottom:14px; font-size:12px; color:#9a3412;
 }
+
+/* ---------------- 回复日志 ---------------- */
+.log-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.log-bar .spacer { flex: 1; }
+.log-note { font-size: 12px; color: #8b95a5; }
+.log-seg { display: inline-flex; background: #f1f4f9; border-radius: 8px; padding: 2px; }
+.log-seg .seg { height: 26px; padding: 0 12px; border-radius: 6px; font-size: 12px; color: #5b6474; }
+.log-seg .seg.on { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+.log-bar .log-scope { height: 30px; width: 210px; flex: 0 0 210px; }
+.log-item { border: 1px solid #eef1f6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.log-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.log-time { font-size: 11.5px; color: #8b95a5; font-variant-numeric: tabular-nums; }
+.log-q { font-size: 12.5px; color: #3d4655; margin-bottom: 6px; }
+.log-a { font-size: 12.5px; color: #1f2733; line-height: 1.6; background: #f8fafd; border-radius: 8px; padding: 8px 10px; }
+.log-acts { display: flex; gap: 8px; margin-top: 8px; }
+.log-acts .btn-line { height: 26px; padding: 0 10px; font-size: 12px; }
+
+/* 表单里的单选与提示 */
+.radio { display: inline-flex; align-items: center; gap: 5px; margin-right: 14px; font-size: 12.5px; color: #3d4655; }
+.hint { font-size: 11.5px; color: #8b95a5; margin-top: 6px; line-height: 1.6; }
+
+/* 模板库 */
+.tpl-group { margin-bottom: 14px; }
+.tpl-group-h { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+.tpl-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #e6ebf2; border-radius: 9px; margin-bottom: 6px; }
+.tpl-main { flex: 1; min-width: 0; }
+.tpl-t { font-size: 13px; color: #0f172a; }
+.tpl-q { font-size: 11.5px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tpl-add { height: 26px; padding: 0 12px; font-size: 12px; }
+.tpl-done { font-size: 11.5px; color: #94a3b8; }
+
+.modal-store { font-size: 13px; font-weight: 400; color: #64748b; }
+.kb-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.kb-stats { margin: 0; }

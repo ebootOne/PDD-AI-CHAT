@@ -14,20 +14,7 @@ const understand = require('./understand');
 const templates = require('./kb-templates');
 
 // 问题类型 → 最贴近的模板；没有对应模板的，提示新建
-const ASK_TO_TPL = {
-  courier: 'tpl-courier-default',
-  shipping_time: 'tpl-ship-cutoff',
-  arrival_time: 'tpl-ship-days',
-  shipping_status: 'tpl-misc-track',
-  invoice: 'tpl-invoice-available',
-  payment: 'tpl-pay-methods',
-  return_policy: 'tpl-return-7',
-  after_sale: 'tpl-after-nosprout',
-  spec: 'tpl-product-spec',
-  usage: 'tpl-product-planting',
-  stock: 'tpl-product-spec',
-  price: 'tpl-freight-free',
-};
+const ASK_TO_TPL = {};
 
 const ASK_NAME = {
   courier: '快递公司',
@@ -96,14 +83,7 @@ function suggest(opts = {}) {
 }
 
 // 新店还没有兜底日志时，也要把「最常见的几类」推到商家面前
-const KEY_TEMPLATES = [
-  'tpl-courier-default',
-  'tpl-ship-cutoff',
-  'tpl-freight-free',
-  'tpl-invoice-available',
-  'tpl-return-7',
-  'tpl-after-damage',
-];
+const KEY_TEMPLATES = [];
 
 function missing() {
   const kb = store.getKnowledge();
@@ -131,14 +111,10 @@ const TOP_NAME = {
   shipping_time: '发货时间', courier: '快递公司', arrival_time: '到货时效',
   invoice: '发票', payment: '支付方式', return_policy: '退换规则',
   after_sale: '售后', spec: '规格', stock: '库存', price: '价格运费',
-  usage: '种植方法', nego: '议价', other: '其他',
+  usage: '使用方法', nego: '议价', other: '其他',
 };
 
-const TOP_TPL = {
-  shipping_time: 'tpl-ship-cutoff', courier: 'tpl-courier-default', arrival_time: 'tpl-ship-days',
-  invoice: 'tpl-invoice-available', payment: 'tpl-pay-methods', return_policy: 'tpl-return-7',
-  after_sale: 'tpl-after-damage', spec: 'tpl-product-spec', price: 'tpl-freight-free', usage: 'tpl-product-planting',
-};
+const TOP_TPL = {};
 
 /** 本店高频问题（按店铺统计，用于推荐该店最该补的模板） */
 function topAsks(storeId, limit = 6) {

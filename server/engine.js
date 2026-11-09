@@ -20,6 +20,8 @@ const manualStore = require('./manuals');
 const router = require('./router');
 const buffer = require('./buffer');
 const { pickFallback, publicFallback, SHOP_ASK } = require('./policy');
+const templates = require('./templates');
+const natural = require('./natural');
 const { rewrite, warm } = require('./style');
 const tone = require('./tone');
 const { chat, extractJson } = require('./llm');
@@ -165,6 +167,8 @@ function ruleCandidates(hits, buyerText) {
   if (!top) return [];
   const answer = String(top.entry.answer || '').trim();
   if (!answer) return [];
+  // 政策示例：条件句不能截短，否则会丢「节假日/指定快递/专票」这些边界
+  if (top.entry.noShort) return [{ tone: '标准', text: answer }];
 
   const sentences = answer.split(/[。！!？?\n]/).filter((x) => x.trim());
   const first = sentences[0] || answer;
@@ -339,7 +343,7 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   // 1. 高危买家消息：先安抚（不能让买家干等），同时把告警级别拉满
   const mustHandoff = risks.some((r) => r === '投诉威胁' || r === '索赔诉求');
   if (mustHandoff) {
-    const fb = pickFallback({ risks, intent, attempt, capabilities: cfg.capabilities });
+    const fb = pickFallback({ risks, intent, attempt, ask: un.ask, capabilities: cfg.capabilities });
     // 投诉：只陈述商家已确认的事实（如正规渠道），没有声明就只道歉。
     // 不承诺跟进、不索取订单号/照片——全自动没有人接。
     const stmt = (knowledge || []).find(
@@ -506,18 +510,38 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   // 先补称呼，再补语气词：事实短句不带语气词会像机器播报（"1.85 元起。"）
   candidates = candidates.map((c) => {
     const withSalutation = applySalutation(c.text, cfg, isFirstReply);
-    return { ...c, text: warm(withSalutation, { tier, emotion: un.emotion, ask: un.ask }) };
+    return { ...c, text: natural.speakTime(warm(withSalutation, { tier, emotion: un.emotion, ask: un.ask })) };
   });
 
-  // Pro 模式：本地只保留高置信模板（>=0.85），其余全交给模型，不再"凑合答"
+  // 本地能答的前提：有候选 + 置信度 ≥0.85 + 来源是知识/商品/说明书。
+  // 不再限定「四个模板」：模板会随商家增长，本地也跟着多答，模板之外的才交模型。
   const engineMode = ctx.engine || cfg.engine || 'standard';
-  if (engineMode === 'pro' && candidates.length && confidence < 0.85) {
+  const guardOk = un.ask === 'greeting' || un.ask === 'privacy'; // 问候/隐私不是事实题
+  const confidentLocal = candidates.length > 0
+    && confidence >= 0.85
+    && (source === 'product' || source === 'manual' || source === 'rule');
+  // 没有模型通道时（评测/离线），交模型等于没有回复——直接走兜底，保证每句都有可发的话
+  const hasModelChannel = Boolean((cfg.backend && cfg.backend.url) || (cfg.llm && cfg.llm.baseUrl));
+  if (!confidentLocal && !guardOk && hasModelChannel) {
+    return Object.assign(base, {
+      decision: 'suggest',
+      confidence: 0,
+      source: 'none',
+      reason: '本地置信不足，交模型',
+      suggestions: [],
+      needsModel: true,
+      engine: engineMode,
+      latencyMs: Date.now() - started,
+    });
+  }
+  // 有模型通道：低置信的不本地答（交给模型）；没有通道：本地尽力答，答不上再兜底
+  if (!confidentLocal && hasModelChannel) {
     candidates = [];
     source = 'none';
   }
 
   if (!candidates.length) {
-    const fb = pickFallback({ risks, intent, attempt, noContext: hits.length === 0 && !pm, capabilities: cfg.capabilities });
+    const fb = pickFallback({ risks, intent, attempt, ask: un.ask, noContext: hits.length === 0 && !pm, offtopic: un.ask === 'other' && hits.length === 0 && !pm && !(ctx.goods && ctx.goods.title), capabilities: cfg.capabilities });
     // 店铺事实缺口：对外用“以实际为准”的口径，不暴露内部没录
     const shopGap = !blocked.length && !hits.length && !pm && SHOP_ASK.has(un.ask);
     const concernText = concerns.fallbackText(ctx.buyerText || '');

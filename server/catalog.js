@@ -146,6 +146,7 @@ function importCsv(text, existing) {
     if (r['价格'] || r['price']) item.price = Number(r['价格'] || r['price']) || 0;
     if (r['库存'] || r['stock']) item.stock = Number(r['库存'] || r['stock']) || 0;
     if (r['链接'] || r['url']) item.url = r['链接'] || r['url'];
+    if (r['规格'] || r['spec']) item.spec = String(r['规格'] || r['spec']).trim().slice(0, 80);
 
     const aliasCell = r['别名'] || r['aliases'];
     if (aliasCell) item.aliases = String(aliasCell).split(/[|,，、]/).map((s) => s.trim()).filter(Boolean);

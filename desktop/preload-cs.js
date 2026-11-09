@@ -200,8 +200,25 @@ function pddCapture() {
     goodsTitle,
     goodsPrice,
     buyerName: nameEl ? nameEl.innerText.trim() : '',
+    order: pddOrderCapture(),
     url: location.href,
   };
+}
+
+// 右侧订单面板（2026-11-09 真实页取证：.right-panel-container，含「最新订单/个人订单」）
+// 只取白名单字段：状态/快递/运单号。收件人、电话、地址一律不取（docs/36 硬约束）。
+function pddOrderCapture() {
+  const panel = document.querySelector('.right-panel-container');
+  if (!panel) return null;
+  const txt = panel.innerText || '';
+  if (/没有相关订单|暂无订单|没有订单/.test(txt)) return { hasOrder: false };
+  const status = (txt.match(/(待付款|待发货|已发货|待收货|已签收|交易成功|已取消|退款中|售后中)/) || [])[1] || '';
+  const courier = (txt.match(/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/) || [])[1] || '';
+  // 必须带「运单/快递单号」标签才认，避免把订单号当运单号
+  const tn = txt.match(/(?:运单号|快递单号|物流单号)[:：\s]*([A-Za-z0-9]{8,})/);
+  const trackingNo = tn ? tn[1] : '';
+  if (!status && !courier && !trackingNo) return { hasOrder: false };
+  return { hasOrder: true, status, courier, trackingNo, source: 'right-panel' };
 }
 
 function pddInput() {
@@ -287,6 +304,7 @@ function capture() {
     buyerName: guessByLabel(/^(昵称|买家昵称|客户昵称|用户昵称)$/, { maxLen: 24 }),
     goodsTitle: guessByLabel(/^(商品|商品信息|商品名称|宝贝|拍下商品)$/, { maxLen: 40, forbidTime: true, forbidMask: true }),
     rows: dedup.length,
+    order: null,
     url: location.href,
   };
 }

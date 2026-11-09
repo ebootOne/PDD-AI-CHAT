@@ -17,17 +17,21 @@ const catalog = require('./catalog');
 const alerts = require('./alerts');
 const backend = require('./backend');
 const manuals = require('./manuals');
-const { rewrite } = require('./style');
+const { rewrite, warm } = require('./style');
 const engine = require('./engine');
 const judge = require('./judge');
 const sensitive = require('./sensitive');
 const kbTemplates = require('./kb-templates');
 const kbSuggest = require('./kb-suggest');
 const understand = require('./understand');
+const persona = require('./persona');
+const natural = require('./natural');
 const focus = require('./focus');
 const session = require('./session');
 const policy = require('./policy');
 const facts = require('./facts');
+const factRegistry = require('./fact-registry');
+const metrics = require('./metrics');
 
 const ROOT = path.join(__dirname, '..');
 const MIME = {
@@ -144,7 +148,7 @@ const server = http.createServer(async (req, res) => {
       const s = String(t || '');
       if (/发货/.test(s)) return 'shipping_time';
       if (/到货|时效/.test(s)) return 'arrival_time';
-      if (/包邮|运费/.test(s)) return 'price';
+      if (/包邮|运费/.test(s)) return 'freight';
       if (/退换|退货/.test(s)) return 'return_policy';
       if (/不发芽|售后/.test(s)) return 'after_sale';
       if (/发票/.test(s)) return 'invoice';
@@ -205,7 +209,7 @@ const cfg = store.getConfig();
       const s = String(t || '');
       if (/发货/.test(s)) return 'shipping_time';
       if (/到货|时效/.test(s)) return 'arrival_time';
-      if (/包邮|运费/.test(s)) return 'price';
+      if (/包邮|运费/.test(s)) return 'freight';
       if (/退换|退货/.test(s)) return 'return_policy';
       if (/不发芽|售后/.test(s)) return 'after_sale';
       if (/发票/.test(s)) return 'invoice';
@@ -262,10 +266,12 @@ const cfg = store.getConfig();
 
     if (p === '/api/knowledge' && req.method === 'GET') {
       const storeId = url.searchParams.get('storeId');
+      const includeGlobal = url.searchParams.get('includeGlobal') === '1';
       let list = store.getKnowledge().filter((x) => !x.archived);
       if (storeId) {
-        // 只返回本店条目：通用知识不再参与任何店铺的回答（ISS-001）
-        list = list.filter((x) => x.storeId === storeId);
+        // 本店条目；includeGlobal=1 时带上商家显式标记「整个工具」的模板（scope=tool）。
+        // 默认不带：通用知识不参与店铺回答（ISS-001，logic-check K18 按默认口径断言）
+        list = list.filter((x) => x.storeId === storeId || (includeGlobal && x.scope === 'tool'));
       }
       return send(res, 200, { ok: true, items: list });
     }
@@ -277,7 +283,11 @@ const cfg = store.getConfig();
         list = body.items;
       } else if (body.item) {
         const item = body.item;
-        if (!item.storeId && body.storeId) item.storeId = body.storeId;
+        // 「整个工具」= scope:tool + storeId 空；只有显式标记才会跨店
+        if (item.scope === 'tool') item.storeId = '';
+        else if (!item.storeId && body.storeId) item.storeId = body.storeId;
+        if (item.enabled === undefined) item.enabled = true;
+        if (!Array.isArray(item.keywords)) item.keywords = String(item.keywords || '').split(/[,，、\s]+/).filter(Boolean);
         item.updatedAt = new Date().toISOString();
         item.id = item.id || 'kb_' + Date.now().toString(36);
         const idx = list.findIndex((x) => x.id === item.id);
@@ -388,7 +398,8 @@ const cfg = store.getConfig();
       const list = store.getKnowledge();
       let n = 0;
       for (const k of list) {
-        if (k.storeId) continue;
+        // 只归档「无归属的通用知识」，不能连「整个工具」的模板一起归档
+        if (k.storeId || k.scope === 'tool') continue;
         k.archived = !!archive;
         if (archive) k.enabled = false;
         n++;
@@ -422,6 +433,7 @@ const cfg = store.getConfig();
     }
 
     if (p === '/api/reply' && req.method === 'POST') {
+      const reqStart = Date.now();
       const ctx = await readBody(req);
       // 给没有 ask 标签的老知识补分类：否则它会和模板条目一起参与“打平惩罚”，把置信度压下去
 (function tagKnowledge() {
@@ -432,7 +444,7 @@ const cfg = store.getConfig();
       const s = String(t || '');
       if (/发货/.test(s)) return 'shipping_time';
       if (/到货|时效/.test(s)) return 'arrival_time';
-      if (/包邮|运费/.test(s)) return 'price';
+      if (/包邮|运费/.test(s)) return 'freight';
       if (/退换|退货/.test(s)) return 'return_policy';
       if (/不发芽|售后/.test(s)) return 'after_sale';
       if (/发票/.test(s)) return 'invoice';
@@ -475,11 +487,26 @@ const cfg = store.getConfig();
 
 const cfg = store.getConfig();
       const conversationId = ctx.conversationId || ctx.buyerName || 'unknown';
+      const replyCache = global.__replyCache || (global.__replyCache = new Map());
+      const lastBuyerText = (() => {
+        const ms = (ctx.messages || []).filter((m) => m.role === 'buyer');
+        return ms.length ? String(ms[ms.length - 1].text || '') : '';
+      })();
+      const cacheKey = [conversationId, lastBuyerText, (ctx.messages || []).length].join('|');
       const ok = ctx.mode === 'auto' || cfg.mode === 'auto' ? rateOk(cfg, conversationId) : true;
 
-      // 点卡制：余额不足 1 点直接拒绝，不产出回复（也就没有价值可交付）。
+      // 去重：客户端监控/双击可能在 15 秒内重复请求同一句，直接返回上次结果，
+      // 不再调模型、不再扣点，也不写日志（否则日志会被同一句刷屏）。
+      const cachedReply = replyCache.get(cacheKey);
+      if (cachedReply && Date.now() - cachedReply.ts < 15000) {
+        const q = quotaStore.getQuota();
+        return send(res, 200, { ...cachedReply.result, deduped: true, cost: 0, quota: { balance: q.balance, cost: 0 } });
+      }
+
+      // 点卡制：余额扣不起任何一条就直接拒绝，不产出回复（也就没有价值可交付）。
+      // 计费改成小数后，门槛不能再写死 1 点；0.001 是计费的最小粒度。
       const quota = quotaStore.getQuota();
-      if (quota.balance < 1) {
+      if (!(Number(quota.balance) >= 0.001)) {
         await store.addLog({ type: 'reply', conversationId, buyerName: ctx.buyerName, decision: 'handoff', reason: '点数不足', cost: 0 });
         return send(res, 200, {
           intent: '-',
@@ -511,13 +538,22 @@ const cfg = store.getConfig();
       const kbForStore = (() => {
         const all = store.getKnowledge().filter((x) => !x.archived);
         if (!ctx.storeId) return all.filter((x) => !x.storeId); // 无店铺上下文（测试/接口）用通用
-        return all.filter((x) => x.storeId === ctx.storeId);
+        // 本店条目 + 商家显式标记为「整个工具」的模板（scope=tool）
+        // ISS-001 仍然成立：只有带 scope=tool 的条目才跨店；种子条目用的是 scope=global（历史命名），不参与跨店
+        return all.filter((x) => x.storeId === ctx.storeId || x.scope === 'tool');
       })();
       const result = await engine.generate(ctx, cfg, kbForStore, { rateOk: ok, attempt });
 
       // 本地优先：只有在"没答案 / 不确定"时才走服务端模型
       const bcfg = cfg.backend || {};
       const engineMode = ctx.engine || cfg.engine || 'standard';
+
+      // 计费口径（docs/07）：本地模板 0.5 点/条；模型回复按服务端返回的点数。
+      // 文案里不出现成本与利润率——那两个数只存在服务端。
+      const billingCfg = cfg.billing || {};
+      const localPoints = Number.isFinite(Number(billingCfg.localPoints))
+        ? Math.max(0, Number(billingCfg.localPoints))
+        : 1;
 
       // Pro：先把「这一单知道什么」取成事实包，模型只拿事实，不拿一堆无关资料。
       // 取数只在配了服务端时做，本地能直接答的不会花这份算力。
@@ -532,38 +568,83 @@ const cfg = store.getConfig();
               .filter((h) => h.entry),
             kb: kbForStore,
             storeId: ctx.storeId,
+            order: ctx.order || null,
           })
         : null;
       let factUsed = null;
       if (factPack) {
         result.facts = {
+          index: factPack.index || [],
+          mode: factPack.route.mode,
           route: factPack.route,
           items: factPack.items,
           missing: factPack.missing,
           budget: factPack.budget,
           tokens: factPack.budget.tokens,
+          registry: factPack.route.registry,
         };
+        if (ctx.test && !factPack.route.registry
+          && (factPack.route.mode !== 'normal' || factPack.missing.length)) {
+          factRegistry.recordGap({
+            buyerText: result.buyerText,
+            asks: factPack.route.asks,
+            mode: factPack.route.mode,
+            trigger: factPack.route.widen && factPack.route.widen.trigger,
+          });
+        }
       }
 
       // 一句话问了多件事：单条模板只覆盖一件，Pro 一律交给模型逐条答（ISS-008）
-      const multiIntent = Boolean(factPack && factPack.route.asks.length > 1);
+      const multiIntent = Boolean(factPack && (factPack.route.multi || factPack.route.asks.length > 1));
+      // 注册表说「必须有订单/说明书」，但事实包里没有 → 本地模板（发货时效）会答偏，必须交模型
+      const regNeeds = factPack && factPack.route.registry ? factPack.route.registry.needs || [] : [];
+      const regMissing = regNeeds.length > 0
+        && regNeeds.some((b) => (factPack.missing || []).some((m) => m.block === b));
+      // 注册表说这句话问的是「发没发」，引擎却理解成「什么时候发」——本地模板会答偏，交模型
+      const regAsk = factPack && factPack.route.registry ? factPack.route.registry.ask : null;
+      const regAskMismatch = Boolean(regAsk && result.understanding
+        && result.understanding.ask && regAsk !== result.understanding.ask);
+      const regForce = regMissing || regAskMismatch;
+      // 事实包里有结构化规格，本地却拿「规格以商品页为准」糊弄 → 交模型用事实答
+      const specFact = factPack && factPack.route.asks.includes('spec')
+        && factPack.items.some((i) => i.block === 'product' && i.label === '规格');
+      const factsOverride = Boolean(specFact);
 
+      // 买家问了具体数值，本地候选没给出 → 不算本地命中，交模型用事实答
+      const localDimsMissing = judge.missingDims(
+        (result.suggestions && result.suggestions[0] && result.suggestions[0].text) || '',
+        (result.understanding || {}).dims || [],
+      );
       const lowLocal =
+        localDimsMissing.length > 0 ||
         result.decision === 'fallback' ||
         (result.confidence || 0) < (bcfg.minConfidence || 0.82) ||
         result.ambiguous ||
-        multiIntent;
+        multiIntent ||
+        regForce ||
+        factsOverride;
 
       // 风险判定在前：投诉/索赔等高风险会话不走模型润色，保留安抚话术并转人工。
       // 否则模型给的候选会把 decision 改回 suggest，绕过复核队列。
       const highRisk = result.alert === 'high';
       // 商品目录/说明书是权威数据：本地已经从目录里答出来了，就不该再让模型覆盖成「以页面为准」
       // 多意图例外：单条模板只能答一件事，必须交给模型逐条覆盖（ISS-008）
-      const authoritative = !multiIntent && (result.source === 'product' || result.source === 'manual');
+      const authoritative = !multiIntent && !regForce && !factsOverride && (result.source === 'product' || result.source === 'manual');
       // 一点依据都没有的事实类问题，模型只会编或只会说“查不到”，白白多等 1~2 秒
-      // 注意：这里仍按「引擎命中」判定，不把事实包算进来——事实包的存在不能替模型作保
-      const noGround = !(result.knowledge || []).length && !(result.products || []).length;
+      // 事实包里的结构化事实（商品/说明书/订单/政策）也算依据：
+      // 商品卡标题绑定出的规格、说明书分节，引擎的 knowledge/products 里是看不到的
+      const factGround = Boolean(factPack && factPack.items.some((i) => ['order', 'product', 'manual', 'policy', 'general', 'profile'].includes(i.block)));
+      const noGround = !(result.knowledge || []).length && !(result.products || []).length && !factGround;
       const askKey0 = (result.understanding || {}).ask;
+      if (factPack && cfg.businessHours && cfg.businessHours.start && cfg.businessHours.end
+          && !factPack.items.some((i) => i.block === 'profile')) {
+        factPack.items.push({
+          id: 'F' + (factPack.items.length + 1),
+          block: 'profile',
+          label: '客服在线时间',
+          text: natural.hoursText(cfg.businessHours),
+        });
+      }
       const factualAsk = policy.SHOP_ASK.has(askKey0) || askKey0 === 'privacy';
 
       const willReplace = Boolean((result.understanding || {}).threat);
@@ -584,6 +665,10 @@ const cfg = store.getConfig();
           tone: result.tier,
           style: cfg.style,
           facts: factPack || undefined,
+          persona: persona.system(),
+          profile: (cfg.businessHours && cfg.businessHours.start && cfg.businessHours.end)
+            ? { hours: { start: natural.speakTime(cfg.businessHours.start), end: natural.speakTime(cfg.businessHours.end) } }
+            : undefined,
         });
 
         // 引用校验第一步：模型说它用了哪条，必须真的存在（假引用按无依据处理）
@@ -605,7 +690,8 @@ const cfg = store.getConfig();
           for (const c of r.candidates) {
             const rw = await rewrite(c.text, cfg.style);
             if (rw.remaining.some((i) => i.severity === 'high')) continue;
-            styled.push({ tone: c.tone || '标准', text: rw.text });
+            // 模型的事实短句同样补温度（不改变数字/否定）
+            styled.push({ tone: c.tone || '标准', text: natural.speakTime(warm(rw.text, { ask: (result.understanding || {}).ask, tier: result.tier })) });
           }
           // 服务端返回的候选同样要过本地敏感词闸——服务端不可信，闸门必须在自己手里
           const screened = styled.filter((c) => sensitive.check(c.text, cfg.forbiddenOutput).ok);
@@ -618,8 +704,12 @@ const cfg = store.getConfig();
             result.source = 'backend';
             result.reason = '本地不确定，已调用服务端模型';
             result.decision = 'suggest';
-            result.cost = 1;
-            result.marginCost = 0.004;
+            // 模型回复按服务端算出的点数扣（成本×利润率÷点单价），客户端拿不到成本
+            const billPts = r.billing ? Number(r.billing.points) : NaN;
+            result.cost = Number.isFinite(billPts) && billPts > 0 ? billPts : localPoints;
+            result.costReason = 'model';
+            result.marginCost = 0;
+            result.billing = { points: result.cost, peak: Boolean(r.billing && r.billing.peak) };
             result.backendMs = r.ms;
           }
         } else if (r && r.error) {
@@ -651,6 +741,22 @@ const cfg = store.getConfig();
       // 出厂质检：对题吗？站得住商家立场吗？到底有没有结论？
       // 放在计费之前——没答上就不该扣点，也不该作为高置信度候选发出去。
       if (result.decision !== 'handoff' && result.alert !== 'high' && (result.suggestions || []).length) {
+        // 本地/模型都没给出候选（例如无服务端、或本地只允许四个模板）：先给兜底，别让空候选进质检
+        if (!(result.suggestions || []).length) {
+          const ask0 = (result.understanding || {}).ask;
+          const fb0 = policy.pickFallback({ risks: result.risks, intent: result.intent, attempt, ask: ask0, capabilities: cfg.capabilities || {} });
+          const offtopicText = ask0 === 'other' && !(result.knowledge || []).length && !(result.products || []).length
+            ? '这个信息以页面显示为准哈，商品和订单的问题您随时问我。'
+            : '';
+          result.suggestions = [{ tone: '兜底', text: engine.applySalutation(offtopicText || fb0.text, cfg, !(ctx.messages || []).some((m) => m.role === 'seller')) }];
+          result.decision = 'fallback';
+          result.source = 'policy';
+          result.confidence = 0.3;
+          result.cost = 1;
+          result.costReason = 'fallback';
+          result.reason = '没有可用候选，给兜底话术';
+        }
+
         const verdict = judge.review({
           buyerText: result.buyerText,
           understanding: result.understanding,
@@ -697,10 +803,18 @@ const cfg = store.getConfig();
           result.judge = verdict.issues;
         } else if (verdict.action === 'fallback') {
           const ask = (result.understanding || {}).ask;
-          const isGap = (verdict.issues || []).includes('无依据') && policy.SHOP_ASK.has(ask);
-          const fb = policy.pickFallback({ risks: result.risks, intent: result.intent, attempt, noContext: true, capabilities: cfg.capabilities || {} });
+          const issueSet = verdict.issues || [];
+          const isGap = (issueSet.includes('无依据') || issueSet.includes('数字无依据') || issueSet.includes('单位不一致')) && policy.SHOP_ASK.has(ask);
+          const fb = policy.pickFallback({ risks: result.risks, intent: result.intent, attempt, ask: (result.understanding || {}).ask, noContext: true, offtopic: ((result.understanding || {}).ask === 'other' && !(result.knowledge || []).length && !(result.products || []).length && !(ctx.goods && ctx.goods.title)), capabilities: cfg.capabilities || {} });
           const concernText = require('./concerns').fallbackText(result.buyerText || '');
-          const fbText = concernText || (isGap ? policy.publicFallback(ask, result.buyerText || '') : fb.text);
+          const neg = issueSet.includes('替商家否定');
+          const negText = neg && policy.SHOP_ASK.has(ask) ? policy.publicFallback(ask, result.buyerText || '') : '';
+          const unitIssue = issueSet.includes('单位不一致') || issueSet.includes('数字无依据');
+          const unitText = unitIssue
+            ? policy.publicFallback(policy.SHOP_ASK.has(ask) ? ask : 'spec', result.buyerText || '')
+            : '';
+          const askGap = policy.SHOP_ASK.has(ask) && !result.buffer;
+          const fbText = concernText || negText || unitText || (askGap || isGap ? policy.publicFallback(ask, result.buyerText || '') : fb.text);
           result.suggestions = [{ tone: '兜底', text: engine.applySalutation(fbText, cfg, firstReply) }];
           result.decision = 'fallback';
           result.confidence = 0.3;
@@ -771,11 +885,23 @@ const cfg = store.getConfig();
       result.suggestions = f.suggestions;
       if (f.note) result.focusNote = f.note;
 
+      // 本地模板/兜底：统一按配置的点数（默认 0.5）。
+      // 例外：模型已调用但被质检换成兜底时，成本已经发生——按「本地价与模型价取高」扣，
+      // 保证既不会为兜底收模型的钱，也不会出现长回答亏本。
+      if (result.cost > 0 && result.source !== 'backend') {
+        const billPts = result.billing ? Number(result.billing.points) : NaN;
+        result.cost = Number.isFinite(billPts) && billPts > localPoints ? billPts : localPoints;
+        result.costReason = result.costReason || 'local';
+      }
+
       let billed = null;
       if (result.cost > 0) {
         billed = quotaStore.consume(result.cost, 'reply:' + (ctx.buyerName || 'anony'), ctx.requestId);
         if (!billed.ok) {
-          result.reason = '扣点失败：' + billed.error;
+          // 扣不起就不交付：不能既不给点数、又把可发送回复给出去
+          result.suggestions = [];
+          result.decision = 'handoff';
+          result.reason = '点数不足：本条未扣点，也不产出回复';
           result.cost = 0;
         }
       }
@@ -855,9 +981,84 @@ const cfg = store.getConfig();
           factBlocks: result.facts ? (result.facts.route.blocks || []).join('+') : undefined,
           factUsed: result.facts && result.facts.used ? result.facts.used.length : undefined,
           factInvalid: result.facts && result.facts.invalidUsed ? result.facts.invalidUsed.length : undefined,
+          factMode: result.facts ? result.facts.mode : undefined,
+          factItems: result.facts && result.facts.items ? result.facts.items.length : undefined,
+          factMissing: result.facts && result.facts.missing ? result.facts.missing.map((m) => m.block).join('+') : undefined,
+          factRegistry: result.facts ? (result.facts.registry ? result.facts.registry.id : '') : undefined,
+          factWiden: result.facts && result.facts.route && result.facts.route.widen
+            ? result.facts.route.widen.trigger
+            : undefined,
+          engine: engineMode,
+          totalMs: Date.now() - reqStart,
         });
       }
+      replyCache.set(cacheKey, { ts: Date.now(), result });
+      if (replyCache.size > 200) {
+        for (const k of [...replyCache.keys()].slice(0, replyCache.size - 200)) replyCache.delete(k);
+      }
       return send(res, 200, result);
+    }
+
+    // 事实包预览：这句话本地会取哪几块、有没有扩召回（不调模型、不扣点）
+    if (p === '/api/facts/preview' && req.method === 'POST') {
+      const body = await readBody(req);
+      const storeId = body.storeId || '';
+      const kb = store.getKnowledge().filter((x) => !x.archived
+        && (!storeId || x.storeId === storeId || x.scope === 'tool'));
+      const pack = facts.build({
+        buyerText: body.buyerText || '',
+        understanding: body.understanding || null,
+        goods: body.goods || {},
+        products: Array.isArray(body.products) ? body.products : [],
+        knowledgeHits: [],
+        kb,
+        storeId,
+        order: body.order || null,
+      });
+      return send(res, 200, { ok: true, pack });
+    }
+
+    // 路由注册表：可增长、可停用；测试时记录缺口
+    if (p === '/api/facts/registry' && req.method === 'GET') {
+      const data = factRegistry.load();
+      return send(res, 200, {
+        ok: true,
+        entries: data.entries,
+        gaps: factRegistry.loadGaps().filter((g) => g.status === 'open'),
+      });
+    }
+
+    if (p === '/api/facts/registry' && req.method === 'POST') {
+      const body = await readBody(req);
+      try {
+        const entry = factRegistry.upsert(body.entry || body);
+        return send(res, 200, { ok: true, entry });
+      } catch (e) {
+        return send(res, 400, { ok: false, error: String(e.message || e) });
+      }
+    }
+
+    if (p === '/api/facts/registry/disable' && req.method === 'POST') {
+      const { id } = await readBody(req);
+      const done = factRegistry.disable(String(id || ''));
+      return send(res, done ? 200 : 404, { ok: done });
+    }
+
+    if (p === '/api/facts/registry/gaps/dismiss' && req.method === 'POST') {
+      const { key } = await readBody(req);
+      const done = factRegistry.dismissGap(String(key || ''));
+      return send(res, done ? 200 : 404, { ok: done });
+    }
+
+    // 让模型提议一条注册表条目（一次调用，不扣商家点数；只用于测试/维护）
+    if (p === '/api/facts/registry/analyze' && req.method === 'POST') {
+      const { buyerText } = await readBody(req);
+      if (!buyerText) return send(res, 400, { ok: false, error: '缺少 buyerText' });
+      const allCfg = store.getConfig();
+      if (!allCfg.backend || !allCfg.backend.url) return send(res, 200, { ok: false, error: '未配置服务端模型' });
+      const r = await backend.registryAnalyze(allCfg, buyerText);
+      if (!r || !r.ok) return send(res, 200, { ok: false, error: (r && r.error) || '分析失败' });
+      return send(res, 200, { ok: true, proposal: r.proposal, ms: r.ms });
     }
 
     if (p === '/api/backend/test') {
@@ -1029,6 +1230,7 @@ const cfg = store.getConfig();
       const it = list.find((x) => String(x.goodsId) === String(body.goodsId));
       if (!it) return send(res, 404, { ok: false, error: '商品不存在' });
       if (typeof body.category === 'string') it.category = body.category.trim().slice(0, 20);
+      if (typeof body.spec === 'string') it.spec = body.spec.trim().slice(0, 80);
       it.updatedAt = new Date().toISOString();
       productStore.save(list);
       return send(res, 200, { ok: true, item: it });
@@ -1096,6 +1298,17 @@ const cfg = store.getConfig();
       return send(res, 200, { ok: Boolean(item), item });
     }
 
+    // 运行指标：仅内部（模型调用率、成本不外露给商家）
+    if (p === '/api/metrics' && req.method === 'GET') {
+      const days = Math.min(30, Math.max(1, Number(url.searchParams.get('days')) || 1));
+      const includeTest = url.searchParams.get('includeTest') === '1';
+      const since = Date.now() - days * 24 * 60 * 60 * 1000;
+      const logs = store.getLogs(5000).filter((x) => includeTest || !x.test);
+      const m = metrics.summarize(logs, { since });
+      const gaps = factRegistry.loadGaps().filter((g) => g.status === 'open').length;
+      return send(res, 200, { ok: true, days, includeTest, gaps, ...m, internal: true });
+    }
+
     if (p === '/api/stats') {
       const logs = store.getLogs(2000);
       const review = store.getReviewQueue();
@@ -1154,7 +1367,7 @@ const cfg = store.getConfig();
       const s = String(t || '');
       if (/发货/.test(s)) return 'shipping_time';
       if (/到货|时效/.test(s)) return 'arrival_time';
-      if (/包邮|运费/.test(s)) return 'price';
+      if (/包邮|运费/.test(s)) return 'freight';
       if (/退换|退货/.test(s)) return 'return_policy';
       if (/不发芽|售后/.test(s)) return 'after_sale';
       if (/发票/.test(s)) return 'invoice';

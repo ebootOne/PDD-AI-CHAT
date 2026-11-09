@@ -16,10 +16,15 @@ const state = {
   busy: false,
   auto: localStorage.getItem('autoReply') === '1',
   dryRun: localStorage.getItem('dryRun') === '1',
+  devMode: localStorage.getItem('devMode') === '1',
   lastFilled: '',
   quota: null,
   health: false,
   stats: null,
+  engine: 'standard', // standard | pro：以本地配置为准，界面只是开关
+  lastAutoKey: '', // 自动模式：上一次自动生成的「会话+最后一句」，防止同一句反复扣点
+  logView: 'current', // 回复日志：current=当前店铺 / all=所有店铺
+  logScope: 'current', // 从日志加入模板：current=当前店铺 / global=整个工具
 };
 
 const $ = (s) => document.querySelector(s);
@@ -32,6 +37,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// 点数现在有小数（本地 0.5、模型下限 0.5，长回答按成本往上），显示到 3 位并去掉末尾 0
+function fmtPts(n) {
+  const v = Number(n) || 0;
+  if (!v) return '0';
+  return (Math.round(v * 1000) / 1000).toFixed(3).replace(/\.?0+$/, '');
 }
 
 let toastTimer = null;
@@ -129,7 +141,7 @@ function shortUrl(u) {
 // ---------------------------------------------------------------- 助手面板
 
 function renderAssistant() {
-  $('#modeTag').textContent = state.auto ? '自动模式' : '建议模式';
+  $('#modeTag').textContent = (state.auto ? '自动模式' : '建议模式') + (state.engine === 'pro' ? ' · Pro' : '');
   $('#modeTag').classList.toggle('auto', state.auto);
 
   const cap = state.capture;
@@ -210,12 +222,12 @@ function renderAssistant() {
 
   if (r.knowledgeGap) {
     html += `<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;color:#92400e;display:flex;gap:8px;align-items:center">
-      <span style="flex:1">这条问题知识库没有，回复用了「以实际为准」的口径。</span>
-      <button class="btn-line ghost" id="gapAdd" style="height:26px;padding:0 10px;font-size:12px">补一条知识</button>
+      <span style="flex:1">这条还没有模板，先用了「以实际为准」的口径。补一条模板，下次同类问题直接答——不用兜底，也更省点。</span>
+      <button class="btn-line ghost" id="gapAdd" style="height:26px;padding:0 10px;font-size:12px">补一条模板</button>
     </div>`;
   }
 
-  const cost = r.cost > 0 ? r.cost + ' 点' : '0 点';
+  const cost = fmtPts(r.cost) + ' 点';
   const src = r.source === 'llm' ? '模型' : r.source === 'rule' ? '本地知识' : (r.source || '—');
   html += `<div class="meta-line">
       意图 <b>${esc(r.intent)}</b> · 置信度 <b>${r.confidence != null ? r.confidence : '—'}</b> · 来源 <b>${src}</b> · 消耗 <b>${cost}</b> · ${r.latencyMs}ms
@@ -230,7 +242,9 @@ function renderAssistant() {
   }
 
   if (r.decision === 'fallback') {
-    html += `<div class="fallback-tip">知识库没接住，已生成兜底话术（不承诺、不报价）。${r.alert === 'high' ? '已标记为高优先级，请尽快人工接手。' : ''}</div>`;
+    const lp = fmtPts(state.localPoints != null ? state.localPoints : 0.5);
+    html += `<div class="fallback-tip">这条用的是兜底话术，已按 ${lp} 点计费。补一条模板，下次同类问题直接答，不用兜底。${r.alert === 'high' ? ' 已标记为高优先级，请尽快人工接手。' : ''}
+      <button class="btn-line ghost" id="fallbackAdd" style="height:24px;padding:0 8px;font-size:11px;margin-left:8px">补一条模板</button></div>`;
   }
 
   if (r.risks && r.risks.length) {
@@ -271,6 +285,8 @@ function renderAssistant() {
 
   const gapAdd = document.getElementById('gapAdd');
   if (gapAdd) gapAdd.addEventListener('click', () => openWorkbench('kb'));
+  const fallbackAdd = document.getElementById('fallbackAdd');
+  if (fallbackAdd) fallbackAdd.addEventListener('click', () => openWorkbench('kb'));
 
   asBody.querySelectorAll('button[data-goods]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -301,6 +317,10 @@ function decisionText(d) {
 
 // ---------------------------------------------------------------- 动作
 
+function capKey(cap) {
+  return [cap && cap.url, cap && cap.buyerName, cap && cap.lastBuyerText].join('|');
+}
+
 async function generate(isAuto = false) {
   if (state.busy) return;
   state.busy = true;
@@ -317,6 +337,8 @@ async function generate(isAuto = false) {
       return;
     }
     state.capture = cap;
+    // 手动点「生成」也算这句已处理，避免自动监控紧接着再生成一遍、再扣一次点
+    state.lastAutoKey = capKey(cap);
     state.result = null;
     renderAssistant();
 
@@ -332,8 +354,10 @@ async function generate(isAuto = false) {
       conversationId: (state.activeId || 'store') + ':' + convKey,
       buyerName: cap.buyerName || '',
       goods: { title: cap.goodsTitle || '', goodsId: '', spec: '' },
+      order: cap.order || null,
       messages: cap.messages || [],
       mode: state.auto ? 'auto' : 'suggest',
+      engine: state.engine,
       requestId: (crypto.randomUUID && crypto.randomUUID()) || 'r' + Date.now(),
     };
 
@@ -415,8 +439,16 @@ B.on('cs:changed', (cap) => {
   state.capture = cap;
   if (!state.busy) renderAssistant();
 
-  if (state.auto && !state.busy && cap && cap.ok && cap.lastBuyerText) {
-    generate(true);
+  const lastMsg = cap && Array.isArray(cap.messages) ? cap.messages[cap.messages.length - 1] : null;
+  // 只有「最后一条是买家」才自动生成：最后一条是客服（刚回过/手动回过）就不该再答一遍
+  if (state.auto && !state.busy && cap && cap.ok && cap.lastBuyerText && lastMsg && lastMsg.role === 'buyer') {
+    // 演练模式不会把回复发出去，买家那句还是「未答」；如果只看「有没有新消息」，
+    // 监控会每秒都认为有新消息，于是反复生成、反复扣点（2026-11-09 日志刷屏的原因）。
+    const key = capKey(cap);
+    if (key !== state.lastAutoKey) {
+      state.lastAutoKey = key;
+      generate(true);
+    }
   }
 });
 
@@ -460,6 +492,7 @@ B.on('sync:status', (st) => {
 B.on('store:active', (s) => {
   $('#stStore').textContent = s.name || s.url;
   state.capture = null;
+  state.lastAutoKey = '';
   state.result = null;
   renderAssistant();
 });
@@ -499,17 +532,95 @@ $('#autoToggle').addEventListener('change', (e) => {
   toast(state.auto ? '自动回复已开启：新消息将按规则自动发送' : '自动回复已关闭：只给建议，需人工点发送');
 });
 
+// ---------------------------------------------------------------- 回复引擎（普通 / Pro）
+
+function applyEngineUI() {
+  const pro = state.engine === 'pro';
+  const t = $('#proToggle');
+  if (t) t.checked = pro;
+  const hint = $('#proHint');
+  if (hint) {
+    hint.textContent = pro
+      ? '模型优先：长尾、多问题答得更全；慢 1~2 秒，每条 0.5 点起'
+      : '本地知识秒回：价格、发货、退换这类有标准答案的问题';
+  }
+  renderAssistant();
+}
+
+async function loadEngine() {
+  try {
+    const cfg = await api('/api/config');
+    state.engine = cfg.engine === 'pro' ? 'pro' : 'standard';
+    state.localPoints = Number(cfg.billing && cfg.billing.localPoints);
+    if (!Number.isFinite(state.localPoints)) state.localPoints = 0.5;
+  } catch (_) {
+    state.engine = 'standard';
+  }
+  applyEngineUI();
+}
+
+$('#proHelp').addEventListener('click', openProHelp);
+
+$('#proToggle').addEventListener('change', async (e) => {
+  const want = e.target.checked ? 'pro' : 'standard';
+  e.target.disabled = true;
+  try {
+    const r = await api('/api/config', 'POST', { engine: want });
+    state.engine = r.config && r.config.engine === 'pro' ? 'pro' : want;
+    toast(want === 'pro' ? '已切到专业版：回复会走模型，慢 1~2 秒' : '已切到普通版：本地知识秒回');
+  } catch (err) {
+    toast('切换失败：' + err.message);
+    e.target.checked = state.engine === 'pro';
+  } finally {
+    e.target.disabled = false;
+    applyEngineUI();
+  }
+});
+
+function openProHelp() {
+  openModal(`
+    <div class="modal-head">
+      <div class="modal-title">普通版 / 专业版，怎么选？</div>
+      <button class="modal-close" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <table class="pro-table">
+        <thead><tr><th></th><th>普通版</th><th>专业版 Pro</th></tr></thead>
+        <tbody>
+          <tr><td>速度</td><td>毫秒级</td><td>1~2 秒</td></tr>
+          <tr><td>怎么答</td><td>命中本地知识就直接答</td><td>本地没直接命中时，把这一单的事实交给模型组织</td></tr>
+          <tr><td>擅长</td><td>价格、库存、发货、退换、发票</td><td>一句话问好几件事、问法绕、说明书细节</td></tr>
+          <tr><td>计费</td><td colspan="2">本地模板 0.5 点/条；专业版按实际消耗扣点，一条通常 0.5~0.7 点，答得越复杂扣得越多；没生成出来不扣。</td></tr>
+        </tbody>
+      </table>
+      <div class="pro-note">
+        专业版不会改变「建议 / 自动」模式；承诺、敏感词、质检对两种版本一样生效。<br>
+        点数有小数，账单里按 3 位显示；模型那条贵多少由回答长度和输入量决定。<br>批量秒回、只问价格库存时用普通版更划算；长问题、多问题再开专业版。
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn-line primary" data-close>知道了</button>
+      </div>
+    </div>`);
+  $('#modal').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeModal));
+}
+
 $('#btnAddStore').addEventListener('click', openAddStore);
 $('#btnWorkbench').addEventListener('click', () => openWorkbench('kb'));
 
 async function refreshOnboard() {
   try {
     const d = await api('/api/kb/suggestions');
-    const imp = (d && d.important) || { done: 0, total: 6 };
+    const imp = (d && d.important) || { done: 0, total: 0 };
     const el = document.getElementById('obCount');
-    if (el) el.textContent = imp.done + '/' + imp.total;
+    if (el) el.textContent = imp.total ? imp.done + '/' + imp.total : '—';
     const btn = document.getElementById('btnOnboard');
-    if (btn) btn.title = imp.done >= imp.total ? '开店清单已完成' : '开店清单：还差 ' + (imp.total - imp.done) + ' 条';
+    if (btn) {
+      btn.title = !imp.total
+        ? '模板库已清空，按需新建知识'
+        : imp.done >= imp.total
+          ? '开店清单已完成'
+          : '开店清单：还差 ' + (imp.total - imp.done) + ' 条';
+    }
   } catch (_) { /* 离线忽略 */ }
 }
 $('#btnOnboard').addEventListener('click', () => openWorkbench('kb'));
@@ -662,6 +773,87 @@ function openFillAll() {
     closeSubModal();
     toast(`已启用 ${ok} 条，这些类型现在能答了`);
     renderWorkbench('kb');
+  });
+}
+
+// 模板库：20 条标准模板，点一下加入「待填写」，填好【】再启用
+async function openTemplateLib() {
+  const storeId = state.activeId || '';
+  let tpls = [];
+  try {
+    tpls = (await api('/api/templates')).items || [];
+  } catch (_) {
+    return toast('模板库读取失败');
+  }
+  let kb = [];
+  try {
+    kb = (await api('/api/knowledge?storeId=' + encodeURIComponent(storeId))).items || [];
+  } catch (_) {}
+  // 已加入判定：模板 id 命中，或标题互相包含（两套模板目录 id 不同，但内容重叠）
+  const have = new Set(kb.map((k) => k.templateId).filter(Boolean));
+  const kbTitles = kb.map((k) => String(k.title || ''));
+  const addedByTitle = (t) => kbTitles.some((x) => x.includes(t.title) || t.title.includes(x));
+  const groups = {};
+  for (const t of tpls) {
+    const g = (t.tags && t.tags[0]) || '其他';
+    (groups[g] = groups[g] || []).push(t);
+  }
+  // 用户从「回复日志 → 加入模板」创建的条目：不属于内置模板库，但也是可复用模板
+  const mine = kb.filter((k) => !k.templateId);
+
+  openSubModal(`
+    <div class="modal-head">
+      <div class="modal-title">模板库 · ${tpls.length} 条</div>
+      <button class="modal-close" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:#64748b;line-height:1.7;margin-bottom:12px">
+        点「加入」会进入知识库的<b>待填写</b>，把【】改成你店铺的真实信息后启用。
+      </div>
+      ${mine.length ? `
+      <div class="tpl-group">
+        <div class="tpl-group-h">自定义 / 我加入的 · ${mine.length} 条</div>
+        ${mine.map((k) => `
+          <div class="tpl-row">
+            <div class="tpl-main">
+              <div class="tpl-t">${esc(k.title)}${k.enabled === false || /【[^】]+】/.test(String(k.answer||'')) ? '<span class="kb-tag">待填写</span>' : ''}</div>
+              <div class="tpl-q">${esc(String(k.answer || '').replace(/\n/g, ' ').slice(0, 54))}</div>
+            </div>
+            <span class="tpl-done">已加入</span>
+          </div>`).join('')}
+      </div>` : ''}
+
+      ${Object.keys(groups).map((g) => `
+        <div class="tpl-group">
+          <div class="tpl-group-h">${esc(g)}</div>
+          ${groups[g].map((t) => `
+            <div class="tpl-row">
+              <div class="tpl-main">
+                <div class="tpl-t">${esc(t.title)}</div>
+                <div class="tpl-q">${esc(String(t.answer || '').slice(0, 54))}…</div>
+              </div>
+              ${have.has(t.id) || addedByTitle(t)
+                ? '<span class="tpl-done">已加入</span>'
+                : `<button class="btn-line primary tpl-add" data-tpl="${esc(t.id)}">加入</button>`}
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>`);
+
+  $('#modal2').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeSubModal));
+  $('#modal2').querySelectorAll('[data-tpl]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      let r = null;
+      try { r = await api('/api/kb/import', 'POST', { ids: [b.dataset.tpl] }); } catch (e) { r = { ok: false, error: e.message }; }
+      if (r && r.ok && r.added > 0) {
+        toast('已加入待填写：把【】改成实际信息再启用');
+        closeSubModal();
+        renderWorkbench('kb');
+      } else {
+        b.disabled = false;
+        toast('没加入成功' + (r && r.error ? '：' + r.error : '（可能已存在）'));
+      }
+    });
   });
 }
 
@@ -968,16 +1160,170 @@ async function copyTestReport() {
 
 // ---------------------------------------------------------------- 工作台
 
+// ---------------------------------------------------------------- 回复日志 → 模板
+
+function logToTemplate(x, overrides = {}) {
+  const q = String(x.buyerText || '').replace(/[。！？!?，,：:\s]+$/g, '').trim();
+  const title = String(overrides.title || q || '未命名模板').slice(0, 24);
+  const answer = String(overrides.answer != null ? overrides.answer : x.replyText || '').trim();
+  const kwRaw = overrides.keywords != null ? overrides.keywords : q;
+  const keywords = String(kwRaw)
+    .split(/[,，、\s]+/)
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  const scope = overrides.scope || (state.logScope === 'global' ? 'global' : 'current');
+  return {
+    title,
+    keywords: keywords.length ? keywords : [q.slice(0, 12)].filter(Boolean),
+    answer,
+    ask: x.ask || '',
+    origin: 'log',
+    type: 'faq',
+    scope: scope === 'global' ? 'tool' : undefined,
+    storeId: scope === 'global' ? '' : (state.activeId || ''),
+    fromLogAt: x.ts || '',
+  };
+}
+
+// 同名同范围视为同一条：更新答案，避免反复点出现重复模板
+async function upsertTemplate(item) {
+  let list = [];
+  try {
+    list = (await api('/api/knowledge?includeGlobal=1&storeId=' + encodeURIComponent(state.activeId || ''))).items || [];
+  } catch (_) { /* 拉不到就按新增处理 */ }
+  const sameScope = (k) => (item.scope === 'tool'
+    ? k.scope === 'tool'
+    : k.storeId === (state.activeId || '') && k.scope !== 'tool');
+  const dup = list.find((k) => k.title === item.title && sameScope(k));
+  if (dup) item.id = dup.id;
+  await api('/api/knowledge', 'POST', { item });
+  return Boolean(dup);
+}
+
+async function saveTemplateFromLog(x, scope) {
+  if (!x) return;
+  const item = logToTemplate(x, { scope });
+  if (!item.answer) return toast('这条日志没有回复内容，用「编辑并加入」补一句');
+  try {
+    const updated = await upsertTemplate(item);
+    toast(updated ? '同名模板已更新' : (scope === 'global' ? '已加入整个工具的模板' : '已加入当前店铺的模板'));
+  } catch (e) {
+    toast('保存失败：' + e.message);
+  }
+}
+
+function openLogTemplate(x) {
+  if (!x) return;
+  const t = logToTemplate(x);
+  openSubModal(`
+    <div class="modal-head">
+      <div class="modal-title">编辑并加入模板</div>
+      <button class="modal-close" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-card">
+        <div class="field"><label>模板标题</label><input class="input" id="ltTitle" value="${esc(t.title)}"></div>
+        <div class="field"><label>关键词（买家这么说就能命中，逗号分隔）</label><input class="input" id="ltKw" value="${esc(t.keywords.join('，'))}"></div>
+        <div class="field"><label>回答（可以直接改，改完保存并加入）</label><textarea class="input" id="ltAns" rows="4">${esc(t.answer)}</textarea></div>
+        <div class="field"><label>适用范围</label>
+          <label class="radio"><input type="radio" name="ltScope" value="current" ${t.scope !== 'global' ? 'checked' : ''}> 当前店铺</label>
+          <label class="radio"><input type="radio" name="ltScope" value="global" ${t.scope === 'global' ? 'checked' : ''}> 整个工具</label>
+          <div class="hint">「整个工具」对所有店铺生效；快递、时效、退换这类各店可能不同的口径别选它。</div>
+        </div>
+        <div class="field"><label>原始记录</label><div class="hint">${esc((x.buyerText || '').slice(0, 80))}</div></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn-line primary" id="ltSave">保存并加入模板</button>
+          <button class="btn-line ghost" data-close>取消</button>
+        </div>
+      </div>
+    </div>`);
+  $('#modal2').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeModal));
+  $('#ltSave').addEventListener('click', async () => {
+    const scope = ($('#modal2').querySelector('input[name="ltScope"]:checked') || {}).value || 'current';
+    const item = logToTemplate(x, {
+      title: $('#ltTitle').value,
+      keywords: $('#ltKw').value,
+      answer: $('#ltAns').value,
+      scope,
+    });
+    if (!item.answer) return toast('回答不能为空');
+    try {
+      const updated = await upsertTemplate(item);
+      state.logScope = scope;
+      closeSubModal();
+      toast(updated ? '同名模板已更新' : '已加入模板');
+    } catch (e) {
+      toast('保存失败：' + e.message);
+    }
+  });
+}
+
+// ---------------------------------------------------------------- 路由注册表：让模型提议条目
+
+async function analyzeRegistryText(text, gapKey) {
+  toast('模型正在判断需要哪些事实块…');
+  let r;
+  try {
+    r = await api('/api/facts/registry/analyze', 'POST', { buyerText: text });
+  } catch (e) {
+    return toast('分析失败：' + e.message);
+  }
+  if (!r || !r.ok) return toast((r && r.error) || '分析失败');
+  const p = r.proposal || {};
+  openSubModal(`
+    <div class="modal-head">
+      <div class="modal-title">注册表提议</div>
+      <button class="modal-close" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-card">
+        <div class="field"><label>匹配短语（逗号分隔）</label><input class="input" id="rpMatch" value="${esc((p.match || []).join('，'))}"></div>
+        <div class="field"><label>问法</label><input class="input" id="rpAsk" value="${esc(p.ask || 'other')}"></div>
+        <div class="field"><label>需要的块（order/product/manual/policy）</label><input class="input" id="rpBlocks" value="${esc((p.blocks || []).join(','))}"></div>
+        <div class="field"><label>必须有的块（没有就标缺失）</label><input class="input" id="rpNeeds" value="${esc((p.needs || []).join(','))}"></div>
+        <div class="hint">${esc(p.note || '')}${p.confidence != null ? ' · 置信度 ' + p.confidence : ''}</div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn-line primary" id="rpSave">采纳并加入注册表</button>
+          <button class="btn-line ghost" data-close>取消</button>
+        </div>
+      </div>
+    </div>`);
+  const split = (v) => String(v || '').split(/[,，、\s]+/).map((x) => x.trim()).filter(Boolean);
+  $('#modal2').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeSubModal));
+  $('#rpSave').addEventListener('click', async () => {
+    const entry = {
+      match: split($('#rpMatch').value),
+      ask: $('#rpAsk').value.trim() || 'other',
+      blocks: split($('#rpBlocks').value),
+      needs: split($('#rpNeeds').value),
+      note: p.note || '',
+      source: 'learned',
+    };
+    if (!entry.match.length) return toast('匹配短语不能为空');
+    try {
+      await api('/api/facts/registry', 'POST', { entry });
+      if (gapKey) await api('/api/facts/registry/gaps/dismiss', 'POST', { key: gapKey }).catch(() => {});
+      closeSubModal();
+      toast('已加入注册表');
+      renderWorkbench('reg');
+    } catch (e) {
+      toast('保存失败：' + e.message);
+    }
+  });
+}
+
 async function openWorkbench(tab) {
   openModal(`
     <div class="modal-head">
-      <div class="modal-title">工作台</div>
+      <div class="modal-title">工作台<span class="modal-store" id="wbStore"></span></div>
       <button class="modal-close" data-close>×</button>
     </div>
     <div class="tabs">
       <button class="tab ${tab === 'kb' ? 'on' : ''}" data-tab="kb">知识库</button>
       <button class="tab ${tab === 'review' ? 'on' : ''}" data-tab="review">待复核</button>
       <button class="tab ${tab === 'logs' ? 'on' : ''}" data-tab="logs">回复日志</button>
+      ${state.devMode ? `<button class="tab ${tab === 'reg' ? 'on' : ''}" data-tab="reg">路由注册表</button>` : ''}
       <button class="tab ${tab === 'set' ? 'on' : ''}" data-tab="set">设置</button>
     </div>
     <div class="modal-body" id="wbBody"></div>`);
@@ -996,13 +1342,15 @@ async function openWorkbench(tab) {
 
 async function renderWorkbench(tab) {
   const body = $('#wbBody');
+  const wbStore = $('#wbStore');
+  if (wbStore && tab !== 'kb') wbStore.textContent = '';
   if (tab === 'kb') {
     const storeId = state.activeId || '';
     const storeName = (state.stores.find((x) => x.id === storeId) || {}).name || '当前店铺';
 
     let all = [];
     try {
-      all = (await api('/api/knowledge?storeId=' + encodeURIComponent(storeId))).items || [];
+      all = (await api('/api/knowledge?includeGlobal=1&storeId=' + encodeURIComponent(storeId))).items || [];
     } catch (_) {
       body.innerHTML = `<div class="empty-row">本地服务未启动</div>`;
       return;
@@ -1035,15 +1383,18 @@ async function renderWorkbench(tab) {
 
     const usageTodo = (t) => t.ask === 'usage' || t.ask === 'spec';
 
+    const storeEl = $('#wbStore');
+    if (storeEl) storeEl.textContent = ' · ' + storeName;
+
     body.innerHTML = `
       <div class="kb-top">
-        <div class="kb-top-l"><b>${esc(storeName)}</b> · 知识库</div>
+        <div class="kb-stats">已启用 <b>${enabled.length}</b> · 待填写 <b>${blank.length}</b> · 已停用 <b>${disabled.length}</b> · 待处理 <b>${todos.length}</b></div>
         <div class="kb-top-r">
+          <button class="btn-line ghost" id="kbLib">模板库</button>
           <button class="btn-line ghost" id="kbCopy">从其他店铺复制</button>
           <button class="btn-line primary" id="kbNew">+ 新增一条</button>
         </div>
       </div>
-      <div class="kb-stats">已启用 <b>${enabled.length}</b> · 待填写 <b>${blank.length}</b> · 已停用 <b>${disabled.length}</b> · 待处理 <b>${todos.length}</b></div>
 
       ${all.some((k) => !k.storeId) ? `
       <div class="kb-warn">
@@ -1112,7 +1463,7 @@ async function renderWorkbench(tab) {
 
     function kbRow(k) {
       return `<tr data-row="${esc((k.title || '') + ' ' + (k.keywords || []).join(' '))}">
-        <td class="kb-title">${esc(k.title)}${k.storeId ? '' : '<span class="kb-tag">通用</span>'}</td>
+        <td class="kb-title">${esc(k.title)}${k.templateId ? '<span class="kb-tag">模板</span>' : ''}${k.storeId ? '' : '<span class="kb-tag">通用</span>'}</td>
         <td class="kb-kw">${esc((k.keywords || []).join('、'))}</td>
         <td>${esc(k.answer)}</td>
         <td style="white-space:nowrap">
@@ -1135,6 +1486,8 @@ async function renderWorkbench(tab) {
 
     const fillAll = $('#kbFillAll');
     if (fillAll) fillAll.addEventListener('click', openFillAll);
+
+    $('#kbLib').addEventListener('click', openTemplateLib);
 
     const arch = $('#kbArchive');
     if (arch) {
@@ -1222,7 +1575,10 @@ async function renderWorkbench(tab) {
       if (/【[^】]+】/.test(answer)) return toast('回复里还有【待填写】的内容');
       const keywords = $('#kKw').value.split(/[,，、\\s]+/).map((x) => x.trim()).filter(Boolean);
       const editId = $('#kId').value;
+      const editing = editId ? all.find((x) => x.id === editId) : null;
       const item = { title, answer, keywords, type: 'faq', enabled: true, storeId };
+      // 编辑「整个工具」的模板时保留 scope，别一编辑就被改成当前店铺
+      if (editing && editing.scope === 'tool') { item.scope = 'tool'; item.storeId = ''; }
       if (editId) item.id = editId;
       try {
         await api('/api/knowledge', 'POST', { item, storeId });
@@ -1261,24 +1617,138 @@ async function renderWorkbench(tab) {
   } else if (tab === 'logs') {
     let items = [];
     try {
-      const d = await api('/api/logs');
-      items = d.items || [];
+      items = ((await api('/api/logs')).items || []).filter((x) => x.buyerText || x.replyText);
     } catch (_) {
-      body.innerHTML = `<div class="empty-row">本地服务未启动</div>`;
+      body.innerHTML = '<div class="empty-row">本地服务未启动</div>';
       return;
     }
+    const cur = state.activeId || '';
+    const storeName = (id) => (state.stores.find((s) => s.id === id) || {}).name || (id || '未标记店铺');
+    const view = state.logView === 'all' ? 'all' : 'current';
+    const saveScope = state.logScope === 'global' ? 'global' : 'current';
+    const list = items
+      .filter((x) => (view === 'current' ? !x.storeId || x.storeId === cur : true))
+      .sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')))
+      .slice(0, 100);
     const srcName = { rule: '本地知识', product: '商品', manual: '说明书', backend: '模型', policy: '策略' };
-    body.innerHTML = items.length
-      ? `<table class="kb-table"><thead><tr><th style="width:110px">时间</th><th style="width:90px">买家</th><th style="width:80px">决策</th><th style="width:80px">来源</th><th>买家说</th><th>回复</th></tr></thead><tbody>
-          ${items.slice(0, 100).map((x) => `<tr>
-            <td class="kb-kw">${esc(String(x.ts || '').replace('T', ' ').slice(5, 16))}</td>
-            <td>${esc(x.buyerName || '-')}</td>
-            <td>${esc({ auto_send: '自动', suggest: '需确认', fallback: '兜底', handoff: '转人工' }[x.decision] || x.decision || '-')}</td>
-            <td>${esc(srcName[x.source] || x.source || '-')}</td>
-            <td class="kb-kw">${esc((x.buyerText || '').slice(0, 30))}</td>
-            <td class="kb-kw">${esc((x.replyText || '').slice(0, 50))}</td>
-          </tr>`).join('')}</tbody></table>`
-      : `<div class="empty-row">还没有回复记录</div>`;
+    const decName = { auto_send: '自动', suggest: '需确认', fallback: '兜底', handoff: '转人工' };
+
+    body.innerHTML = `
+      <div class="log-bar">
+        <span class="log-seg">
+          <button class="seg ${view === 'current' ? 'on' : ''}" data-logview="current">当前店铺</button>
+          <button class="seg ${view === 'all' ? 'on' : ''}" data-logview="all">全部店铺</button>
+        </span>
+        <span class="log-note">最近 ${list.length} 条</span>
+        <span class="spacer"></span>
+        <span class="log-note">加入模板的范围</span>
+        <select class="input log-scope" id="logScope">
+          <option value="current" ${saveScope === 'current' ? 'selected' : ''}>当前店铺</option>
+          <option value="global" ${saveScope === 'global' ? 'selected' : ''}>整个工具（所有店铺）</option>
+        </select>
+      </div>
+      ${list.length ? list.map((x, i) => `
+        <div class="log-item">
+          <div class="log-top">
+            <span class="log-time">${esc(String(x.ts || '').replace('T', ' ').slice(5, 16))}</span>
+            <span class="chip">${esc(storeName(x.storeId))}</span>
+            <span class="chip blue">${esc(srcName[x.source] || x.source || '-')}</span>
+            <span class="chip">${esc(fmtPts(x.cost))} 点</span>
+            <span class="chip">${esc(decName[x.decision] || x.decision || '-')}</span>
+          </div>
+          <div class="log-q">买家：${esc((x.buyerText || '').slice(0, 120))}</div>
+          <div class="log-a">回复：${esc(x.replyText || '（无）')}</div>
+          <div class="log-acts">
+            <button class="btn-line ghost log-add" data-i="${i}">加入模板</button>
+            <button class="btn-line ghost log-edit" data-i="${i}">编辑并加入</button>
+          </div>
+        </div>`).join('') : '<div class="empty-row">还没有回复记录</div>'}`;
+
+    body.querySelectorAll('[data-logview]').forEach((b) => {
+      b.addEventListener('click', () => {
+        state.logView = b.dataset.logview;
+        renderWorkbench('logs');
+      });
+    });
+    const scopeEl = body.querySelector('#logScope');
+    if (scopeEl) {
+      scopeEl.addEventListener('change', () => {
+        state.logScope = scopeEl.value;
+        toast(scopeEl.value === 'global' ? '加入模板会作用于所有店铺' : '加入模板只作用于当前店铺');
+      });
+    }
+    body.querySelectorAll('.log-add').forEach((b) => {
+      b.addEventListener('click', () => saveTemplateFromLog(list[Number(b.dataset.i)], state.logScope));
+    });
+    body.querySelectorAll('.log-edit').forEach((b) => {
+      b.addEventListener('click', () => openLogTemplate(list[Number(b.dataset.i)]));
+    });
+  } else if (tab === 'reg') {
+    let data = { entries: [], gaps: [] };
+    try {
+      data = await api('/api/facts/registry');
+    } catch (_) {
+      body.innerHTML = '<div class="empty-row">本地服务未启动</div>';
+      return;
+    }
+    const entries = data.entries || [];
+    const gaps = data.gaps || [];
+    const blockText = (e) => ((e.blocks || []).join('+') || '-') + (e.needs && e.needs.length ? ' / 必须 ' + e.needs.join('+') : '');
+    body.innerHTML = `
+      <div class="log-bar">
+        <input class="input" id="regInput" placeholder="输入一句买家话，让模型判断需要哪些事实块" style="flex:1">
+        <button class="btn-line primary" id="regAnalyze">分析</button>
+        <span class="log-note">${entries.length} 条 · 缺口 ${gaps.length}</span>
+      </div>
+      ${gaps.length ? `<div class="kb-sec">
+        <div class="kb-sec-h"><span>测试缺口 ${gaps.length}</span><em>没命中注册表；可以让模型提议</em></div>
+        ${gaps.map((g) => `<div class="log-item">
+          <div class="log-top"><span class="chip warn">缺口</span><span class="log-time">×${g.count || 1}</span><span class="chip blue">${esc(g.mode || '-')}</span></div>
+          <div class="log-q">买家：${esc(g.buyerText)}</div>
+          <div class="log-a">当前路由：${esc((g.asks || []).join('、') || '无')}${g.trigger ? ' · ' + esc(g.trigger) : ''}</div>
+          <div class="log-acts">
+            <button class="btn-line primary" data-analyze="${esc(g.key)}">让模型提议</button>
+            <button class="btn-line ghost" data-ignore="${esc(g.key)}">忽略</button>
+          </div>
+        </div>`).join('')}
+      </div>` : ''}
+      <div class="kb-sec">
+        <div class="kb-sec-h"><span>已注册 ${entries.length} 条</span><em>注册表优先于静态路由</em></div>
+        <table class="kb-table">
+          <thead><tr><th>匹配短语</th><th style="width:120px">问法</th><th style="width:150px">块 / 必须</th><th style="width:70px">来源</th><th style="width:70px"></th></tr></thead>
+          <tbody>${entries.length ? entries.map((e) => `<tr>
+            <td class="kb-kw">${esc((e.match || []).join('、'))}</td>
+            <td>${esc(e.ask)}</td>
+            <td>${esc(blockText(e))}</td>
+            <td>${esc(e.source === 'learned' ? '学习' : e.source === 'seed' ? '内置' : '手动')}</td>
+            <td><button class="kb-del" data-reg-disable="${esc(e.id)}">停用</button></td>
+          </tr>`).join('') : '<tr><td colspan="5" class="empty-row">还没有注册条目</td></tr>'}</tbody>
+        </table>
+      </div>`;
+
+    $('#regAnalyze').addEventListener('click', () => {
+      const t = $('#regInput').value.trim();
+      if (!t) return toast('先输入一句买家话');
+      analyzeRegistryText(t);
+    });
+    body.querySelectorAll('[data-analyze]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const g = gaps.find((x) => x.key === b.dataset.analyze);
+        if (g) analyzeRegistryText(g.buyerText, g.key);
+      });
+    });
+    body.querySelectorAll('[data-ignore]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        await api('/api/facts/registry/gaps/dismiss', 'POST', { key: b.dataset.ignore }).catch(() => {});
+        renderWorkbench('reg');
+      });
+    });
+    body.querySelectorAll('[data-reg-disable]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        await api('/api/facts/registry/disable', 'POST', { id: b.dataset.regDisable }).catch(() => {});
+        renderWorkbench('reg');
+      });
+    });
   } else if (tab === 'prod') {
     const storeId = state.activeId || '';
     const storeName = (state.stores.find((s) => s.id === storeId) || {}).name || '当前店铺';
@@ -1303,8 +1773,8 @@ async function renderWorkbench(tab) {
 
     body.innerHTML = `
       <div class="form-card">
-        <div class="field"><label>批量导入商品（CSV：商品ID,标题,价格,库存,品类,别名,链接）</label>
-          <textarea class="input" id="csvBox" placeholder="商品ID,标题,价格,库存,品类,别名&#10;1001,白萝卜种子 四季播,9.9,320,,萝卜|白萝卜"></textarea>
+        <div class="field"><label>批量导入商品（CSV：商品ID,标题,价格,库存,规格,品类,别名,链接）</label>
+          <textarea class="input" id="csvBox" placeholder="商品ID,标题,价格,库存,规格,品类,别名&#10;1001,白萝卜种子 四季播,9.9,320,20g/袋,萝卜|白萝卜"></textarea>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn-line primary" id="csvImport">导入</button>
@@ -1600,7 +2070,7 @@ async function refreshStatus() {
   try {
     const q = await api('/api/quota');
     state.quota = q;
-    $('#quotaVal').textContent = q.balance;
+    $('#quotaVal').textContent = fmtPts(q.balance);
   } catch (_) {}
 
   try {
@@ -1615,6 +2085,7 @@ async function refreshStatus() {
 
 (async function boot() {
   await loadStores();
+  await loadEngine();
   renderAssistant();
   syncStageBounds();
   refreshStatus();

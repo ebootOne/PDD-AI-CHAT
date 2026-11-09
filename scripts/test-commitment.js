@@ -84,6 +84,13 @@ function check(name, ok, detail) {
   });
   check('反例：有人值守允许跟进', v5.action === 'keep', v5.action + ' ' + (v5.issues || []).join(','));
 
+  // 6. 兜底语气：有温度、不油腻、不自否定
+  const exits = Object.values(policy.EXIT || {});
+  check('兜底没有自否定', exits.every((t) => !/没有准确|答不上来|不敢乱说|无法回答/.test(t)), exits.filter((t) => /没有准确|答不上来|不敢乱说/.test(t)).join(' | '));
+  check('兜底不油腻/不夸张', exits.every((t) => !/亲亲|宝子|爱您|绝对|包您满意|最便宜/.test(t)), exits.filter((t) => /亲亲|宝子|爱您|绝对|包您满意/.test(t)).join(' | '));
+  const warmCount = exits.filter((t) => /[哈哦呢]/.test(t)).length;
+  check('兜底带温度标记', warmCount >= Math.ceil(exits.length * 0.6), `${warmCount}/${exits.length}`);
+
   const pass = results.filter((r) => r.ok).length;
   console.log(`\n${pass}/${results.length} 通过`);
   if (pass !== results.length) process.exitCode = 1;

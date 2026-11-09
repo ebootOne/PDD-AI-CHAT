@@ -190,6 +190,60 @@ console.log('\n=== 6. 质检引用校验 ===');
   const full = judge.review({ ...multi, suggestions: [{ tone: '标准', text: '这款是 9.9 元，默认发中通快递。' }] });
   check('F32', '多意图逐条覆盖 → 放行', full.action === 'keep', JSON.stringify(full));
 
+  const neg = judge.review({
+    ...base,
+    buyerText: '有质检报告吗',
+    suggestions: [{ tone: '标准', text: '这款暂时没有质检报告，是天然原木材质。' }],
+    facts: null,
+  });
+  check('N01', '替商家否定资质 → 兜底', neg.action === 'fallback' && neg.issues.includes('替商家否定'), JSON.stringify(neg));
+
+  const certOk = judge.review({
+    ...base,
+    buyerText: '有质检报告吗',
+    suggestions: [{ tone: '标准', text: '亲，都是经过严格筛选的产品，检测信息以商品页标注为准哈。' }],
+    facts: null,
+  });
+  check('N02', '正面口径不误杀', certOk.action === 'keep', JSON.stringify(certOk));
+
+  check('N03', '已给天数 → 不缺数值', judge.missingDims('一般3~5天露白', ['days']).length === 0);
+  check('N04', '只给形容 → 判缺天数', judge.missingDims('温度合适就发芽', ['days']).includes('days'));
+
+  const unitBad = judge.review({
+    ...base,
+    buyerText: '抽纸多少抽',
+    understanding: { ask: 'spec', text: '抽纸多少抽' },
+    suggestions: [{ tone: '标准', text: '这款是520张的大包抽纸哈。' }],
+    facts: { items: [{ id: 'F1', block: 'product', label: '商品', text: '加量520张大包抽纸：520张/包' }], missing: [] },
+  });
+  check('N05', '问抽答张 → 单位不一致', unitBad.action === 'fallback' && unitBad.issues.includes('单位不一致'), JSON.stringify(unitBad));
+
+  const unitOk = judge.review({
+    ...base,
+    buyerText: '抽纸多少抽',
+    understanding: { ask: 'spec', text: '抽纸多少抽' },
+    suggestions: [{ tone: '标准', text: '520张/包，多少抽以包装标注为准哈。' }],
+    facts: { items: [{ id: 'F1', block: 'product', label: '商品', text: '加量520张大包抽纸：520张/包' }], missing: [] },
+  });
+  check('N06', '明确说包装标注 → 不误杀', unitOk.action === 'keep', JSON.stringify(unitOk));
+
+  const numBad = judge.review({
+    ...base,
+    buyerText: '这个多少钱',
+    suggestions: [{ tone: '标准', text: '亲，2.5 元呢。' }],
+    facts: { items: [{ id: 'F1', block: 'product', label: '价格', text: '天然花椒木：1.85 元起' }], missing: [] },
+  });
+  check('N07', '事实 1.85 却答 2.5 → 数字无依据', numBad.action === 'fallback' && numBad.issues.includes('数字无依据'), JSON.stringify(numBad));
+
+  const numOk = judge.review({
+    ...base,
+    buyerText: '几天发芽',
+    understanding: { ask: 'usage', text: '几天发芽' },
+    suggestions: [{ tone: '标准', text: '一般3~5天露白哈。' }],
+    facts: { items: [{ id: 'F1', block: 'manual', label: '催芽', text: '一般3~5天露白就能播' }], missing: [] },
+  });
+  check('N08', '事实 3~5天 → 不误杀', numOk.action === 'keep', JSON.stringify(numOk));
+
   const noFacts = judge.review({ ...base, suggestions: [{ tone: '标准', text: '这款 9.9 元。' }] });
   check('F33', '非 Pro 路径不受引用校验影响', noFacts.action === 'keep', JSON.stringify(noFacts));
 }
@@ -209,6 +263,233 @@ console.log('\n=== 7. 商品卡绑定 ===');
   check('F35', '「多深」问法命中深度节', /覆土/.test(textOf(p, 'manual')), textOf(p, 'manual'));
   check('F36', '绑到的是这一款而不是别的商品', /厘米/.test(textOf(p, 'manual')) && !/番茄/.test(textOf(p, 'manual')), textOf(p, 'manual'));
 }
+
+console.log('\n=== 8. 关切焦点 ===');
+{
+  const title = '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚';
+  const p = facts.build({ buyerText: '鹦鹉啃了会不会中毒', goods: { title }, products: [], knowledgeHits: [], kb: [], storeId: 'real' });
+  check('F37', '问安全不给「适用对象」当依据', !p.items.some((i) => i.block === 'manual' && /适用对象/.test(i.label)), JSON.stringify(p.items.map((i) => i.label)));
+  check('F38', '关切没有依据要标缺失', p.missing.some((m) => m.block === 'concern'), JSON.stringify(p.missing));
+
+  const q = facts.build({ buyerText: '鹦鹉能用吗', goods: { title }, products: [], knowledgeHits: [], kb: [], storeId: 'real' });
+  check('F39', '不涉及关切时保留适用对象', q.items.some((i) => /适用对象/.test(i.label)), JSON.stringify(q.items.map((i) => i.label)));
+}
+
+console.log('\n=== 9. 本地路由 ===');
+{
+  const factRoute = require(path.join(ROOT, 'server', 'fact-route.js'));
+
+  const a = factRoute.route({ buyerText: '我的订单到哪了', hasGoods: false });
+  check('R01', '问这一单 → 订单块最优先', a.wanted[0].key === 'order' && a.orderAsked, JSON.stringify(a.wanted));
+  check('R02', '同时识别出物流状态', a.asks.includes('shipping_status'), JSON.stringify(a.asks));
+
+  const b = factRoute.route({ buyerText: '多少钱，发什么快递', hasGoods: true });
+  check('R03', '多意图拆两个 ask', b.asks.includes('price') && b.asks.includes('courier'), JSON.stringify(b.asks));
+  check('R04', '商品块优先于政策', b.wanted.findIndex((w) => w.key === 'product') < b.wanted.findIndex((w) => w.key === 'policy'), JSON.stringify(b.wanted.map((w) => w.key)));
+
+  const c = factRoute.route({ buyerText: '多少钱', hasGoods: false });
+  check('R05', '没识别商品就不取商品/说明书', !c.wanted.some((w) => w.key === 'product' || w.key === 'manual'), JSON.stringify(c.wanted));
+
+  const d = factRoute.route({ buyerText: '鹦鹉啃了会不会中毒', hasGoods: true });
+  check('R06', '识别安全关切', d.concern && d.concern.key === 'safety', JSON.stringify(d.concern && d.concern.key));
+
+  const e = factRoute.route({ buyerText: '嗯嗯', hasGoods: true, understanding: { ask: 'other' } });
+  check('R07', '没明确问法也要查政策与说明书', e.wanted.some((w) => w.key === 'policy') && e.wanted.some((w) => w.key === 'manual'), JSON.stringify(e.wanted.map((w) => w.key)));
+
+  // 反例：问优惠不是问这一单，不能被「查一下」误判成订单
+  const f = factRoute.route({ buyerText: '帮我查一下能不能便宜', hasGoods: true });
+  check('R08', '「查一下」不触发订单块', !f.orderAsked, JSON.stringify(f.wanted.map((w) => w.key)));
+
+  const g = factRoute.route({ buyerText: '包邮吗', hasGoods: true });
+  check('R10', '「这个多大」识别为规格', factRoute.route({ buyerText: '这个多大', hasGoods: true }).asks.includes('spec'));
+  const t22 = factRoute.route({ buyerText: '这个多大，能寄到新疆吗，包邮吗', hasGoods: true });
+  check('R11', '三连问标记多意图', t22.multi === true && t22.asks.includes('spec') && t22.asks.includes('freight'), JSON.stringify({ asks: t22.asks, unknown: t22.unknownParts.length, multi: t22.multi }));
+  const i8 = factRoute.route({ buyerText: '我想问下这个站杆多长 能发顺丰吗 今天下单明天能到吗 能便宜点不', hasGoods: true });
+  check('R12', '空格连写也能拆出多个诉求', i8.multi === true && i8.asks.length >= 2, JSON.stringify({ asks: i8.asks, multi: i8.multi }));
+
+  check('R13', '「种子几天发芽」按时长对象归 usage', factRoute.route({ buyerText: '种子几天发芽', hasGoods: true }).asks.includes('usage'));
+  check('R14', '「几天能到」才是到货时效', factRoute.route({ buyerText: '几天能到', hasGoods: true }).asks.includes('arrival_time'));
+  check('R15', '「几天发货」归发货时间', factRoute.route({ buyerText: '几天发货', hasGoods: true }).asks.includes('shipping_time'));
+  const r16 = factRoute.route({ buyerText: '大概几天', hasGoods: true });
+  check('R16', '反例：只说几天不给对象 → 不猜意图', !r16.asks.length || r16.asks[0] === 'other', JSON.stringify(r16.asks));
+
+  check('R09', '包邮问题不取订单块', !g.orderAsked && g.asks.includes('freight'), JSON.stringify(g.asks));
+}
+
+console.log('\n=== 10. 兜底扩召回 ===');
+{
+  const storeKb2 = kb.filter((x) => x.storeId === 'real');
+  const a = facts.build({
+    buyerText: '能开发票吗',
+    goods: null,
+    products: [],
+    knowledgeHits: [],
+    kb: storeKb2,
+    storeId: 'real',
+  });
+  check('E01', '按 ask 直接补到发票口径（不靠扩召回）', a.route.mode === 'normal' && a.items.some((i) => /发票/.test(i.text)), JSON.stringify({ mode: a.route.mode, items: a.items.map((i) => i.label) }));
+  check('E02', '扩召回补到发票口径', a.items.some((i) => /发票/.test(i.text)), JSON.stringify(a.items.map((i) => i.label)));
+  check('E03', '正常档预算 800', a.budget.limit === 800 && a.budget.tokens <= 800, JSON.stringify(a.budget));
+
+  const b = facts.build({
+    buyerText: '多少钱',
+    goods: { title: p1001.title },
+    products: [{ ...p1001, priceMax: 12 }],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  check('E04', '正常命中不扩召回', b.route.mode === 'normal', JSON.stringify(b.route.mode));
+
+  const c = facts.build({
+    buyerText: '规格是多少',
+    goods: { title: p1001.title },
+    products: [p1001],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  check('E05', '未覆盖的 ask 触发扩召回', c.route.mode === 'wide' && /spec/.test((c.route.widen || {}).trigger || ''), JSON.stringify(c.route.widen));
+
+  // 关切无依据：扩召回不能拿「适用对象」来凑数
+  const d = facts.build({
+    buyerText: '鹦鹉啃了会不会中毒',
+    goods: { title: '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚' },
+    products: [],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  const e = facts.build({
+    buyerText: '我的订单到哪了',
+    goods: null,
+    products: [],
+    knowledgeHits: [],
+    kb: kb.filter((x) => x.storeId === 'real'),
+    storeId: 'real',
+  });
+  const o = facts.build({
+    buyerText: '我的订单到哪了',
+    goods: null,
+    products: [],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+    order: {
+      status: '已发货',
+      courier: '中通快递',
+      trackingNo: '781234567890123',
+      receiver: '张三',
+      phone: '13900001111',
+      address: '北京市朝阳区某路1号院',
+    },
+  });
+  check('E08', '有订单数据 → 订单块生效', o.route.mode === 'normal' && o.items[0] && o.items[0].block === 'order' && !o.missing.some((m) => m.block === 'order'), JSON.stringify(o.items));
+  check('E09', '订单只给白名单字段', /已发货/.test(o.items[0].text) && !/张三|13900001111|朝阳/.test(JSON.stringify(o.items)), o.items[0].text);
+
+  const g = facts.build({
+    buyerText: '发货了吗',
+    goods: null,
+    products: [],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  check('E10', '注册表命中 → 问法改为物流状态', g.route.registry && g.route.registry.id === 'reg_shipped_or_not' && g.route.asks[0] === 'shipping_status', JSON.stringify(g.route.registry));
+  check('E11', '注册表要求订单但没数据 → 标缺失', g.missing.some((m) => m.block === 'order'), JSON.stringify(g.missing));
+
+  check('E07', '只问物流且无订单 → 不硬凑政策', e.route.mode === 'empty' && e.items.length === 0, JSON.stringify({ mode: e.route.mode, items: e.items.map((i) => i.label) }));
+
+  check('E06', '关切扩召回仍不放适用对象', !d.items.some((i) => i.block === 'manual' && /适用对象/.test(i.label)), JSON.stringify(d.items.map((i) => i.label)));
+}
+
+console.log('\n=== 11. 规格块 ===');
+{
+  const withSpec = facts.build({
+    buyerText: '规格是多少',
+    goods: { title: p1001.title },
+    products: [{ ...p1001, spec: '20g/袋' }],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  check('S01', '有 spec 字段 → 出规格事实', withSpec.items.some((i) => i.block === 'product' && /规格/.test(i.label) && /20g/.test(i.text)), JSON.stringify(withSpec.items));
+  check('S02', '有 spec 就不标缺失', !withSpec.missing.some((m) => m.field === 'spec'), JSON.stringify(withSpec.missing));
+
+  const stand = facts.build({
+    buyerText: '尺寸多大',
+    goods: { title: '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚' },
+    products: [],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  check('S03', '说明书有尺寸节 → 不算缺规格', stand.items.some((i) => i.block === 'manual') && !stand.missing.some((m) => m.field === 'spec'), JSON.stringify({ items: stand.items.map((i) => i.label), missing: stand.missing }));
+
+  const noSpec = facts.build({
+    buyerText: '规格是多少',
+    goods: { title: p1001.title },
+    products: [p1001],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  check('S04', '没有规格也没说明书 → 标缺失', noSpec.missing.some((m) => m.field === 'spec'), JSON.stringify(noSpec.missing));
+}
+
+console.log('\n=== 12. 商品域隔离 ===');
+{
+  const storeKb3 = kb.filter((x) => x.storeId === 'real');
+  const stand = facts.build({
+    buyerText: '放阳台晒太阳可以吗',
+    goods: { title: '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚' },
+    products: [],
+    knowledgeHits: [],
+    kb: storeKb3,
+    storeId: 'real',
+  });
+  const standText = JSON.stringify(stand.items);
+  check('D01', '用品不取种子口径', !/浸种|催芽|露白|播种|覆土|土壤|发芽/.test(standText), stand.items.map((x) => x.label).join(','));
+  check('D02', '用品仍有关切/说明', stand.items.length > 0, String(stand.items.length));
+
+  const seed = facts.build({
+    buyerText: '土要多深',
+    goods: { title: p1001.title },
+    products: [p1001],
+    knowledgeHits: [],
+    kb: [],
+    storeId: 'real',
+  });
+  check('D03', '种子仍保留种植口径', /覆土|厘米/.test(JSON.stringify(seed.items)), seed.items.map((x) => x.label).join(','));
+}
+
+console.log('\n=== 13. 事实元数据/冲突/过期 ===');
+{
+  const conflict = facts.resolveConflicts([
+    { block: 'product', label: '规格', text: '规格：18cm', source: 'catalog' },
+    { block: 'manual', label: '规格', text: '规格：20cm', source: 'manual' },
+    { block: 'policy', label: '包邮范围', text: '全国包邮', source: 'knowledge' },
+  ]);
+  check('M01', '同字段两种说法 → 标记冲突但保留给模型', conflict.conflicts.length === 1 && conflict.items.length === 3 && conflict.items.filter((i) => i.conflict).length === 2, JSON.stringify(conflict));
+  check('M02', '冲突带来源', conflict.conflicts[0] && conflict.conflicts[0].sources.length === 2, JSON.stringify(conflict.conflicts[0]));
+
+  const stale = facts.productItems({ goodsId: 'g', title: '白萝卜种子', price: '9.9', stock: 10, syncedAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString() }, ['price']);
+  check('M03', '商品过期 → 不报价', stale.items.length === 0 && stale.missing.some((m) => m.reason === 'stale'), JSON.stringify(stale));
+
+  const fresh = facts.productItems({ goodsId: 'g', title: '白萝卜种子', price: '9.9', stock: 10, syncedAt: new Date().toISOString() }, ['price']);
+  check('M04', '商品带来源与时间', fresh.items[0] && fresh.items[0].source === 'catalog' && fresh.items[0].updatedAt, JSON.stringify(fresh.items[0]));
+}
+
+  const kbPrice = { id: 'kb-price', ask: 'price', title: '价格', answer: '白萝卜种子：1.9 元', keywords: ['价格'] };
+  const oneSource = facts.build({
+    buyerText: '多少钱',
+    goods: { goodsId: 'g1', title: '白萝卜种子' },
+    products: [{ goodsId: 'g1', title: '白萝卜种子', price: '9.9', stock: 10, syncedAt: new Date().toISOString() }],
+    knowledgeHits: [{ entry: kbPrice, score: 9 }],
+    kb: [kbPrice],
+    storeId: 'real',
+  });
+  check('M05', '价格多来源 → 冲突交给模型判断', oneSource.conflicts.length === 1 && oneSource.items.length >= 2, JSON.stringify({ items: oneSource.items.map((i) => i.text), conflicts: oneSource.conflicts }));
 
 console.log('\n----------------------------------------');
 console.log(`事实包单测：${pass} PASS / ${fail} FAIL`);

@@ -33,6 +33,8 @@ function maskFacts(facts) {
   if (!facts || !Array.isArray(facts.items)) return undefined;
   return {
     version: 1,
+    // normal=正常路由；wide=扩召回（事实可能不贴题）；empty=没事实
+    mode: facts.mode === 'wide' ? 'wide' : facts.mode === 'empty' ? 'empty' : 'normal',
     route: {
       blocks: (facts.route && facts.route.blocks || []).slice(0, 6).map((x) => String(x).slice(0, 12)),
       asks: (facts.route && facts.route.asks || []).slice(0, 4).map((x) => String(x).slice(0, 16)),
@@ -53,11 +55,11 @@ function maskFacts(facts) {
 /**
  * @returns {Promise<{ok:boolean, candidates?:Array, confidence?:number, error?:string}>}
  */
-async function reply(cfg, payload) {
+async function call(cfg, pathname, payload) {
   const b = (cfg && cfg.backend) || {};
   if (!b.url) return { ok: false, error: '未配置服务端' };
 
-  const url = String(b.url).replace(/\/+$/, '') + '/v1/reply';
+  const url = String(b.url).replace(/\/+$/, '') + pathname;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), b.timeoutMs || 30000);
   const t0 = Date.now();
@@ -69,7 +71,7 @@ async function reply(cfg, payload) {
         'Content-Type': 'application/json',
         ...(b.token ? { Authorization: 'Bearer ' + b.token } : {}),
       },
-      body: JSON.stringify({ deviceId: b.deviceId || 'local-dev', ...maskPayload(payload) }),
+      body: JSON.stringify({ deviceId: b.deviceId || 'local-dev', ...payload }),
       signal: ctrl.signal,
     });
     const text = await res.text();
@@ -91,4 +93,13 @@ async function reply(cfg, payload) {
   }
 }
 
-module.exports = { reply, maskPayload };
+async function reply(cfg, payload) {
+  return call(cfg, '/v1/reply', maskPayload(payload));
+}
+
+/** 路由注册表分析：拿一句买家话，让服务端判断需要哪些事实块（不生成回复） */
+async function registryAnalyze(cfg, utterance) {
+  return call(cfg, '/v1/registry', { utterance: String(utterance || '').slice(0, 200) });
+}
+
+module.exports = { reply, call, registryAnalyze, maskPayload };

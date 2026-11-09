@@ -47,24 +47,33 @@ function getQuota() {
 
 /**
  * 扣点。带幂等键，防止网络重试重复扣费。
+ * 支持小数（Pro 按 token 成本计费，一条可能 0.287 点）：
+ *   - 统一保留 3 位，避免浮点累加漂移；
+ *   - 余额比较带容差，余额 0.2869 时扣 0.287 视为扣得起。
  * @returns {{ok:boolean, balance:number, duplicate?:boolean, error?:string}}
  */
+function round3(n) {
+  return Math.round((Number(n) || 0) * 1000) / 1000;
+}
+
 function consume(points, reason, idempotencyKey) {
   const s = read();
   const key = String(idempotencyKey || '');
+  const cost = round3(points);
 
+  if (!(cost > 0)) return { ok: false, balance: s.balance, error: '扣点数量不合法' };
   if (key && (s.seenKeys || []).includes(key)) {
     return { ok: true, balance: s.balance, duplicate: true };
   }
-  if (s.balance < points) {
+  if (round3(s.balance) + 1e-9 < cost) {
     return { ok: false, balance: s.balance, error: '点数不足' };
   }
 
-  s.balance -= points;
-  s.usedTotal = (s.usedTotal || 0) + points;
+  s.balance = round3(s.balance - cost);
+  s.usedTotal = round3((s.usedTotal || 0) + cost);
   s.ledger = (s.ledger || []).concat({
     ts: new Date().toISOString(),
-    delta: -points,
+    delta: -cost,
     reason: reason || 'reply',
     balanceAfter: s.balance,
   }).slice(-500);

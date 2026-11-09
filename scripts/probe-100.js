@@ -142,7 +142,7 @@ async function call(text) {
     '',
     `- 提问 ${rows.length} 条`,
     `- 决策：${Object.entries(byDecision).map(([k, v]) => k + ' ' + v).join(' · ')}`,
-    `- 0 点（没答上/兜底）：${zeroCost} 条`,
+    `- 0 点（转人工/无回复）：${zeroCost} 条`,
     `- 服务端模型调用：${backend} 条`,
     `- 质检拦截：${Object.entries(judgeHits).map(([k, v]) => k + ' ' + v).join(' · ') || '无'}`,
     `- 同一回复重复出现：${dupReplies.length} 组`,

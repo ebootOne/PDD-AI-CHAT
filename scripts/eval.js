@@ -23,7 +23,8 @@ const store = require('../server/store');
 const CASE_FILE = process.argv[2] || path.join(__dirname, '..', 'eval', 'cases.jsonl');
 const REPORT_FILE = path.join(__dirname, '..', 'eval', 'last-report.json');
 
-const cfg = Object.assign(store.getConfig(), { mode: 'auto' }); // 用自动模式跑，才能测到全部闸门
+// 离线评测：不给模型通道，测的是本地引擎本身（有通道时低置信会交模型，结果就不稳定）
+const cfg = Object.assign(store.getConfig(), { mode: 'auto', backend: {}, llm: {} });
 // 评测跑在真实店铺的知识上（本店优先，通用只补缺）
 const KB = (() => {
   const raw = store.getKnowledge().filter((k) => !k.archived);

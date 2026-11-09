@@ -1,5 +1,5 @@
 {
-  "ts": "2026-11-09T05:25:30.480Z",
+  "ts": "2026-11-09T15:21:52.861Z",
   "pass": 19,
   "total": 19,
   "byIntent": {
@@ -89,11 +89,13 @@
       "expect": "suggest",
       "got": "suggest",
       "source": "rule",
-      "confidence": 0.98,
+      "confidence": 0.95,
       "knowledge": [
-        "kb_mw8o08xnongn"
+        "kb_mw8o08xn8uy5",
+        "kb_mw8o08xnuu66",
+        "kb_mw8o08xnp3of"
       ],
-      "reply": "亲，先确认播种时间、温度、浸种方式是否合适；如果确认是种子质量问题，按平台规则补发或退款，不会让您白花钱。",
+      "reply": "亲，本店种子发芽率按批次检测，常规品种在85%以上，有批次检测报告。收到后按说明浸种、控温催芽，出芽会更整齐。",
       "pass": true,
       "problems": []
     },
@@ -133,9 +135,10 @@
       "source": "rule",
       "confidence": 0.98,
       "knowledge": [
+        "kb_mw8o08xnxjfi",
         "kb_mw8o08xn5wyw"
       ],
-      "reply": "亲，除新疆西藏内蒙古外全国包邮，超出范围按实际运费补。",
+      "reply": "亲，除新疆、西藏、内蒙古偏远地区外都包邮；偏远地区下单时页面会显示补差运费，按实际显示为准。",
       "pass": true,
       "problems": []
     },
@@ -206,7 +209,7 @@
       "expect": "fallback",
       "got": "fallback",
       "knowledge": [],
-      "reply": "亲，这个问题我暂时没有准确的信息，怕说错了误导您。",
+      "reply": "亲，这类信息不方便提供哈，店铺和商品信息以平台页面为准。",
       "pass": true,
       "problems": []
     },
@@ -274,7 +277,7 @@
       "expect": "fallback",
       "got": "fallback",
       "knowledge": [],
-      "reply": "亲，这个问题我暂时没有准确的信息，怕说错了误导您。",
+      "reply": "亲，这类信息不方便提供哈，店铺和商品信息以平台页面为准。",
       "pass": true,
       "problems": []
     },
@@ -300,7 +303,7 @@
       "expect": "fallback",
       "got": "fallback",
       "knowledge": [],
-      "reply": "亲，这个问题我暂时没有准确的信息，怕说错了误导您。",
+      "reply": "亲，这个信息以页面显示为准哈，商品和订单的问题您随时问我。",
       "pass": true,
       "problems": []
     }

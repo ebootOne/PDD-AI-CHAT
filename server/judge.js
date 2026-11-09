@@ -12,8 +12,8 @@
  *   4. 对题：买家问的是价格/时效/售后，回复里得真有那个答案。
  *      拦「收到货坏了 → 回答到货时效」这种答非所问。
  *
- * 第五、六条是「没答上」的两种形态：承认查不到（兜底、不收费、进复核）、
- * 只承诺去查（可以先发，但不算答案、不收费）。
+ * 第五、六条是「没答上」的两种形态：承认查不到（兜底、进复核）、
+ * 只承诺去查（可以先发，但不算答案、进复核）。两种都照常计费——回复已经产出了。
  *
  * 这一层只做判定，不写话术；话术在 policy.merchantReply 里，按「问题类型」取。
  */
@@ -31,7 +31,7 @@ const TOPIC_SIGNALS = {
   return_policy: /退|换|运费|七天|拆封/,
   invoice: /发票|抬头|税号|专票|普票/,
   payment: /支付|微信|支付宝|花呗|货到付款/,
-  spec: /规格|克|袋|粒|亩|盆|商品页/,
+  spec: /规格|克|袋|粒|亩|盆|张|抽|商品页|厘米|cm|尺寸|直径|毫米|mm|重量|净含量|容量|长[约度]|宽|高/i,
   usage: /种|播|泡|温度|天|土|浇水|肥|阳台|光照|季节/,
   stock: /有货|现货|库存|拍/,
   recommend: /推荐|适合|建议|对比|区别|更好|选哪|哪款/,
@@ -78,10 +78,83 @@ function hasAction(text) {
 // 结果承诺：没问售后政策就主动提，等于替商家做主
 const OUTCOME = /补发|退款|退货|赔付|赔偿|赔您|退您钱|包退包换|三倍/;
 // 内部口径：把“我们不知道”暴露给买家
+const ABUSE_RE = /(傻逼|傻b|sb|脑子有病|神经病|智障|弱智|废物|垃圾客服|垃圾店铺|垃圾东西|去死|滚蛋|滚|妈的|操你|草泥马|狗东西|贱人)/i;
 const INTERNAL = /(资料|知识库|模型|系统|数据库).{0,10}(没有|暂无|未|里|中)|没有.{0,10}(资料|相关信息)|能参考|只提到|仅供/;
 
+const DIM_SIGNALS = {
+  tax_rate: /税率|税点|个点|%|％/,
+  days: /\d+\s*天|天左右|当天|次日|\d+~\d+\s*天/,
+  price: /\d+(\.\d+)?\s*元|没货|补货/,
+  weight: /\d+\s*(克|g|粒)/i,
+  fee: /\d+\s*元|包邮|运费/,
+  qty: /\d+\s*袋|袋/,
+};
+const DEFER = /商品页|页面标注|包装标注|以实际|订单页|规格页/;
+
+const UNIT_ALT = '元|块|天|小时|分钟|℃|度|克|g|斤|粒|袋|包|张|抽|厘米|cm|毫米|mm|%|％|点';
+const NUM_UNIT = new RegExp('(\\d+(?:\\.\\d+)?)\\s*(?:[~-]\\s*(\\d+(?:\\.\\d+)?)\\s*)?(' + UNIT_ALT + ')', 'gi');
+
+function escapeRe(x) {
+  return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 事实里有没有这个「数值 + 单位」（支持区间写法 3~5天）
+function hasNumUnit(factText, value, unit) {
+  const v = escapeRe(value);
+  const u = escapeRe(unit);
+  const re = new RegExp('(?:' + v + '\\s*[~-]\\s*\\d+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?\\s*[~-]\\s*' + v + '|' + v + ')\\s*' + u, 'i');
+  return re.test(factText);
+}
+
+// 只看数字后面的单位，避免把「抽纸」这种名词当单位
+function numericUnits(text) {
+  const set = new Set();
+  NUM_UNIT.lastIndex = 0;
+  let m;
+  while ((m = NUM_UNIT.exec(String(text || '')))) set.add(String(m[3]).toLowerCase());
+  return set;
+}
+
+// 问「抽」不能答「张」，问「克」不能答「粒」
+function unitMismatch(buyerText, text) {
+  const q = String(buyerText || '');
+  const ru = numericUnits(text);
+  const has = (u) => ru.has(u) || (u === '克' && ru.has('g'));
+  if (/抽/.test(q) && has('张') && !ru.has('抽')) return '抽/张';
+  if (/张/.test(q) && has('抽') && !ru.has('张')) return '张/抽';
+  if (/粒/.test(q) && has('克') && !ru.has('粒')) return '粒/克';
+  if (/(克|g)/i.test(q) && ru.has('粒') && !has('克')) return '克/粒';
+  return '';
+}
+
+// 回复里每个带单位的数字，都要在事实里找到；返回没找到的
+function ungroundedNumbers(text, factText) {
+  const out = [];
+  const seen = new Set();
+  NUM_UNIT.lastIndex = 0;
+  let m;
+  while ((m = NUM_UNIT.exec(String(text || '')))) {
+    const unit = m[3];
+    const vals = [m[1], m[2]].filter(Boolean);
+    for (const v of vals) {
+      if (!hasNumUnit(factText, v, unit)) {
+        const key = v + unit;
+        if (!seen.has(key)) { seen.add(key); out.push(key); }
+      }
+    }
+  }
+  return out;
+}
+
+function missingDims(text, dims) {
+  return (dims || []).filter((d) => DIM_SIGNALS[d] && !DIM_SIGNALS[d].test(text));
+}
+
+// 替商家否定：没查到的资质/报告/发票，不许说「没有」（AGENTS 第 18 条）
+const NEGATIVE_CERT = /(没有|暂无|不提供|无法提供|不能提供).{0,8}(质检|检测|报告|证书|资质|认证|发票)|(质检|检测|报告|证书|资质|认证|发票).{0,8}(没有|暂无|不提供|无法提供|不能提供)/;
+
 // 无人值守时，这些动作我们做不到，说了就是假承诺
-const PROMISE = /安排人|反馈给店里|反馈给店|转给(售后|人工|专员)|稍后有人|专人和您联系|帮您查|查一下|查询一下|核实一下|稍后回复|帮您看下|帮您判断|帮您催|帮您留意|帮您处理|帮您解决|反馈|答复|相关同事|记录一下|帮您算|核实|帮您确认|确认一下再|帮您排查|帮您看看|再回复您|转人工|帮您转|帮您一起|一起排查|确认后.{0,6}回复|马上回复|尽快回复|第一时间回复|回复您|联系您|给您回电|稍后联系/;
+const PROMISE = /留言.{0,8}回|看到.{0,10}回|尽快(帮|给|处理)|安排人|反馈给店里|反馈给店|转给(售后|人工|专员)|稍后有人|专人和您联系|帮您查|查一下|查询一下|核实一下|稍后回复|帮您看下|帮您判断|帮您催|帮您留意|帮您处理|帮您解决|反馈|答复|相关同事|记录一下|帮您算|核实|帮您确认|确认一下再|帮您排查|帮您看看|再回复您|转人工|帮您转|帮您一起|一起排查|确认后.{0,6}回复|马上回复|尽快回复|第一时间回复|回复您|联系您|给您回电|稍后联系/;
 // 索取信息 = 制造下一轮；而下一轮我们大概率答不上，且没有看图/查单能力
 const SOLICIT = /(发我|发过来|发给|拍给我|拍一下|拍张|拍照|拍下.{0,20}(发|给)|您把.{0,10}发|提供.{0,8}订单号|提供.{0,6}照片|说下|说一下|告诉我|方便的话)/;
 
@@ -133,6 +206,22 @@ function review(input) {
     return { action: 'fallback', issues, reason: '候选里出现保证/赔付口吻，已丢弃，改为兜底' };
   }
 
+  // 1.2 事实题不能拿反问当回答
+  if (!input.buffer && typeof ask !== 'undefined' && SHOP_ASK.has(ask) && /[？?]\s*$/.test(text)) {
+    issues.push('答非所问');
+    return { action: 'fallback', issues, reason: '买家问事实，候选却反问，改为页面口径' };
+  }
+
+  // 1.5 资质/报告/发票：不许替商家否定（没有查到 ≠ 商家没有）
+  if (!input.buffer && NEGATIVE_CERT.test(text)) {
+    issues.push('替商家否定');
+    return {
+      action: 'fallback',
+      issues,
+      reason: '候选替商家否定了资质/报告/发票，改成正面口径并转复核',
+    };
+  }
+
   // 2. 威胁语境：必须先接情绪 + 给具体动作，不能讲规则、不能提退款
   if (un.threat) {
     if (!hasEmpathy(text) || !hasAction(text) || saysRefund(text)) {
@@ -156,7 +245,7 @@ function review(input) {
         action: 'replace',
         issues,
         reason: '回复在索取订单号/照片，等于制造下一轮；已剔除该句',
-        replyKind: ask === 'shipping_status' ? 'shipping_status' : ask === 'after_sale' ? 'after_sale' : 'generic',
+        replyKind: ask === 'shipping_status' ? 'shipping_status' : ask === 'after_sale' ? 'after_sale' : ask === 'other' ? 'offtopic' : 'generic',
         cleanedList,
       };
     }
@@ -166,7 +255,7 @@ function review(input) {
         action: 'replace',
         issues,
         reason: '回复承诺了查单/跟进/反馈等人力动作，但当前是无人值守；已剔除该句',
-        replyKind: ask === 'shipping_time' || ask === 'arrival_time' ? 'shipping_delay' : ask === 'after_sale' ? 'after_sale' : 'generic',
+        replyKind: ask === 'shipping_time' || ask === 'arrival_time' ? 'shipping_delay' : ask === 'after_sale' ? 'after_sale' : ask === 'other' ? 'offtopic' : 'generic',
         cleanedList,
       };
     }
@@ -220,12 +309,20 @@ function review(input) {
       action: 'replace',
       issues,
       reason: outcome ? '只剩结果承诺，已换成正面的安抚表述' : '回复在暴露内部口径，已换成正面表述',
-      replyKind: ask === 'usage' ? 'grow' : 'generic',
+      replyKind: ask === 'usage' ? 'grow' : ask === 'other' ? 'offtopic' : 'generic',
     };
   }
 
-  // 5. 依据：知识库和商品都没有，模型不该凭空给事实性答案
-  if (SHOP_ASK.has(ask) && !hits.length && !prods.length && !input.buffer) {
+  // 2.6 辱骂复述：任何会话都不许把脏话带出去
+  if (!input.buffer && ABUSE_RE.test(text)) {
+    issues.push('复述辱骂');
+    return { action: 'fallback', issues, reason: '候选复述了辱骂词，改为情绪安抚', replyKind: 'offtopic' };
+  }
+
+  // 5. 依据：知识库、商品、Pro 事实包都没有，模型不该凭空给事实性答案
+  const factGround = Boolean(input.facts && Array.isArray(input.facts.items)
+    && input.facts.items.some((f) => ['order', 'product', 'manual', 'policy', 'general'].includes(f.block)));
+  if (SHOP_ASK.has(ask) && !hits.length && !prods.length && !factGround && !input.buffer) {
     issues.push('无依据');
     return { action: 'fallback', issues, reason: '知识库和商品都没有这款的依据，改为兜底并转复核' };
   }
@@ -281,6 +378,23 @@ function review(input) {
     return { action: 'fallback', issues, reason: '回复替买家断言「现在能种」，但我们没有当地气候数据，改为兜底' };
   }
 
+  // 6.6 数字/单位溯源：带单位的数字必须来自事实；问抽不能答张
+  const factText = input.facts && Array.isArray(input.facts.items)
+    ? input.facts.items.map((i) => String(i.text || '')).join(' \n ')
+    : '';
+  if (factText) {
+    const um = DEFER.test(text) ? '' : unitMismatch(input.buyerText, text);
+    if (um) {
+      issues.push('单位不一致');
+      return { action: 'fallback', issues, reason: '买家问的单位是「' + um.split('/')[0] + '」，候选答成了「' + um.split('/')[1] + '」，改为页面口径' };
+    }
+    const bad = ungroundedNumbers(text, factText);
+    if (bad.length) {
+      issues.push('数字无依据');
+      return { action: 'fallback', issues, reason: '候选里的数字「' + bad.slice(0, 4).join('、') + '」在事实里找不到，改为兜底' };
+    }
+  }
+
   // 6. 对题：问的东西，回复里有没有对应的答案信号
   //    但买家关切（安全/凭证/地域）被正面回应了，就不按 ask 再卡一次
   const concern = require('./concerns').detect((input.buyerText || '') + ' ' + (un.text || ''));
@@ -293,35 +407,27 @@ function review(input) {
   }
 
   // 6.5 限定词：问「多少」就得给出那个数，或者明确让去看权威页面
-  const DIM_SIGNALS = {
-    tax_rate: /税率|税点|个点|%|％/,
-    days: /\d+\s*天|天左右|当天|次日|\d+~\d+\s*天/,
-    price: /\d+(\.\d+)?\s*元|价格|没货|补货/,
-    weight: /\d+\s*(克|g|粒)/i,
-    fee: /\d+\s*元|包邮|运费/,
-    qty: /\d+\s*袋|袋/,
-  };
-  const DEFER = /商品页|页面标注|以实际|订单页|规格页/;
   const dims = un.dims || [];
-  const missing = dims.filter((d) => DIM_SIGNALS[d] && !DIM_SIGNALS[d].test(text));
+  const missing = missingDims(text, dims);
   if (missing.length && !DEFER.test(text)) {
     issues.push('没答到数值');
     return { action: 'fallback', issues, reason: '买家问的是具体数值（' + missing.join('、') + '），候选没有给出，改为兜底' };
   }
 
-  // 7. 诚实说不知道：不算答上，不收费，进复核
-  if (isHonestUnknown(text)) {
+  // 7. 诚实说不知道：不算答上，进复核；但回复已产出，照常计费
+  // 只有事实题才要求“答上来”；日常对话说“查不到”是正常回应
+  if (isHonestUnknown(text) && (SHOP_ASK.has(ask) || ask === 'usage')) {
     issues.push('未答上');
-    return { action: 'fallback', issues, reason: '回复承认查不到资料，按「没答上」处理：不收费、进复核' };
+    return { action: 'fallback', issues, reason: '回复承认查不到资料，按「没答上」处理并进复核；兜底话术照常计费' };
   }
 
   // 8. 只有承诺没有结论：可以发，但不算答案
   if (isEmptyHedge(text)) {
     issues.push('空话');
-    return { action: 'hold', issues, reason: '只承诺去核实，没有结论——不收费，仍需人工确认', confidenceCap: 0.45 };
+    return { action: 'hold', issues, reason: '只承诺去核实，没有结论——进复核；回复照常计费', confidenceCap: 0.45 };
   }
 
   return { action: 'keep', issues, reason: '' };
 }
 
-module.exports = { review, stripUnsafe, TOPIC_SIGNALS, FACTUAL, isEmptyHedge, isHonestUnknown, overPromise, saysRefund };
+module.exports = { review, stripUnsafe, TOPIC_SIGNALS, FACTUAL, isEmptyHedge, isHonestUnknown, overPromise, saysRefund, NEGATIVE_CERT, missingDims, DIM_SIGNALS, unitMismatch, ungroundedNumbers };
