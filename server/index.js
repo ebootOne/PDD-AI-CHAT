@@ -1279,6 +1279,25 @@ const cfg = store.getConfig();
       const shortKw = keywords.filter((k) => k.replace(/\s+/g, '').length < 2);
       if (shortKw.length) advice.push('关键词太短（' + shortKw.join('、') + '），容易跟别的问题撞，写长一点更准');
 
+      // 覆盖率检查：去掉疑问/虚词后的 2 字片段，必须能在条目里找到
+      const Q_STOP = /请问|想问|麻烦|一下|什么样|什么|怎么|怎样|多少|几天|几个|哪儿|哪里|哪个|是不是|能不能|可不可以|有没有|你们|我们|咱们|这边|那边|可以|需要|这个|那个|的话|吗|呢|吧|啊|呀|哦|哈|的|了|是|有|能|会|要|在|和|与|就|都|我|你/g;
+      function coversQuestion(q, entry) {
+        const corpus = [entry.title, ...(entry.keywords || []), entry.answer].join('').replace(/\s+/g, '');
+        const clean = String(q || '').replace(Q_STOP, '').replace(/[^\u4e00-\u9fa5a-z0-9]/gi, '');
+        if (clean.length < 2) return true;
+        // 贪心最长匹配：问句必须能被条目里的片段「切分干净」，切不掉的部分就是它答不了的
+        let i = 0;
+        while (i < clean.length) {
+          let matched = 0;
+          for (let len = Math.min(6, clean.length - i); len >= 2; len--) {
+            if (corpus.includes(clean.slice(i, i + len))) { matched = len; break; }
+          }
+          if (!matched) return false;
+          i += matched;
+        }
+        return true;
+      }
+
       // 推荐关键词：从真实买家话术里挑「用了就一定能命中」的说法
       const suggestKeywords = (() => {
         if (hitTop && askOk && shortKw.length === 0 && keywords.length >= 2) return [];
@@ -1305,15 +1324,11 @@ const cfg = store.getConfig();
           const rank = h.findIndex((x) => String(x.entry.id) === '__probe__');
           if (rank !== 0) continue;
 
-          // 光命中不算：问法带着条目答不了的槽位，推了就会制造错答。
-          // 用已有的槽位抽取判断（不是给推荐单写词表）：
-          //   问法里有地区 → 条目答案必须真的提到该地区或地区口径，否则不推
-          const slots = understand.extractSlots(text);
-          const ans = String(item.answer || '');
-          if (slots.region) {
-            const coversRegion = ans.includes(slots.region) || /地区|偏远|运费|包邮|港澳|海外|新疆|西藏|内蒙古/.test(ans);
-            if (!coversRegion) continue;
-          }
+          // 光命中不算：问法里有条目答不了的实义片段，推了就会制造错答。
+          // 判据是「覆盖率」而不是「地区词典」：
+          //   去掉疑问/虚词后，问句里每个 2 字片段都必须在这条的标题/关键词/答案里出现过
+          //   —— 不需要知道「乌鲁木齐」是地名，照样能拦住
+          if (!coversQuestion(text, probeItem)) continue;
           out.push({ text, count, rank: 1 });
         }
         return out;
