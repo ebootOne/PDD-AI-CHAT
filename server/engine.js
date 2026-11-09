@@ -217,6 +217,34 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   // 商品按店铺作用域：多店铺时不能拿别家商品报错价（ISS-013）
   const productItems = opts.products || (ctx.storeId ? productStore.forStore(ctx.storeId) : []);
 
+  // 补充召回：问句里出现的词，如果还命中别的条目（新疆 → 包邮范围），一起带上交给模型。
+  // 这里不判断「这是地名/型号/颜色」，只做包含匹配；判断交给模型。
+  const SUPP_STOP = /请问|想问|麻烦|一下|什么|怎么|怎样|多少|几天|几个|哪儿|哪里|哪个|是不是|能不能|可不可以|有没有|你们|我们|咱们|这边|那边|可以|需要|这个|那个|的话|吗|呢|吧|啊|呀|哦|哈|的|了|是|有|能|会|要|在|和|与|就|都|我|你/g;
+  const qTokens = (() => {
+    const clean = String(queryText || '').replace(SUPP_STOP, '').replace(/[^\u4e00-\u9fa5a-z0-9]/gi, '');
+    const out = new Set();
+    for (let i = 0; i + 2 <= clean.length; i++) out.add(clean.slice(i, i + 2));
+    return [...out];
+  })();
+  let supplemental = [];
+  if (qTokens.length && hits.length) {
+    // 只找「主命中解释不了」的词：西藏/新疆/乌鲁木齐 这类主条目答不了的实体，
+    // 如果别的条目里有，就一并带上；主条目自己已经覆盖的词不算
+    const topCorpus = [hits[0].entry.title, ...(hits[0].entry.keywords || []), hits[0].entry.answer].join('');
+    const uncovered = qTokens.filter((g) => !topCorpus.includes(g));
+    const have = new Set(hits.map((h) => String(h.entry.id)));
+    supplemental = uncovered.length ? knowledge
+      .filter((e) => e && e.enabled !== false && !have.has(String(e.id)))
+      .filter((e) => {
+        const corpus = [e.title, ...(e.keywords || []), e.answer].join('');
+        return uncovered.some((g) => corpus.includes(g));
+      })
+      .slice(0, 3)
+      .map((e) => ({ entry: e, score: 0.8, reasons: ['补充召回'], supplemental: true }))
+      : [];
+    if (supplemental.length) hits = hits.concat(supplemental);
+  }
+
   // 第二层检索：知识库没覆盖时，去店铺商品里找「有没有这个」
   const wantsProduct = intent === 'product' || un.ask === 'price' || hits.length === 0;
   const pm = wantsProduct ? productStore.match(queryText, productItems) : null;
@@ -519,6 +547,7 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   const guardOk = un.ask === 'greeting' || un.ask === 'privacy'; // 问候/隐私不是事实题
   const confidentLocal = candidates.length > 0
     && confidence >= 0.85
+    && !supplemental.length // 跨了多条知识：交给模型综合，别用单条硬答
     && (source === 'product' || source === 'manual' || source === 'rule');
   // 没有模型通道时（评测/离线），交模型等于没有回复——直接走兜底，保证每句都有可发的话
   const hasModelChannel = Boolean((cfg.backend && cfg.backend.url) || (cfg.llm && cfg.llm.baseUrl));
@@ -631,9 +660,11 @@ function productCandidates(pm, cfg, ask) {
   if (!items.length) return [];
   const inStock = items.filter((p) => Number(p.stock) > 0);
   const label = (p) => {
-    const first = String(p.title || '').trim().split(/\s+/)[0].replace(/种子$/, '');
-    const s = first || p.category || '';
-    return s.length > 14 ? s.slice(0, 14) + '…' : s;
+    let s = String(p.title || '').trim().split(/[\s，,]/)[0];
+    s = s.replace(/(鸟类通用|鸟用|鸟类|专用|通用).*$/, '') || s;
+    s = s.replace(/种子$/, '');
+    if (s.length > 10) s = s.slice(0, 10);
+    return s || p.category || '这款';
   };
 
   // 同一品类只留一个，避免出现"白萝卜、白萝卜、樱桃萝卜"
