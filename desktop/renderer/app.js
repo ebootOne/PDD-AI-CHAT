@@ -776,6 +776,39 @@ function openFillAll() {
   });
 }
 
+// 命中自测结果：告诉商家这条能不能被检索到，以及怎么改
+function showProbeResult(probe, onSaveAnyway) {
+  const rows = (probe.probes || []).map((p) => `
+    <div class="probe-row">
+      <span class="probe-q">${esc(p.q)}</span>
+      <span class="probe-tag ${p.rank === 1 ? 'ok' : p.hit ? 'mid' : 'bad'}">${p.rank === 1 ? '命中第一' : p.hit ? '排第 ' + p.rank : '没命中'}</span>
+      ${p.rival ? `<span class="probe-rival">被「${esc(p.rival)}」压住</span>` : ''}
+    </div>`).join('');
+  const advice = (probe.advice || []).map((a) => `<li>${esc(a)}</li>`).join('');
+  openSubModal(`
+    <div class="modal-head">
+      <div class="modal-title">这条可能答不上来</div>
+      <button class="modal-close" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:#64748b;line-height:1.7;margin-bottom:10px">
+        用这条自己的标题和关键词问了一遍，结果如下。改完关键词再保存，命中率会高很多。
+      </div>
+      ${rows}
+      ${advice ? `<div class="probe-advice"><b>建议</b><ul>${advice}</ul></div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn-line primary" id="probeBack">回去改关键词</button>
+        <button class="btn-line ghost" id="probeSave">仍然保存</button>
+      </div>
+    </div>`);
+  $('#modal2').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeSubModal));
+  $('#probeBack').addEventListener('click', closeSubModal);
+  $('#probeSave').addEventListener('click', async () => {
+    closeSubModal();
+    await onSaveAnyway();
+  });
+}
+
 // 模板库：20 条标准模板，点一下加入「待填写」，填好【】再启用
 async function openTemplateLib() {
   const storeId = state.activeId || '';
@@ -1580,6 +1613,20 @@ async function renderWorkbench(tab) {
       // 编辑「整个工具」的模板时保留 scope，别一编辑就被改成当前店铺
       if (editing && editing.scope === 'tool') { item.scope = 'tool'; item.storeId = ''; }
       if (editId) item.id = editId;
+
+      // 保存前先自测：加进去但检索不到，等于白加
+      let probe = null;
+      try {
+        probe = await api('/api/knowledge/probe', 'POST', { item, storeId });
+      } catch (_) {}
+      if (probe && probe.ok && !probe.pass) {
+        return showProbeResult(probe, async () => {
+          await api('/api/knowledge', 'POST', { item, storeId });
+          toast(editId ? '已保存并启用' : '已保存（自测未完全通过）');
+          renderWorkbench('kb');
+        });
+      }
+
       try {
         await api('/api/knowledge', 'POST', { item, storeId });
         toast(editId ? '已保存并启用' : '已保存');

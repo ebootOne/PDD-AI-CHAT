@@ -24,6 +24,7 @@ const sensitive = require('./sensitive');
 const kbTemplates = require('./kb-templates');
 const kbSuggest = require('./kb-suggest');
 const understand = require('./understand');
+const knowledge = require('./knowledge');
 const persona = require('./persona');
 const natural = require('./natural');
 const focus = require('./focus');
@@ -1204,6 +1205,75 @@ const cfg = store.getConfig();
     if (p === '/api/knowledge/pending' && req.method === 'GET') {
       const items = store.getKnowledge().filter((k) => k.enabled === false);
       return send(res, 200, { ok: true, items });
+    }
+
+    // 命中自测：用条目自己的标题/关键词反问一遍，判断它到底能不能被检索到
+    if (p === '/api/knowledge/probe' && req.method === 'POST') {
+      const body = await readBody(req);
+      const item = body.item || {};
+      const storeId = body.storeId || item.storeId || '';
+      const title = String(item.title || '').trim();
+      const keywords = (item.keywords || []).map((x) => String(x || '').trim()).filter(Boolean);
+      if (!title && !keywords.length) return send(res, 400, { ok: false, error: '先填标题或关键词' });
+
+      const all = store.getKnowledge().filter((k) => !k.archived && k.enabled !== false);
+      const mine = all.filter((k) => (storeId ? k.storeId === storeId : !k.storeId));
+      const others = mine.filter((k) => String(k.title || '') !== title);
+      const probeItem = {
+        ...item,
+        id: item.id || '__probe__',
+        title: title || keywords[0],
+        keywords,
+        enabled: true,
+        storeId,
+      };
+      const kb = others.concat([probeItem]);
+
+      const probes = [];
+      const seen = new Set();
+      const queries = [title, ...keywords.slice(0, 3)].filter(Boolean);
+      for (const q of queries) {
+        const key = q.replace(/\s+/g, '');
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        const ask = understand.detectAsk(q);
+        const hits = knowledge.retrieve(q, kb, { storeId });
+        const rank = hits.findIndex((h) => String(h.entry.id) === '__probe__');
+        const rival = hits[0] && String(hits[0].entry.id) !== '__probe__' ? hits[0].entry.title : '';
+        probes.push({
+          q,
+          ask,
+          hit: rank >= 0,
+          rank: rank >= 0 ? rank + 1 : 0,
+          score: rank >= 0 ? Number(hits[rank].score.toFixed(2)) : 0,
+          rival,
+          askMatch: !item.ask || ask === item.ask,
+        });
+      }
+
+      const hitTop = probes.some((x) => x.rank === 1);
+      const hitAny = probes.some((x) => x.hit);
+      const askOk = probes.every((x) => x.askMatch);
+      const advice = [];
+      if (!hitAny) advice.push('一条都没命中：换成买家真的会说的说法当关键词（比如「几点上班」「营业时间」）');
+      else if (!hitTop) advice.push('能检索到但排不到第一：被「' + (probes.find((x) => x.rival) || {}).rival + '」压住了，把关键词写长一点或更具体');
+      if (!askOk) {
+        const bad = probes.find((x) => !x.askMatch);
+        if (bad) advice.push('问法被识别成「' + bad.ask + '」，但条目标的是「' + (item.ask || '-') + '」，两者要对齐');
+      }
+      if (keywords.length < 2) advice.push('关键词太少：至少写 2~3 个买家可能的说法');
+      const shortKw = keywords.filter((k) => k.replace(/\s+/g, '').length < 2);
+      if (shortKw.length) advice.push('关键词太短（' + shortKw.join('、') + '），容易跟别的问题撞，写长一点更准');
+
+      // 通过标准：能排第一 + ask 对得上 + 关键词够多够长（太短会跟别的问题撞）
+      const pass = hitTop && askOk && shortKw.length === 0 && keywords.length >= 2;
+      return send(res, 200, {
+        ok: true,
+        pass,
+        weak: hitAny && !pass,
+        probes,
+        advice,
+      });
     }
 
     if (p === '/api/knowledge/enable' && req.method === 'POST') {

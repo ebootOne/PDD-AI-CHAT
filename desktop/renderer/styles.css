@@ -700,3 +700,15 @@ textarea.input { min-height: 76px; resize: vertical; line-height: 1.6; }
 .modal-store { font-size: 13px; font-weight: 400; color: #64748b; }
 .kb-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .kb-stats { margin: 0; }
+
+/* 命中自测 */
+.probe-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; }
+.probe-q { flex: 1; color: #0f172a; }
+.probe-tag { font-size: 11px; padding: 1px 6px; border-radius: 5px; }
+.probe-tag.ok { color: #067a4b; background: #e9f9f1; }
+.probe-tag.mid { color: #b45309; background: #fff7ed; }
+.probe-tag.bad { color: #b91c1c; background: #fef2f2; }
+.probe-rival { font-size: 11px; color: #94a3b8; }
+.probe-advice { margin-top: 10px; background: #f8fafc; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; color: #334155; }
+.probe-advice ul { margin: 6px 0 0 16px; padding: 0; }
+.probe-advice li { margin-bottom: 4px; line-height: 1.6; }
