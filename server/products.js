@@ -22,6 +22,11 @@ function seedPath() {
   return path.join(DATA_DIR, 'seed', 'products.json');
 }
 
+function forStore(storeId) {
+  if (!storeId) return [];
+  return load().filter((p) => p && p.storeId === storeId);
+}
+
 function load() {
   try {
     return JSON.parse(fs.readFileSync(path.join(DATA_DIR, FILE), 'utf8'));
@@ -179,4 +184,5 @@ function findByTitle(title, items) {
   return best;
 }
 
-module.exports = { load, save, match, find, findByTitle, norm };
+module.exports = {
+  forStore, load, save, match, find, findByTitle, norm };

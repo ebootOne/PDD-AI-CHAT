@@ -1160,7 +1160,12 @@ const cfg = store.getConfig();
     }
 
     if (p === '/api/products' && req.method === 'GET') {
-      return send(res, 200, { ok: true, items: productStore.load() });
+      const storeId = url.searchParams.get('storeId') || '';
+      const all = url.searchParams.get('all') === '1';
+      return send(res, 200, {
+        ok: true,
+        items: all ? productStore.load() : (storeId ? productStore.forStore(storeId) : []),
+      });
     }
 
     // 客户端自动同步商品（来自商家后台商品列表页）
@@ -1265,6 +1270,35 @@ const cfg = store.getConfig();
       const shortKw = keywords.filter((k) => k.replace(/\s+/g, '').length < 2);
       if (shortKw.length) advice.push('关键词太短（' + shortKw.join('、') + '），容易跟别的问题撞，写长一点更准');
 
+      // 推荐关键词：从真实买家话术里挑「用了就一定能命中」的说法
+      const suggestKeywords = (() => {
+        if (hitTop && askOk && shortKw.length === 0 && keywords.length >= 2) return [];
+        const words = [title, ...keywords].map((x) => String(x || '').replace(/\s+/g, '')).filter((x) => x.length >= 2);
+        const logs = store.getLogs(1200).filter((l) => l && l.buyerText);
+        const freq = new Map();
+        for (const l of logs) {
+          if (storeId && l.storeId && l.storeId !== storeId) continue;
+          const t = String(l.buyerText).replace(/[。！？!?，,：:\s]+$/g, '').trim();
+          if (t.length < 2 || t.length > 20) continue;
+          if (keywords.includes(t)) continue;
+          const related = words.some((w) => t.includes(w) || w.includes(t.slice(0, 3)));
+          if (!related) continue;
+          freq.set(t, (freq.get(t) || 0) + 1);
+        }
+        const out = [];
+        const seenQ = new Set();
+        for (const [text, count] of [...freq.entries()].sort((a, b) => b[1] - a[1])) {
+          if (out.length >= 3) break;
+          if (seenQ.has(text)) continue;
+          seenQ.add(text);
+          // 必须真的能排第一，否则推了也没用
+          const h = knowledge.retrieve(text, kb, { storeId });
+          const rank = h.findIndex((x) => String(x.entry.id) === '__probe__');
+          if (rank === 0) out.push({ text, count, rank: 1 });
+        }
+        return out;
+      })();
+
       // 通过标准：能排第一 + ask 对得上 + 关键词够多够长（太短会跟别的问题撞）
       const pass = hitTop && askOk && shortKw.length === 0 && keywords.length >= 2;
       return send(res, 200, {
@@ -1273,6 +1307,7 @@ const cfg = store.getConfig();
         weak: hitAny && !pass,
         probes,
         advice,
+        suggestKeywords,
       });
     }
 

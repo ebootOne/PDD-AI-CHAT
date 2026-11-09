@@ -215,7 +215,7 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   hits.sort((a, b) => (b.score - a.score) || ((b.entry.priority || 2) - (a.entry.priority || 2)));
 
   // 商品按店铺作用域：多店铺时不能拿别家商品报错价（ISS-013）
-  const productItems = opts.products || productStore.load().filter((p) => !ctx.storeId || !p.storeId || p.storeId === ctx.storeId);
+  const productItems = opts.products || (ctx.storeId ? productStore.forStore(ctx.storeId) : []);
 
   // 第二层检索：知识库没覆盖时，去店铺商品里找「有没有这个」
   const wantsProduct = intent === 'product' || un.ask === 'price' || hits.length === 0;

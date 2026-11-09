@@ -22,7 +22,7 @@ let MAX_PRICE = 0;
 // 用「数据最新」的店铺跑验收：商品过期时不该拿旧数据验逻辑
 async function pickStore() {
   try {
-    const items = (await (await fetch(API + '/api/products')).json()).items || [];
+    const items = (await (await fetch(API + '/api/products?storeId=' + encodeURIComponent(STORE_ID))).json()).items || [];
     const groups = {};
     for (const it of items) {
       if (!it || !it.syncedAt) continue;

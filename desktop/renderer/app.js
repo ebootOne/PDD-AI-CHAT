@@ -785,6 +785,14 @@ function showProbeResult(probe, onSaveAnyway) {
       ${p.rival ? `<span class="probe-rival">被「${esc(p.rival)}」压住</span>` : ''}
     </div>`).join('');
   const advice = (probe.advice || []).map((a) => `<li>${esc(a)}</li>`).join('');
+  const suggests = probe.suggestKeywords || [];
+  const suggestHtml = suggests.length ? `
+      <div class="probe-suggest">
+        <div class="probe-suggest-h">这些是买家真实说过的、而且用了能命中的说法，点一下加进关键词：</div>
+        <div class="probe-chips">
+          ${suggests.map((x) => `<button class="probe-chip" data-kw="${esc(x.text)}">+ ${esc(x.text)}${x.count > 1 ? ' ×' + x.count : ''}</button>`).join('')}
+        </div>
+      </div>` : '';
   openSubModal(`
     <div class="modal-head">
       <div class="modal-title">这条可能答不上来</div>
@@ -796,12 +804,27 @@ function showProbeResult(probe, onSaveAnyway) {
       </div>
       ${rows}
       ${advice ? `<div class="probe-advice"><b>建议</b><ul>${advice}</ul></div>` : ''}
+      ${suggestHtml}
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn-line primary" id="probeBack">回去改关键词</button>
         <button class="btn-line ghost" id="probeSave">仍然保存</button>
       </div>
     </div>`);
   $('#modal2').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeSubModal));
+  $('#modal2').querySelectorAll('[data-kw]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const el = document.getElementById('kKw');
+      if (!el) return;
+      const cur = el.value.split(/[,，、\s]+/).map((x) => x.trim()).filter(Boolean);
+      const kw = b.dataset.kw;
+      if (!cur.includes(kw)) cur.push(kw);
+      el.value = cur.join('，');
+      b.disabled = true;
+      b.textContent = '已加入 ✓';
+      toast('已加入关键词，关掉后点保存会再自测一次');
+    });
+  });
+
   $('#probeBack').addEventListener('click', closeSubModal);
   $('#probeSave').addEventListener('click', async () => {
     closeSubModal();
@@ -1799,11 +1822,11 @@ async function renderWorkbench(tab) {
   } else if (tab === 'prod') {
     const storeId = state.activeId || '';
     const storeName = (state.stores.find((s) => s.id === storeId) || {}).name || '当前店铺';
-    const belongs = (p) => (storeId === 'real' ? p.storeId === 'real' : (!p.storeId || p.storeId === storeId));
+    const belongs = (p) => p.storeId === storeId;
 
     let items = [];
     try {
-      const all = (await api('/api/products')).items || [];
+      const all = (await api('/api/products?storeId=' + encodeURIComponent(storeId))).items || [];
       items = all.filter(belongs);
     } catch (_) {
       body.innerHTML = `<div class="empty-row">本地服务未启动</div>`;
