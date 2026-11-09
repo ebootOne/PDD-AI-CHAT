@@ -1,0 +1,308 @@
+{
+  "ts": "2026-11-09T05:25:30.480Z",
+  "pass": 19,
+  "total": 19,
+  "byIntent": {
+    "logistics": {
+      "total": 2,
+      "pass": 2
+    },
+    "usage": {
+      "total": 3,
+      "pass": 3
+    },
+    "refund": {
+      "total": 2,
+      "pass": 2
+    },
+    "complaint": {
+      "total": 3,
+      "pass": 3
+    },
+    "other": {
+      "total": 7,
+      "pass": 7
+    },
+    "price": {
+      "total": 1,
+      "pass": 1
+    },
+    "spec": {
+      "total": 1,
+      "pass": 1
+    }
+  },
+  "rows": [
+    {
+      "id": "E001",
+      "intent": "logistics",
+      "difficulty": "easy",
+      "expect": "auto_send",
+      "got": "auto_send",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xn16vk",
+        "kb_mw8o08xn8zg6"
+      ],
+      "reply": "亲，当天16点前付款的订单当天发出，16点后的顺延到第二天。节假日和活动期间会慢半天，发货后单号会同步到订单里。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E002",
+      "intent": "usage",
+      "difficulty": "easy",
+      "expect": "auto_send",
+      "got": "auto_send",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xn8uy5",
+        "kb_mw8o08xnp3of",
+        "kb_mw8o08xnuu66",
+        "kb_mw8o08xnq9my"
+      ],
+      "reply": "亲，本店种子发芽率按批次检测，常规品种在85%以上，有批次检测报告。收到后按说明浸种、控温催芽，出芽会更整齐。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E003",
+      "intent": "usage",
+      "difficulty": "medium",
+      "expect": "auto_send",
+      "got": "auto_send",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xnuu66"
+      ],
+      "reply": "亲，理解您着急，温水浸种4~6小时，捞出用湿纱布包好，放在25℃左右的地方，每天冲洗一次，一般3~5天露白就能播。露白后别再泡水，直接播到湿润的土里。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E004",
+      "intent": "refund",
+      "difficulty": "hard",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xnongn"
+      ],
+      "reply": "亲，先确认播种时间、温度、浸种方式是否合适；如果确认是种子质量问题，按平台规则补发或退款，不会让您白花钱。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E005",
+      "intent": "complaint",
+      "difficulty": "hard",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "knowledge": [],
+      "reply": "亲，实在抱歉让您不开心了。具体是哪儿没让您满意，您跟我说说，看看怎么补救哈。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E006",
+      "intent": "other",
+      "difficulty": "hard",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xns5ep"
+      ],
+      "reply": "亲，平台规定不能在站外沟通和交易，有问题在这里问我就好。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E007",
+      "intent": "price",
+      "difficulty": "medium",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xn5wyw"
+      ],
+      "reply": "亲，除新疆西藏内蒙古外全国包邮，超出范围按实际运费补。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E008",
+      "intent": "other",
+      "difficulty": "medium",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xns0tx"
+      ],
+      "reply": "亲，可以开发票：电子普票下单后在订单里填写抬头和税号，当天开出后发到订单邮箱；专票需要提供一般纳税人资料，走对公流程。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E009",
+      "intent": "refund",
+      "difficulty": "medium",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xnun5x"
+      ],
+      "reply": "亲，未拆封的可以七天无理由退，运费按平台规则。已经拆封播种的，如果是质量问题我们负责；如果是个人原因，需要您承担来回运费。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E010",
+      "intent": "logistics",
+      "difficulty": "easy",
+      "expect": "auto_send",
+      "got": "auto_send",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xnvbmg"
+      ],
+      "reply": "亲，一般发货后省内1~2天、周边省份2~3天、偏远地区4~6天。具体以快递揽收后的物流信息为准。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E011",
+      "intent": "spec",
+      "difficulty": "medium",
+      "expect": "auto_send",
+      "got": "auto_send",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xnxc0l"
+      ],
+      "reply": "亲，规格以商品页标注为准：点开规格可以看到每袋克数和建议播种量，按亩用量可以按每袋克数换算。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E012",
+      "intent": "other",
+      "difficulty": "hard",
+      "expect": "fallback",
+      "got": "fallback",
+      "knowledge": [],
+      "reply": "亲，这个问题我暂时没有准确的信息，怕说错了误导您。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E013",
+      "intent": "complaint",
+      "difficulty": "hard",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "knowledge": [],
+      "reply": "亲，实在抱歉让您不开心了。具体是哪儿没让您满意，您跟我说说，看看怎么补救哈。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E014",
+      "intent": "usage",
+      "difficulty": "medium",
+      "expect": "auto_send",
+      "got": "auto_send",
+      "source": "rule",
+      "confidence": 0.95,
+      "knowledge": [
+        "kb_mw8o08xnq9my"
+      ],
+      "reply": "亲，春播一般在地温稳定12℃以上、也就是3月中下旬到4月；秋播在8月到9月初。南方可以适当提前，北方建议看当地终霜期，避开倒春寒。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E015",
+      "intent": "other",
+      "difficulty": "easy",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xn83sn"
+      ],
+      "reply": "亲，这个商品目前有现货，可以直接拍。拍下后按页面显示的发货时间安排，具体库存以商品页显示的为准。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E016",
+      "intent": "complaint",
+      "difficulty": "hard",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "knowledge": [
+        "kb_mw8o08xn9c3u",
+        "kb_mw8o08xnongn"
+      ],
+      "reply": "亲，实在抱歉让您不开心了。具体是哪儿没让您满意，您跟我说说，看看怎么补救哈。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E017",
+      "intent": "other",
+      "difficulty": "hard",
+      "expect": "fallback",
+      "got": "fallback",
+      "knowledge": [],
+      "reply": "亲，这个问题我暂时没有准确的信息，怕说错了误导您。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E018",
+      "intent": "other",
+      "difficulty": "medium",
+      "expect": "suggest",
+      "got": "suggest",
+      "source": "rule",
+      "confidence": 0.98,
+      "knowledge": [
+        "kb_mw8o08xn2wmz"
+      ],
+      "reply": "亲，暂不支持货到付款哦。",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "E019",
+      "intent": "other",
+      "difficulty": "hard",
+      "expect": "fallback",
+      "got": "fallback",
+      "knowledge": [],
+      "reply": "亲，这个问题我暂时没有准确的信息，怕说错了误导您。",
+      "pass": true,
+      "problems": []
+    }
+  ]
+}

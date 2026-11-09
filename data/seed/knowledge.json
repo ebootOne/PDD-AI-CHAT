@@ -1,0 +1,303 @@
+[
+  {
+    "id": "kb-seed-germination",
+    "title": "发芽率",
+    "type": "product",
+    "scope": "global",
+    "keywords": [
+      "发芽率",
+      "出芽",
+      "发芽",
+      "能发芽吗",
+      "出苗"
+    ],
+    "question": "你家种子发芽率多少？",
+    "answer": "本店种子发芽率按批次检测，常规品种在85%以上，有批次检测报告。收到后按说明浸种、控温催芽，出芽会更整齐。",
+    "tags": [
+      "种子",
+      "质量"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-seed-sowing-time",
+    "title": "播种时间",
+    "type": "product",
+    "scope": "global",
+    "keywords": [
+      "什么时候种",
+      "播种时间",
+      "几月种",
+      "现在能种吗",
+      "季节"
+    ],
+    "question": "这个种子什么时候播种？",
+    "answer": "春播一般在地温稳定12℃以上、也就是3月中下旬到4月；秋播在8月到9月初。南方可以适当提前，北方建议看当地终霜期，避开倒春寒。",
+    "tags": [
+      "种子",
+      "种植"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-seed-temperature",
+    "title": "适宜温度",
+    "type": "product",
+    "scope": "global",
+    "keywords": [
+      "温度",
+      "多少度",
+      "适合温度",
+      "几度",
+      "低温",
+      "高温"
+    ],
+    "question": "这个品种适合多少度？",
+    "answer": "发芽适温20~28℃，生长期白天22~30℃最合适。低于15℃出苗慢，超过35℃要注意遮阴降温、早晚浇水。",
+    "tags": [
+      "种子",
+      "种植"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-seed-germinate-method",
+    "title": "催芽方法",
+    "type": "product",
+    "scope": "global",
+    "keywords": [
+      "怎么催芽",
+      "催芽",
+      "浸种",
+      "泡多久",
+      "怎么种",
+      "种植方法",
+      "泡水",
+      "泡一下",
+      "要泡吗",
+      "浸泡"
+    ],
+    "question": "怎么催芽？",
+    "answer": "温水浸种4~6小时，捞出用湿纱布包好，放在25℃左右的地方，每天冲洗一次，一般3~5天露白就能播。露白后别再泡水，直接播到湿润的土里。",
+    "tags": [
+      "种子",
+      "种植"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-seed-spec",
+    "title": "规格与粒数",
+    "type": "product",
+    "scope": "global",
+    "keywords": [
+      "多少粒",
+      "几粒",
+      "规格",
+      "一袋",
+      "一包",
+      "克",
+      "净含量"
+    ],
+    "question": "一袋多少粒/多少克？",
+    "answer": "规格以商品页标注为准：点开规格可以看到每袋克数和建议播种量，按亩用量可以按每袋克数换算。",
+    "tags": [
+      "种子",
+      "规格"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-logistics-ship-time",
+    "title": "发货时间",
+    "type": "policy",
+    "scope": "global",
+    "keywords": [
+      "什么时候发货",
+      "多久发货",
+      "几天发货",
+      "今天发吗",
+      "发货"
+    ],
+    "question": "什么时候发货？",
+    "answer": "当天16点前付款的订单当天发出，16点后的顺延到第二天。节假日和活动期间会慢半天，发货后单号会同步到订单里。",
+    "tags": [
+      "物流"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-logistics-arrival",
+    "title": "到货时效",
+    "type": "policy",
+    "scope": "global",
+    "keywords": [
+      "几天到",
+      "多久到",
+      "什么时候到",
+      "到货",
+      "时效",
+      "几天能到",
+      "多久能到",
+      "几天可以到"
+    ],
+    "question": "几天能到？",
+    "answer": "一般发货后省内1~2天、周边省份2~3天、偏远地区4~6天。具体以快递揽收后的物流信息为准。",
+    "tags": [
+      "物流"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-policy-free-shipping",
+    "title": "包邮与运费",
+    "type": "policy",
+    "scope": "global",
+    "keywords": [
+      "包邮吗",
+      "运费",
+      "邮费",
+      "多少钱运费",
+      "新疆",
+      "西藏"
+    ],
+    "question": "包邮吗？",
+    "answer": "除新疆、西藏、内蒙古偏远地区外都包邮；偏远地区下单时页面会显示补差运费，按实际显示为准。",
+    "tags": [
+      "运费"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-policy-no-sprout",
+    "title": "不发芽处理",
+    "type": "policy",
+    "scope": "global",
+    "keywords": [
+      "不发芽",
+      "没出芽",
+      "不出苗",
+      "死了",
+      "枯萎",
+      "售后",
+      "退款"
+    ],
+    "question": "种下去不发芽怎么办？",
+    "answer": "先确认播种时间、温度、浸种方式是否合适；如果确认是种子质量问题，按平台规则补发或退款，不会让您白花钱。",
+    "tags": [
+      "售后",
+      "种子"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-policy-return",
+    "title": "退换货规则",
+    "type": "policy",
+    "scope": "global",
+    "keywords": [
+      "退货",
+      "退款",
+      "七天无理由",
+      "能不能退",
+      "可以退",
+      "退吗",
+      "换货",
+      "拆封"
+    ],
+    "question": "可以退货吗？",
+    "answer": "未拆封的可以七天无理由退，运费按平台规则。已经拆封播种的，如果是质量问题我们负责；如果是个人原因，需要您承担来回运费。",
+    "tags": [
+      "售后"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-policy-invoice",
+    "title": "发票",
+    "type": "policy",
+    "scope": "global",
+    "keywords": [
+      "发票",
+      "开票",
+      "能开票吗",
+      "专票"
+    ],
+    "question": "能开发票吗？",
+    "answer": "可以开发票：电子普票下单后在订单里填写抬头和税号，当天开出后发到订单邮箱；专票需要提供一般纳税人资料，走对公流程。",
+    "tags": [
+      "财务"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-rule-platform-contact",
+    "title": "站外联系方式",
+    "type": "policy",
+    "scope": "global",
+    "keywords": [
+      "微信",
+      "手机号",
+      "电话",
+      "QQ",
+      "加个微信",
+      "私聊"
+    ],
+    "question": "能加微信聊吗？",
+    "answer": "平台规定不能在站外沟通和交易，有问题在这里问我就好。",
+    "tags": [
+      "合规"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-stock-available",
+    "title": "有货吗",
+    "type": "product",
+    "scope": "global",
+    "keywords": [
+      "有货吗",
+      "还有吗",
+      "有没有货",
+      "库存",
+      "能拍吗",
+      "现货"
+    ],
+    "question": "这个商品还有货吗？",
+    "answer": "这个商品目前有现货，可以直接拍。拍下后按页面显示的发货时间安排，具体库存以商品页显示的为准。",
+    "tags": [
+      "商品",
+      "库存"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "kb-pay-cod",
+    "title": "货到付款",
+    "keywords": [
+      "货到付款",
+      "到付",
+      "可以先收货再付钱"
+    ],
+    "question": "支持货到付款吗",
+    "answer": "暂不支持货到付款。",
+    "type": "faq",
+    "enabled": true
+  },
+  {
+    "id": "kb-pay-methods",
+    "title": "支付方式",
+    "keywords": [
+      "支付方式",
+      "怎么付款",
+      "花呗",
+      "微信支付",
+      "支付宝",
+      "支持什么支付"
+    ],
+    "question": "支持哪些支付方式",
+    "answer": "支持微信、支付宝、花呗。",
+    "type": "faq",
+    "enabled": true
+  }
+]

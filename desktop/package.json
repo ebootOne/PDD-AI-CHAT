@@ -1,0 +1,14 @@
+{
+  "name": "pdd-cs-desktop",
+  "version": "0.2.0",
+  "private": true,
+  "description": "拼多多智能客服工作台（桌面客户端）",
+  "main": "main.js",
+  "scripts": {
+    "start": "env -u ELECTRON_RUN_AS_NODE electron .",
+    "dev": "env -u ELECTRON_RUN_AS_NODE electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "44.4.5"
+  }
+}

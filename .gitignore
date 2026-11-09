@@ -1,0 +1,13 @@
+node_modules/
+data/*.json
+data/*.jsonl
+data/diag-*.html
+docs/screenshots/*.png
+.DS_Store
+*.log
+
+# 运行期抓取的真实页面数据（含买家信息，不入库）
+data/live-*.html
+data/live-*.json
+data/sessions/
+data/issues.json

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拼多多客服工作台</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- 标题栏 -->
+  <header class="titlebar">
+    <div class="brand">
+      <div class="logo">拼</div>
+      <div class="brand-text">
+        <div class="t1">客服工作台</div>
+        <div class="t2">PDD CS Workbench</div>
+      </div>
+    </div>
+
+    <div class="tb-spacer"></div>
+
+    <div class="tb-meta">
+      <span class="pill" id="pillService"><i class="dot"></i><span>本地服务</span></span>
+      <span class="pill quota">点数 <b id="quotaVal">—</b></span>
+      <button class="tb-btn" id="btnOnboard" title="开店清单">开店清单 <b id="obCount">—</b></button>
+      <button class="tb-btn" id="btnTest">
+        <svg viewBox="0 0 16 16" width="14" height="14"><path d="M6 2h4M8 2v4l3.5 6a2 2 0 0 1-1.7 3H6.2a2 2 0 0 1-1.7-3L8 6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        测试会话
+      </button>
+      <button class="tb-btn" id="btnWorkbench">
+        <svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 3h12M2 8h12M2 13h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        工作台
+      </button>
+    </div>
+
+    <div class="winctl">
+      <button id="winMin" title="最小化"><svg viewBox="0 0 12 12" width="12" height="12"><path d="M2 6h8" stroke="currentColor" stroke-width="1.2"/></svg></button>
+      <button id="winMax" title="最大化"><svg viewBox="0 0 12 12" width="12" height="12"><rect x="2.4" y="2.4" width="7.2" height="7.2" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></button>
+      <button id="winClose" class="close" title="关闭"><svg viewBox="0 0 12 12" width="12" height="12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.2"/></svg></button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- 店铺栏 -->
+    <aside class="sidebar">
+      <div class="sb-title">店铺 <span class="count" id="storeCount">0</span></div>
+      <div class="store-list" id="storeList"></div>
+      <button class="add-store" id="btnAddStore">
+        <span class="plus">+</span> 添加店铺
+      </button>
+
+      <div class="sb-bottom">
+        <div class="auto-box">
+          <div class="auto-row">
+            <span class="auto-label">自动回复</span>
+            <label class="switch">
+              <input type="checkbox" id="autoToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="auto-hint" id="autoHint">开启后，新消息按规则自动回复</div>
+          <div class="auto-row" style="margin-top:10px">
+            <span class="auto-label">演练模式</span>
+            <label class="switch">
+              <input type="checkbox" id="dryToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="auto-hint">只填入输入框，不点发送。真实店铺联调用它。</div>
+          <div class="auto-row" style="margin-top:10px">
+            <span class="auto-label">保持唤醒</span>
+            <label class="switch">
+              <input type="checkbox" id="wakeToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="auto-hint">阻止息屏休眠，插电时用；24 小时值守建议开</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 内嵌店铺页面 -->
+    <main class="stage" id="stage">
+      <div class="stage-empty">
+        <div class="ring"></div>
+        <div class="se-text">正在加载店铺页面…</div>
+      </div>
+    </main>
+
+    <!-- AI 助手 -->
+    <aside class="assistant">
+      <div class="as-head">
+        <div class="as-title">
+          <span class="spark">✦</span> AI 助手
+        </div>
+        <button class="as-assets" id="btnAssets" title="当前店铺的商品与说明书">商品与说明书</button>
+        <div class="as-mode" id="modeTag">建议模式</div>
+      </div>
+
+      <div class="as-body" id="asBody">
+        <div class="as-empty">
+          <div class="as-empty-icon">💬</div>
+          <div class="as-empty-t">等待买家消息</div>
+          <div class="as-empty-s">选中左侧店铺，等买家发来消息后点「生成回复」</div>
+        </div>
+      </div>
+
+      <div class="as-foot">
+        <button class="btn-line ghost" id="btnClearDraft" style="width:100%;margin-bottom:8px;height:30px;font-size:12px">清空输入框草稿</button>
+        <button class="btn-primary" id="btnGen">
+          <span class="btn-spark">✦</span> 生成回复
+        </button>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- 状态栏 -->
+  <footer class="statusbar">
+    <span id="stService">本地服务：检查中</span>
+    <span class="sep">·</span>
+    <span id="stToday">今日回复 0</span>
+    <span class="sep">·</span>
+    <span id="stReview">待复核 0</span>
+    <span class="sep">·</span>
+    <span id="stSync"></span>
+    <span class="spacer"></span>
+    <span id="stStore">—</span>
+    <span class="sep">·</span>
+    <span class="ver">v0.2</span>
+  </footer>
+</div>
+
+<!-- 通用弹层 -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- 二级弹层：在弹层里再开弹层时用，关掉它不会关掉下面那层 -->
+<div class="modal-mask layer2" id="modalMask2">
+  <div class="modal" id="modal2" style="width:760px"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>拼多多商家后台 · 客服工作台（演示店铺）</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color:#1f2329; background:#eef1f5; height:100vh; overflow:hidden; }
+  .topbar { height:44px; background:#fff; border-bottom:1px solid #e5e8ee; display:flex; align-items:center; gap:14px; padding:0 16px; }
+  .topbar .brand { font-weight:700; color:#e02e24; letter-spacing:.5px; }
+  .topbar .hint { color:#8a94a6; font-size:12px; }
+  .topbar .spacer { flex:1; }
+  .topbar button { border:1px solid #dfe3ea; background:#fff; border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; color:#3b4453; }
+  .topbar button:hover { border-color:#8fb3f6; color:#1f6feb; }
+  .layout { display:flex; height:calc(100vh - 44px); }
+
+  .rail { width:56px; background:#23283a; display:flex; flex-direction:column; align-items:center; padding-top:14px; gap:14px; flex-shrink:0; }
+  .rail .ico { width:32px; height:32px; border-radius:8px; background:#333a52; color:#9fb0d0; display:flex; align-items:center; justify-content:center; font-size:12px; }
+  .rail .ico.on { background:#1f6feb; color:#fff; }
+
+  .list { width:228px; background:#fff; border-right:1px solid #e5e8ee; display:flex; flex-direction:column; flex-shrink:0; }
+  .list .search { padding:10px; }
+  .list .search input { width:100%; border:1px solid #e5e8ee; background:#f6f8fb; border-radius:16px; padding:6px 10px; font-size:12px; outline:none; }
+  .list .tabs { display:flex; gap:16px; padding:0 12px 8px; font-size:12px; color:#6b7484; border-bottom:1px solid #f0f2f6; }
+  .list .tabs .on { color:#1f6feb; font-weight:600; }
+  .conv { display:flex; gap:8px; padding:10px 12px; cursor:pointer; border-left:3px solid transparent; }
+  .conv:hover { background:#f8fafc; }
+  .conv.on { background:#f0f6ff; border-left-color:#1f6feb; }
+  .conv .av { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#f0a35e,#e2734d); flex-shrink:0; }
+  .conv .c-body { flex:1; min-width:0; }
+  .conv .c-top { display:flex; justify-content:space-between; gap:6px; }
+  .conv .name { font-weight:600; color:#23283a; font-size:12.5px; }
+  .conv .t { color:#9aa4b5; font-size:11px; }
+  .conv .prev { color:#8a94a6; font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .chat { flex:1; display:flex; flex-direction:column; background:#f5f7fa; min-width:0; }
+  .chat-head { height:48px; background:#fff; border-bottom:1px solid #e5e8ee; display:flex; align-items:center; padding:0 16px; gap:10px; }
+  .chat-head .who { font-weight:600; }
+  .chat-head .tag { font-size:11px; color:#1f6feb; background:#eaf2ff; border-radius:4px; padding:1px 6px; }
+  .chat-head .spacer { flex:1; }
+  .chat-head .sub { font-size:11.5px; color:#8a94a6; }
+
+  .msgs { flex:1; overflow-y:auto; padding:18px 20px; display:flex; flex-direction:column; gap:14px; }
+  .time-sep { text-align:center; color:#a7b0c0; font-size:11px; }
+  .msg-row { display:flex; align-items:flex-start; gap:8px; }
+  .msg-row.right { flex-direction:row-reverse; }
+  .avatar { width:30px; height:30px; border-radius:6px; background:#dfe4ec; flex-shrink:0; }
+  .msg-row.left .avatar { background:linear-gradient(135deg,#8fb3f6,#5b8def); }
+  .msg-row.right .avatar { background:linear-gradient(135deg,#34d399,#10b981); }
+  .bubble { max-width:62%; padding:8px 11px; border-radius:8px; font-size:13px; line-height:1.6; word-break:break-word; }
+  .msg-row.left .bubble { background:#fff; border:1px solid #e9edf3; }
+  .msg-row.right .bubble { background:#d9ecff; border:1px solid #c4e0fb; }
+
+  .composer { position:relative; background:#fff; border-top:1px solid #e5e8ee; padding:8px 14px 12px; }
+  .composer .tools { display:flex; gap:14px; color:#8a94a6; font-size:14px; padding-bottom:6px; }
+  .composer .box { display:flex; gap:10px; align-items:flex-end; }
+  .composer textarea { flex:1; height:64px; resize:none; border:0; outline:none; font:13px/1.6 inherit; padding:6px 2px; background:transparent; }
+  .composer .send { background:#1f6feb; color:#fff; border:0; border-radius:6px; padding:8px 22px; font-size:13px; cursor:pointer; }
+  .composer .send:hover { background:#1a5fd0; }
+
+  .detail { width:264px; background:#fff; border-left:1px solid #e5e8ee; padding:14px; overflow-y:auto; flex-shrink:0; }
+  .detail h3 { font-size:12.5px; margin:0 0 10px; color:#23283a; }
+  .detail .field { display:flex; justify-content:space-between; font-size:12px; padding:7px 0; border-bottom:1px dashed #eef1f6; color:#6b7484; }
+  .detail .field b { color:#23283a; font-weight:500; max-width:60%; text-align:right; }
+  .detail .prod { display:flex; gap:8px; margin-top:12px; padding:10px; background:#f8fafc; border-radius:8px; }
+  .detail .prod .thumb { width:46px; height:46px; border-radius:6px; background:linear-gradient(135deg,#a7d8a0,#6fbf73); flex-shrink:0; }
+  .detail .prod .pt { font-size:12px; color:#23283a; line-height:1.4; }
+  .detail .prod .pp { font-size:12px; color:#e02e24; margin-top:3px; }
+  @media (max-width: 1180px) {
+    .detail { display: none; }
+    .list { width: 196px; }
+  }
+  .tool-goods { cursor: pointer; color:#1f6feb; }
+  .tool-goods:hover { text-decoration: underline; }
+  .goods-picker { display:none; position:absolute; bottom:120px; left:16px; width:420px; background:#fff;
+    border:1px solid #e5e8ee; border-radius:10px; box-shadow:0 12px 32px rgba(15,23,42,.16); padding:10px; z-index:20; }
+  .goods-picker.open { display:block; }
+  .gp-head { font-size:12px; color:#6b7484; margin-bottom:8px; }
+  .gp-search { width:100%; border:1px solid #e5e8ee; border-radius:8px; padding:7px 10px; font-size:12px; outline:none; }
+  .gp-list { max-height:260px; overflow-y:auto; margin-top:8px; }
+  .gp-item { display:flex; gap:10px; align-items:center; padding:8px; border-radius:8px; cursor:pointer; }
+  .gp-item:hover { background:#f5f8ff; }
+  .gp-thumb { width:40px; height:40px; border-radius:6px; background:linear-gradient(135deg,#a7d8a0,#6fbf73); flex-shrink:0; }
+  .gp-t { flex:1; min-width:0; }
+  .gp-title { font-size:12px; color:#23283a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gp-price { font-size:12px; color:#e02e24; margin-top:2px; }
+  .gp-stock { font-size:11px; color:#8a94a6; }
+  .card-bubble { padding:8px; display:flex; gap:10px; align-items:center; }
+  .cb-thumb { width:48px; height:48px; border-radius:6px; background:linear-gradient(135deg,#a7d8a0,#6fbf73); flex-shrink:0; }
+  .cb-title { font-size:12.5px; color:#23283a; }
+  .cb-price { font-size:13px; color:#e02e24; margin-top:4px; }
+  .note { margin-top:14px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; font-size:11.5px; border-radius:8px; padding:8px 10px; line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand">拼多多商家后台</span>
+    <span class="hint">客服工作台 · 演示店铺（仅用于体验，不连接真实平台）</span>
+    <span class="spacer"></span>
+    <button data-q="什么时候发货？">买家问：发货</button>
+    <button data-q="你家种子发芽率多少？">买家问：发芽率</button>
+    <button data-q="能加个微信聊吗？">买家问：加微信</button>
+    <button data-q="种下去没出芽，我要投诉你们！">买家问：投诉</button>
+  </div>
+
+  <div class="layout">
+    <aside class="rail">
+      <div class="ico on">聊</div>
+      <div class="ico">单</div>
+      <div class="ico">品</div>
+      <div class="ico">数</div>
+    </aside>
+
+    <aside class="list">
+      <div class="search"><input placeholder="搜索会话/订单号"></div>
+      <div class="tabs"><span class="on">今日接待 (1)</span><span>全部会话</span><button id="newConv" style="margin-left:auto;border:1px solid #dfe3ea;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;color:#1f6feb;cursor:pointer">＋ 新会话</button></div>
+      <div class="conv on">
+        <div class="av"></div>
+        <div class="c-body">
+          <div class="c-top"><span class="name">富**开</span><span class="t">16:26</span></div>
+          <div class="prev">机器人 [商品说明书]</div>
+        </div>
+      </div>
+      <div class="conv">
+        <div class="av"></div>
+        <div class="c-body">
+          <div class="c-top"><span class="name">爱**心</span><span class="t">16:07</span></div>
+          <div class="prev">消费者反馈的订单问题，已为您创…</div>
+        </div>
+      </div>
+      <div class="conv">
+        <div class="av"></div>
+        <div class="c-body">
+          <div class="c-top"><span class="name">王**</span><span class="t">16:04</span></div>
+          <div class="prev">消费者反馈的订单问题，已为您创…</div>
+        </div>
+      </div>
+      <div class="conv">
+        <div class="av"></div>
+        <div class="c-body">
+          <div class="c-top"><span class="name">周**</span><span class="t">15:24</span></div>
+          <div class="prev">平台客服已处理本次售后</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="chat">
+      <header class="chat-head">
+        <span class="who">富**开</span>
+        <span class="tag">咨询中</span>
+        <span class="spacer"></span>
+        <span class="sub">下单时间 2026-11-05 15:02 · 订单已发货</span>
+      </header>
+
+      <div class="msgs" id="msgs">
+        <div class="time-sep">16:20</div>
+        <div class="msg-row left">
+          <div class="avatar"></div>
+          <div class="bubble">老板在吗？我买了那个番茄种子</div>
+        </div>
+        <div class="msg-row right">
+          <div class="avatar"></div>
+          <div class="bubble">在的，您说</div>
+        </div>
+        <div class="msg-row left">
+          <div class="avatar"></div>
+          <div class="bubble">这个种子发芽率多少？我去年买别家的没出几棵</div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="tools"><span>表情</span><span>图片</span><span>快捷短语</span><span>订单</span><span id="toolGoods" class="tool-goods">商品</span></div>
+        <div class="goods-picker" id="goodsPicker">
+          <div class="gp-head">选择商品</div>
+          <input id="gpSearch" placeholder="搜索商品名称 / 商品ID">
+          <div class="gp-list" id="gpList"></div>
+        </div>
+        <div class="box">
+          <textarea id="editor" placeholder="请输入消息内容..."></textarea>
+          <button class="send" id="sendBtn">发送</button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="detail">
+      <h3>消费者信息</h3>
+      <div class="field"><span>昵称</span><b>富**开</b></div>
+      <div class="field"><span>订单号</span><b>251105-8842</b></div>
+      <div class="field"><span>下单时间</span><b>11-05 15:02</b></div>
+      <div class="field"><span>实付金额</span><b>¥19.95</b></div>
+      <div class="field"><span>物流状态</span><b>已发货</b></div>
+      <div class="prod">
+        <div class="thumb"></div>
+        <div>
+          <div class="pt">种子 菜苔四季苔菜种子 耐寒蔬菜种籽</div>
+          <div class="pp">¥19.95 × 1</div>
+        </div>
+      </div>
+      <div class="note">本页为本地模拟页面，只用于验证扩展与回复引擎，不涉及任何真实账号与订单。</div>
+    </aside>
+  </div>
+
+  <script>
+    (function () {
+      const msgs = document.getElementById('msgs');
+      const editor = document.getElementById('editor');
+      const sendBtn = document.getElementById('sendBtn');
+
+      function append(role, text) {
+        const row = document.createElement('div');
+        row.className = 'msg-row ' + (role === 'buyer' ? 'left' : 'right');
+        row.innerHTML = '<div class="avatar"></div><div class="bubble"></div>';
+        row.querySelector('.bubble').textContent = text;
+        msgs.appendChild(row);
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+
+      sendBtn.addEventListener('click', () => {
+        const v = editor.value.trim();
+        if (!v) return;
+        append('seller', v);
+        editor.value = '';
+      });
+
+      document.querySelectorAll('.topbar button[data-q]').forEach((b) => {
+        b.addEventListener('click', () => {
+          b.disabled = true;
+          setTimeout(() => {
+            append('buyer', b.dataset.q);
+            b.disabled = false;
+          }, 400);
+        });
+      });
+
+      // ---- 商品选择器（模拟拼多多「商品」按钮） ----
+      const picker = document.getElementById('goodsPicker');
+      const gpSearch = document.getElementById('gpSearch');
+      const gpList = document.getElementById('gpList');
+      const toolGoods = document.getElementById('toolGoods');
+      let products = [];
+
+      function renderGP(q) {
+        const kw = String(q || '').trim();
+        const list = products.filter((p) => !kw || p.title.includes(kw) || String(p.goodsId).includes(kw));
+        gpList.innerHTML = list.map((p) => `
+          <div class="gp-item" data-goods-id="${p.goodsId}">
+            <div class="gp-thumb"></div>
+            <div class="gp-t">
+              <div class="gp-title">${p.title}</div>
+              <div class="gp-price">¥${p.price}</div>
+            </div>
+            <div class="gp-stock">${Number(p.stock) > 0 ? '库存 ' + p.stock : '缺货'}</div>
+          </div>`).join('') || '<div style="padding:16px;text-align:center;color:#8a94a6;font-size:12px">没有匹配的商品</div>';
+
+        gpList.querySelectorAll('.gp-item').forEach((el) => {
+          el.addEventListener('click', () => {
+            const p = products.find((x) => String(x.goodsId) === el.dataset.goodsId);
+            if (p) sendCard(p);
+          });
+        });
+      }
+
+      function sendCard(p) {
+        const row = document.createElement('div');
+        row.className = 'msg-row right';
+        row.innerHTML = '<div class="avatar"></div><div class="bubble card-bubble"><div class="cb-thumb"></div><div><div class="cb-title"></div><div class="cb-price"></div></div></div>';
+        row.querySelector('.cb-title').textContent = p.title;
+        row.querySelector('.cb-price').textContent = '¥' + p.price + ' · 商品卡片';
+        msgs.appendChild(row);
+        msgs.scrollTop = msgs.scrollHeight;
+        picker.classList.remove('open');
+        gpSearch.value = '';
+      }
+
+      toolGoods.addEventListener('click', async () => {
+        picker.classList.toggle('open');
+        if (!picker.classList.contains('open')) return;
+        if (!products.length) {
+          try {
+            const r = await fetch('/api/products').then((x) => x.json());
+            products = r.items || [];
+          } catch (_) { products = []; }
+          renderGP('');
+        }
+        gpSearch.focus();
+      });
+      gpSearch.addEventListener('input', () => renderGP(gpSearch.value));
+
+      // ---- 新建会话：清空当前会话，换一个买家，模拟"来了一条新咨询" ----
+      let convSeq = 0;
+      document.getElementById('newConv').addEventListener('click', () => {
+        convSeq++;
+        msgs.innerHTML = '<div class="time-sep">刚刚</div>';
+        const names = ['林**', '陈**', '赵**', '周**', '吴**'];
+        const name = names[(convSeq - 1) % names.length] + (convSeq > names.length ? convSeq : '');
+        const head = document.querySelector('.chat-head .who');
+        if (head) head.textContent = name;
+        document.getElementById('editor').value = '';
+        editor.focus();
+      });
+
+      window.__mockIncoming = append;
+    })();
+  </script>
+</body>
+</html>

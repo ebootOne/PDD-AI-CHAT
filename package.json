@@ -1,0 +1,14 @@
+{
+  "name": "pdd-cs-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "拼多多智能客服回复工具：桌面客户端 + 本地回复服务 + 知识库 + 复核队列",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node scripts/test-engine.js",
+    "e2e": "node scripts/cdp-e2e.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "goodsId": "1001",
+    "title": "白萝卜种子 四季播 耐寒 蔬菜种子 籽",
+    "category": "白萝卜",
+    "aliases": ["萝卜", "白萝卜", "大白萝卜"],
+    "price": 9.9,
+    "stock": 320,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1001",
+    "enabled": true
+  },
+  {
+    "goodsId": "1002",
+    "title": "樱桃萝卜种子 小萝卜 四季播 盆栽",
+    "category": "樱桃萝卜",
+    "aliases": ["萝卜", "樱桃萝卜", "小萝卜"],
+    "price": 8.8,
+    "stock": 150,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1002",
+    "enabled": true
+  },
+  {
+    "goodsId": "1003",
+    "title": "胡萝卜种子 红萝卜 春秋播 蔬菜种子",
+    "category": "胡萝卜",
+    "aliases": ["胡萝卜", "红萝卜"],
+    "price": 7.9,
+    "stock": 0,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1003",
+    "enabled": true
+  },
+  {
+    "goodsId": "1004",
+    "title": "番茄种子 西红柿种子 大果 沙瓤 四季播",
+    "category": "番茄",
+    "aliases": ["番茄", "西红柿", "洋柿子"],
+    "price": 6.9,
+    "stock": 480,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1004",
+    "enabled": true
+  },
+  {
+    "goodsId": "1005",
+    "title": "意大利生菜种子 四季播 耐寒 蔬菜种籽",
+    "category": "生菜",
+    "aliases": ["生菜", "叶菜"],
+    "price": 5.9,
+    "stock": 600,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1005",
+    "enabled": true
+  },
+  {
+    "goodsId": "1006",
+    "title": "黄瓜种子 旱黄瓜 水果黄瓜 春秋播",
+    "category": "黄瓜",
+    "aliases": ["黄瓜", "青瓜"],
+    "price": 7.5,
+    "stock": 260,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1006",
+    "enabled": true
+  },
+  {
+    "goodsId": "1007",
+    "title": "螺丝椒种子 辣椒种子 特辣 中早熟",
+    "category": "辣椒",
+    "aliases": ["辣椒", "青椒", "尖椒"],
+    "price": 6.5,
+    "stock": 210,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1007",
+    "enabled": true
+  },
+  {
+    "goodsId": "1008",
+    "title": "大白菜种子 秋播 耐寒 包心紧实",
+    "category": "白菜",
+    "aliases": ["白菜", "大白菜"],
+    "price": 4.9,
+    "stock": 900,
+    "url": "https://mobile.yangkeduo.com/goods.html?goods_id=1008",
+    "enabled": true
+  }
+]
