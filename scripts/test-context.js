@@ -14,9 +14,11 @@ const packet = build({
   messages: [{ role: 'buyer', text: '还有其他大蒜品种吗' }],
   profile: { hours: { start: '08:00', end: '23:00' } },
 });
-const blocks = new Set(packet.items.map((x) => x.block));
+const blocks = new Set(packet.allItems.map((x) => x.block));
 assert.ok(blocks.has('order') && blocks.has('product') && blocks.has('policy') && blocks.has('conversation'));
-assert.strictEqual(packet.items.filter((x) => x.block === 'order').length, 2);
+assert.strictEqual(packet.allItems.filter((x) => x.block === 'order').length, 2);
+assert.ok(packet.items.length <= 8);
+assert.ok(packet.blocks.find((b) => b.type === 'policy' && b.available));
 assert.ok(packet.items.find((x) => x.id === 'O1').text.includes('申通'));
 assert.ok(!JSON.stringify(packet).includes('13800000000'));
 console.log('上下文候选池：PASS；items=' + packet.items.length + '；' + JSON.stringify(packet.stats));
