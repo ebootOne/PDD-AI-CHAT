@@ -122,4 +122,13 @@ function build(input = {}) {
   };
 }
 
-module.exports = { build };
+function validateUsed(pack, used) {
+  const ids = new Set(((pack && pack.items) || []).map((x) => x.id));
+  const list = Array.isArray(used) ? used.map((x) => String(x || '').trim().toUpperCase()).filter(Boolean) : [];
+  const valid = [];
+  const invalid = [];
+  for (const u of list) (ids.has(u) ? valid : invalid).push(u);
+  return { valid: [...new Set(valid)], invalid: [...new Set(invalid)] };
+}
+
+module.exports = { build, validateUsed };

@@ -30,7 +30,6 @@ const natural = require('./natural');
 const focus = require('./focus');
 const session = require('./session');
 const policy = require('./policy');
-const facts = require('./facts');
 const context = require('./context');
 const blockRegistry = require('./block-registry');
 const factRegistry = require('./fact-registry');
@@ -729,7 +728,7 @@ const cfg = store.getConfig();
 
         // 引用校验第一步：模型说它用了哪条，必须真的存在（假引用按无依据处理）
         if (factPack && r && r.ok) {
-          const v = facts.validateUsed({ ...factPack, items: factPack.allItems || factPack.items }, r.used || []);
+          const v = context.validateUsed({ ...factPack, items: factPack.allItems || factPack.items }, r.used || []);
           factUsed = {
             items: factPack.allItems || factPack.items,
             used: v.valid,
@@ -1107,15 +1106,17 @@ const cfg = store.getConfig();
       const storeId = body.storeId || '';
       const kb = store.getKnowledge().filter((x) => !x.archived
         && (!storeId || x.storeId === storeId || x.scope === 'tool'));
-      const pack = facts.build({
-        buyerText: body.buyerText || '',
-        understanding: body.understanding || null,
+      const pack = context.build({
         goods: body.goods || {},
         products: Array.isArray(body.products) ? body.products : [],
-        knowledgeHits: [],
         kb,
         storeId,
-        order: body.order || null,
+        orders: Array.isArray(body.orders) ? body.orders : (body.order ? [body.order] : []),
+        messages: Array.isArray(body.messages) ? body.messages : [],
+        manual: body.manual || null,
+        profile: (cfg.businessHours && cfg.businessHours.start && cfg.businessHours.end)
+          ? { hours: { start: cfg.businessHours.start, end: cfg.businessHours.end } }
+          : null,
       });
       return send(res, 200, { ok: true, pack });
     }
