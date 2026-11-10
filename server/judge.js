@@ -250,6 +250,13 @@ function review(input) {
     }
   }
 
+  // 1.16 凭证题不许改答材质/库存
+  const ev = require('./concerns').detect(input.buyerText || '');
+  if (!input.buffer && ev && ev.key === 'evidence' && !/报告|检测|质检|证书|资质|认证|页面|标注/.test(text)) {
+    issues.push('答非所问');
+    return { action: 'fallback', issues, reason: '凭证题必须答凭证或页面口径' };
+  }
+
   // 1.18 不许说买家没发过的内容（“您发的这串数字”）
   if (!input.buffer && /(?:您|你)(?:发|给)的?(?:这|那)?(?:串)?(?:数字|号码|单号)/.test(text)
       && !/\d{3,}/.test(String(input.buyerText || ''))) {
