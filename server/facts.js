@@ -324,7 +324,10 @@ function build(input = {}) {
   missing.push(...p.missing);
 
   // 3. 说明书块
-  const m = manualItems(goodsId, manualQuery(buyerText), concern);
+  const manualText = routing.asks.includes('spec')
+    ? manualQuery(buyerText) + ' 规格 尺寸'
+    : manualQuery(buyerText);
+  const m = manualItems(goodsId, manualText, concern);
   if (m.items.length) {
     blocks.push('manual');
     items = items.concat(m.items);

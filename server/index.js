@@ -572,7 +572,9 @@ const cfg = store.getConfig();
             order: ctx.order || null,
           })
         : null;
-      let factUsed = null;
+      let factUsed = factPack
+        ? { items: factPack.items, used: [], invalid: [], asks: factPack.route.asks, blocks: factPack.route.blocks }
+        : null;
       if (factPack) {
         result.facts = {
           index: factPack.index || [],
