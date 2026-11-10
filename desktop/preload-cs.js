@@ -8,6 +8,7 @@
  */
 
 const { ipcRenderer } = require('electron');
+const { parseOrderPanel } = require('./order-parse');
 
 // ---------------------------------------------------------------- 工具
 
@@ -210,14 +211,7 @@ function pddCapture() {
 function pddOrderCapture() {
   const panel = document.querySelector('.right-panel-container');
   if (!panel) return null;
-  const txt = panel.innerText || '';
-  const status = (txt.match(/(待付款|待发货|已发货|待收货|已签收|交易成功|已取消|退款中|售后中)/) || [])[1] || '';
-  const courier = (txt.match(/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/) || [])[1] || '';
-  // 必须带「运单/快递单号」标签才认，避免把订单号当运单号
-  const tn = txt.match(/(?:运单号|快递单号|物流单号)[:：\s]*([A-Za-z0-9]{8,})/);
-  const trackingNo = tn ? tn[1] : '';
-  if (!status && !courier && !trackingNo) return { hasOrder: false };
-  return { hasOrder: true, status, courier, trackingNo, source: 'right-panel' };
+  return parseOrderPanel(panel.innerText || '');
 }
 
 function pddInput() {
