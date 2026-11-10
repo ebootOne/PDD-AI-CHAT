@@ -1,0 +1,244 @@
+{
+  "ts": "2026-11-10T17:40:21.738Z",
+  "buyer": "林**鹿",
+  "orders": 3,
+  "results": [
+    {
+      "q": "发货了吗",
+      "decision": "suggest",
+      "source": "guard",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7"
+      ],
+      "text": "您有多单：金乡大蒜（已发货，待签收）、天然花椒木站杆鸟类通（未发货，退款成功）、抽纸（未发货，退款成功），您问的是哪一单呀？",
+      "error": ""
+    },
+    {
+      "q": "大蒜那单到哪了",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7"
+      ],
+      "text": "已发货，申通尾号9410，物流进度您看订单页就行啦。",
+      "error": ""
+    },
+    {
+      "q": "尾号2115那单到哪了",
+      "decision": "suggest",
+      "source": "guard",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7",
+        "S1"
+      ],
+      "text": "这几单尾号都是2115，您问的是金乡大蒜（已发货，待签收）、天然花椒木站杆鸟类通（未发货，退款成功）、抽纸（未发货，退款成功）哪一单呀？",
+      "error": ""
+    },
+    {
+      "q": "还有其他大蒜品种吗",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "C7",
+        "G1",
+        "G2"
+      ],
+      "text": "亲，其他品种以页面为准，搜「大蒜」即可查看。",
+      "error": ""
+    },
+    {
+      "q": "还有货吗",
+      "decision": "suggest",
+      "source": "guard",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7",
+        "G1",
+        "G2"
+      ],
+      "text": "您问的是哪款商品的库存呀？我帮您确认哈。",
+      "error": ""
+    },
+    {
+      "q": "我买的大蒜还有货吗",
+      "decision": "suggest",
+      "source": "guard",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7"
+      ],
+      "text": "您问的是您买的这款大蒜还有没有货呀？我帮您确认哈。",
+      "error": ""
+    },
+    {
+      "q": "这个订单里的蒜还有货吗",
+      "decision": "suggest",
+      "source": "guard",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7"
+      ],
+      "text": "您问的是您买的这款大蒜还有没有货呀？我帮您确认哈。",
+      "error": ""
+    },
+    {
+      "q": "能开发票吗",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "K1"
+      ],
+      "text": "亲，支持开发票，订单页提交开票信息即可。",
+      "error": ""
+    },
+    {
+      "q": "怎么清洗",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [],
+      "text": "剥皮后用清水冲洗干净就行，泡几分钟再冲更省事。",
+      "error": ""
+    },
+    {
+      "q": "什么时候能到",
+      "decision": "suggest",
+      "source": "guard",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7",
+        "S1"
+      ],
+      "text": "您有多单：金乡大蒜（已发货，待签收）、天然花椒木站杆鸟类通（未发货，退款成功）、抽纸（未发货，退款成功），您问的是哪一单呀？",
+      "error": ""
+    },
+    {
+      "q": "另外两单退款了吗",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "O2",
+        "O3"
+      ],
+      "text": "亲，另外两单都退款成功了，订单页可查退款记录。",
+      "error": ""
+    },
+    {
+      "q": "花椒木那单发货了吗",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "O2"
+      ],
+      "text": "花椒木那单未发货，已退款成功，您可在订单页查看。",
+      "error": ""
+    },
+    {
+      "q": "抽纸那单到哪了",
+      "decision": "suggest",
+      "source": "guard",
+      "judge": [
+        "劝退"
+      ],
+      "needInfo": null,
+      "used": [
+        "O3"
+      ],
+      "text": "这单已经退款成功了，您在订单页能查到退款进度哦。",
+      "error": ""
+    },
+    {
+      "q": "我买的大蒜是什么规格",
+      "decision": "suggest",
+      "source": "guard",
+      "needInfo": null,
+      "used": [
+        "O1"
+      ],
+      "text": "具体规格以商品页标注为准哦，您可以在页面选到对应尺寸。",
+      "error": ""
+    },
+    {
+      "q": "大蒜怎么保存",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [],
+      "text": "放阴凉通风处就行，别受潮；剥成蒜瓣冷藏能存更久。",
+      "error": ""
+    },
+    {
+      "q": "蒜头有多大",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "O1"
+      ],
+      "text": "您这款是单果45mm左右的大果，个头均匀。",
+      "error": ""
+    },
+    {
+      "q": "能便宜点吗",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "G1",
+        "G2"
+      ],
+      "text": "亲，目前按页面价销售，暂时没有优惠呢。",
+      "error": ""
+    },
+    {
+      "q": "可以发顺丰吗",
+      "decision": "suggest",
+      "source": "backend",
+      "needInfo": null,
+      "used": [
+        "O1",
+        "C7",
+        "S1"
+      ],
+      "text": "亲，这单发的是申通，尾号9410，暂不支持指定顺丰哦。",
+      "error": ""
+    },
+    {
+      "q": "退货怎么退",
+      "decision": "suggest",
+      "source": "rule",
+      "needInfo": null,
+      "used": [],
+      "text": "亲，实在不好意思没能让您满意。您可以在订单页点「申请售后」，按平台规则提交。",
+      "error": ""
+    },
+    {
+      "q": "还有人吗",
+      "decision": "suggest",
+      "source": "backend",
+      "judge": [
+        "承诺不可执行"
+      ],
+      "needInfo": null,
+      "used": [
+        "S1"
+      ],
+      "text": "在的，客服在线时间是早上8点到晚上11点，您有什么需要随时说。",
+      "error": ""
+    }
+  ]
+}

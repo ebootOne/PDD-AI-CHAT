@@ -35,7 +35,7 @@ function guard(input = {}) {
   const orders = (Array.isArray(input.orders) ? input.orders : []).filter((o) => o && o.hasOrder);
   const facts = input.facts || {};
   const used = Array.isArray(facts.used) ? facts.used : [];
-  const productAsk = ['stock', 'product', 'price', 'spec'].includes(ask) || /还有货|有货|库存|其他品种|别的大蒜/.test(buyer);
+  const productAsk = ['stock', 'product', 'price', 'spec'].includes(ask) || /还有货|有货|库存|其他.*品种|别的大蒜/.test(buyer);
   const explicitOrder = /那单|这单|订单|尾号|我买|这单/.test(buyer);
   const orderAsk = ['shipping_status', 'arrival_time', 'logistics'].includes(ask)
     || ((ask === 'courier' || /快递/.test(buyer)) && explicitOrder)

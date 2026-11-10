@@ -51,7 +51,7 @@ const QUESTIONS = [
   const results = [];
   for (const q of QUESTIONS) {
     const body = {
-      storeId: 'smw8rjgmx', engine: 'pro', mode: 'suggest', test: true,
+      storeId: 'smw8rjgmx', engine: 'pro', mode: process.env.MODE || 'suggest', test: true,
       storeName: '露少小店6521', conversationId: 'real-verify-' + Date.now().toString(36) + '-' + results.length,
       buyerName: cap.buyerName || '林**鹿',
       goods: { title: cap.goodsTitle || '' },
