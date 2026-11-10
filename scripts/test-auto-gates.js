@@ -46,8 +46,9 @@ async function ask(text, conversationId, mode = 'auto') {
   });
 
   const price = await ask('多少钱', 'auto-price');
-  check('A02', '价格意图不在白名单 → 不自动', () => {
-    assert.notStrictEqual(price.decision, 'auto_send', price.reason);
+  check('A02', '价格有依据且高置信 → 可自动', () => {
+    assert.strictEqual(price.decision, 'auto_send', price.reason);
+    assert.ok(/\d/.test((price.suggestions || [{}])[0].text || ''), '应含价格');
   });
 
   const refund = await ask('我要退款', 'auto-refund');

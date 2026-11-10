@@ -957,9 +957,8 @@ const cfg = store.getConfig();
       if (autoMode && cfg.autoModel === true
           && result.source === 'backend' && result.decision === 'suggest'
           && judgeAction === 'keep' && !(result.judge || []).length
-          && !result.buffer && !highRisk && !result.threat
+          && !result.buffer && !highRisk && !result.threat && !(result.risks || []).length
           && ok && engine.inBusinessHours(cfg)
-          && (cfg.autoIntentWhitelist || []).includes(result.intent)
           && (result.suggestions || []).length) {
         result.decision = 'auto_send';
         result.reason = '模型回复通过质检，自动发送';

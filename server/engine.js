@@ -11,7 +11,7 @@
  *   2. 生成内容命中违禁词  → 丢弃该候选，若全丢则转人工
  *   3. 无知识依据           → 不自动发送
  *   4. 非工作时段 / 触发限流 → 只建议不自动发
- *   5. 自动模式 + 白名单意图 + 置信度达标 → 自动发送
+ *   5. 自动模式 + 无风险 + 置信度达标 → 自动发送
  */
 
 const { retrieve, confidenceFromScore } = require('./knowledge');
@@ -599,9 +599,9 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   if (needHuman) {
     decision = 'handoff';
     reason = '资料不足或需人工判断' + (missing ? '：' + missing : '');
-  } else if (risks.includes('引流站外')) {
+  } else if (risks.length) {
     decision = 'suggest';
-    reason = '买家提到站外联系方式，按平台规则必须人工确认后发送';
+    reason = '存在风险：' + risks.join('、') + '，必须人工确认';
   } else if (effectiveMode !== 'auto') {
     decision = 'suggest';
     reason = '当前为建议模式';
@@ -611,9 +611,6 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   } else if (base.ambiguous) {
     decision = 'suggest';
     reason = '多条知识分数接近（分差 ' + base.margin + '），无法确定用哪条';
-  } else if (!(cfg.autoIntentWhitelist || []).includes(base.intent)) {
-    decision = 'suggest';
-    reason = '意图「' + base.intent + '」不在自动回复白名单';
   } else if (confidence < (cfg.autoMinConfidence || 0.82)) {
     decision = 'suggest';
     reason = `置信度 ${confidence.toFixed(2)} 低于自动发送阈值 ${cfg.autoMinConfidence}`;

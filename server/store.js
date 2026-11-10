@@ -21,7 +21,6 @@ const DEFAULT_CONFIG = {
   // 引擎模式：standard = 本地优先（1 点/条）；pro = 事实包+模型优先（本地只留高置信模板）
   engine: 'standard',
   // 自动模式下只对这些意图放行；其余一律走人工
-  autoIntentWhitelist: ['logistics', 'spec', 'usage'],
   autoMinConfidence: 0.82,
   // 限流：同一会话两条消息最小间隔 / 全局每分钟上限
   rateLimit: { perConversationMs: 8000, perMinute: 20 },

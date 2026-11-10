@@ -15,7 +15,6 @@ const KB = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'seed',
 
 const baseCfg = {
   mode: 'suggest',
-  autoIntentWhitelist: ['logistics', 'spec', 'usage'],
   autoMinConfidence: 0.82,
   businessHours: { enabled: false, start: '08:00', end: '23:00' },
   forbiddenOutput: ['微信', '手机号', '二维码', 'http://', '赔你'],
@@ -78,10 +77,10 @@ test('自动模式 + 白名单意图 + 高置信 → auto_send', async () => {
   assert.strictEqual(r.decision, 'auto_send', r.reason);
 });
 
-test('自动模式但意图不在白名单 → 退回 suggest', async () => {
-  const cfg = Object.assign({}, baseCfg, { mode: 'auto', autoIntentWhitelist: ['spec'] });
-  const r = await engine.generate(ctx('什么时候发货？'), cfg, KB, { rateOk: true });
-  assert.strictEqual(r.decision, 'suggest');
+test('自动模式但存在风险 → 退回 suggest', async () => {
+  const cfg = Object.assign({}, baseCfg, { mode: 'auto' });
+  const r = await engine.generate(ctx('我要投诉，再不发货就举报'), cfg, KB, { rateOk: true });
+  assert.strictEqual(r.decision, 'suggest', r.reason);
 });
 
 test('自动模式但限流 → 退回 suggest', async () => {

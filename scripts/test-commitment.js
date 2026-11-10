@@ -13,7 +13,6 @@ const policy = require('../server/policy');
 
 const baseCfg = {
   mode: 'suggest',
-  autoIntentWhitelist: ['logistics', 'spec', 'usage'],
   autoMinConfidence: 0.82,
   businessHours: { enabled: false, start: '08:00', end: '23:00' },
   forbiddenOutput: [],

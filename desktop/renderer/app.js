@@ -2076,7 +2076,6 @@ async function renderWorkbench(tab) {
             <option value="auto" ${cfg.mode === 'auto' ? 'selected' : ''}>自动模式（满足条件自动发）</option>
           </select></div>
         <div class="field"><label>自动发送最低置信度</label><input class="input" id="cConf" type="number" step="0.01" min="0" max="1" value="${cfg.autoMinConfidence}"></div>
-        <div class="field"><label>自动发送意图白名单</label><input class="input" id="cWhite" value="${esc((cfg.autoIntentWhitelist || []).join(','))}"></div>
         <div class="field"><label>工作时段（留空=全天）</label><input class="input" id="cHours" value="${cfg.businessHours && cfg.businessHours.enabled ? cfg.businessHours.start + '-' + cfg.businessHours.end : ''}"></div>
         <div class="field"><label>称呼（只在本次会话第一次回复时带）</label>
           <div style="display:flex;gap:8px">
@@ -2162,7 +2161,6 @@ async function renderWorkbench(tab) {
       const patch = {
         mode: $('#cMode').value,
         autoMinConfidence: Number($('#cConf').value) || 0.82,
-        autoIntentWhitelist: $('#cWhite').value.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
         businessHours: { enabled: Boolean(hours), start: start.trim(), end: end.trim() },
         llm: { baseUrl: $('#cBase').value.trim(), model: $('#cModel').value.trim() || 'deepseek-chat' },
         rateLimit: { perConversationMs: Number($('#cGap').value) || 8000 },
