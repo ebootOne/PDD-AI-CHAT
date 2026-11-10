@@ -120,8 +120,10 @@ function unitMismatch(buyerText, text) {
   const q = String(buyerText || '');
   const ru = numericUnits(text);
   const has = (u) => ru.has(u) || (u === '克' && ru.has('g'));
-  if (/抽/.test(q) && has('张') && !ru.has('抽')) return '抽/张';
-  if (/张/.test(q) && has('抽') && !ru.has('张')) return '张/抽';
+  const askChou = /(多少|几)\s*抽|抽数/.test(q);
+  const askZhang = /(多少|几)\s*张|张数/.test(q);
+  if (askChou && has('张') && !ru.has('抽')) return '抽/张';
+  if (askZhang && has('抽') && !ru.has('张')) return '张/抽';
   if (/粒/.test(q) && has('克') && !ru.has('粒')) return '粒/克';
   if (/(克|g)/i.test(q) && ru.has('粒') && !has('克')) return '克/粒';
   return '';
@@ -220,6 +222,13 @@ function review(input) {
     return { action: 'fallback', issues, reason: '安全类不做绝对保证，改为边界口径' };
   }
 
+  // 1.45 售后类必须给订单页售后入口，不能只共情
+  const firstText = (list[0] && list[0].text) || '';
+  if (!input.buffer && (ask === 'after_sale' || ask === 'return_policy') && !/售后|订单页|申请|退换/.test(firstText)) {
+    issues.push('售后没出口');
+    return { action: 'fallback', issues, reason: '售后问题只共情没给入口，改为订单页售后口径' };
+  }
+
   // 1.5 资质/报告/发票：不许替商家否定（没有查到 ≠ 商家没有）
   if (!input.buffer && NEGATIVE_CERT.test(text)) {
     issues.push('替商家否定');
@@ -288,7 +297,9 @@ function review(input) {
   }
 
   // 4. 物流状态：没有订单号就答不了「到哪了」
-  if (ask === 'shipping_status' && !/订单号|单号|订单页|物流进度/.test(text)) {
+  const hasOrderFact = Boolean(input.facts && Array.isArray(input.facts.items)
+    && input.facts.items.some((i) => i.block === 'order'));
+  if (ask === 'shipping_status' && !hasOrderFact && !/订单号|单号|订单页|物流进度/.test(text)) {
     issues.push('答不了物流状态');
     return { action: 'replace', issues, reason: '问物流进度但没有订单号，先要单号再查', replyKind: 'shipping_status' };
   }

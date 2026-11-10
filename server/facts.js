@@ -127,9 +127,23 @@ function manualQuery(text) {
  * 商品卡是买家/客服正在看的那个商品，不能因为这句话里没提商品名就丢掉说明书。
  */
 function resolveGoods(goods, products, storeId) {
-  if (Array.isArray(products) && products[0]) return products[0];
   const g = goods || {};
   const scoped = productStore.load().filter((p) => !storeId || !p.storeId || p.storeId === storeId);
+  if (Array.isArray(products) && products[0]) {
+    const given = products[0];
+    const full = (given.goodsId && productStore.find(given.goodsId, scoped))
+      || (given.title && productStore.findByTitle(given.title, scoped));
+    if (!full) return given;
+    // 引擎只带了部分字段：用店内完整记录补齐价格区间/规格/同步时间
+    return {
+      ...full,
+      ...given,
+      price: given.price != null ? given.price : full.price,
+      priceMax: given.priceMax != null ? given.priceMax : full.priceMax,
+      spec: given.spec != null ? given.spec : full.spec,
+      syncedAt: given.syncedAt || full.syncedAt,
+    };
+  }
   if (g.goodsId) {
     const hit = productStore.find(g.goodsId, scoped);
     if (hit) return hit;

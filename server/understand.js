@@ -111,7 +111,7 @@ function detectAsk(text) {
 // 谓词优先：问的是什么动作/对象，而不是句子里出现了什么实体。
 const PAY_ENTITY = /支付宝|微信支付|微信|花呗|银行卡|信用卡/;
 const STATUS_PRED = /发货了吗|发了吗|发了没|发出没|到哪|物流|签收|派送|快递到|收到了吗|收到没|收到了没/;
-const REFUND_PRED = /退款|退货|退钱|退差价|售后/;
+const REFUND_PRED = /退款|退货|退钱|退差价|售后|赔钱|赔偿|赔/;
 const REFUND_TIMING = /到账|几天|多久|多长时间|什么时候/;
 const USAGE_OBJ = /发芽|出芽|出苗|催芽|浸种|泡[几多少]?天|怎么种|种植|养护|清洗|保养|怎么用/;
 const ARRIVAL_OBJ = /到货|能到|收到|送达|到账|发货后|物流/;
