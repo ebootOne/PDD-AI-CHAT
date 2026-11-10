@@ -212,6 +212,13 @@ function review(input) {
     return { action: 'fallback', issues, reason: '买家问事实，候选却反问，改为页面口径' };
   }
 
+  // 1.4 安全类不许绝对化：放心使用/绝对安全不是我们能保证的
+  const safety = require('./concerns').detect(input.buyerText || '');
+  if (!input.buffer && safety && safety.key === 'safety' && /放心使用|绝对安全|保证安全|完全无害/.test(text)) {
+    issues.push('安全绝对化');
+    return { action: 'fallback', issues, reason: '安全类不做绝对保证，改为边界口径' };
+  }
+
   // 1.5 资质/报告/发票：不许替商家否定（没有查到 ≠ 商家没有）
   if (!input.buffer && NEGATIVE_CERT.test(text)) {
     issues.push('替商家否定');

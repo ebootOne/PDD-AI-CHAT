@@ -76,7 +76,7 @@ async function connect() {
   }
 
   const STORE = process.env.STORE_ID || 'real';
-  const all = (await (await fetch(API + '/api/products')).json()).items || [];
+  const all = (await (await fetch(API + '/api/products?all=1')).json()).items || [];
   const mine = all.filter((p) => p.storeId === STORE);
 
   // 异常不覆盖：只和「本店上次同步的条数」比，别的店的商品不算

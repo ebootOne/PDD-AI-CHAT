@@ -1,5 +1,5 @@
 {
-  "ts": "2026-11-09T15:34:15.545Z",
+  "ts": "2026-11-09T16:03:15.933Z",
   "pass": 19,
   "total": 19,
   "byIntent": {
@@ -89,11 +89,14 @@
       "expect": "suggest",
       "got": "suggest",
       "source": "rule",
-      "confidence": 0.95,
+      "confidence": 0.86,
       "knowledge": [
         "kb_mw8o08xn8uy5",
         "kb_mw8o08xnuu66",
-        "kb_mw8o08xnp3of"
+        "kb_mw8o08xnp3of",
+        "kb_mw8o08xnongn",
+        "kb_mw8o08xnun5x",
+        "kb_mw8o08xns5ep"
       ],
       "reply": "亲，本店种子发芽率按批次检测，常规品种在85%以上，有批次检测报告。收到后按说明浸种、控温催芽，出芽会更整齐。",
       "pass": true,
@@ -179,9 +182,10 @@
       "expect": "auto_send",
       "got": "auto_send",
       "source": "rule",
-      "confidence": 0.98,
+      "confidence": 0.91,
       "knowledge": [
-        "kb_mw8o08xnvbmg"
+        "kb_mw8o08xnvbmg",
+        "kb_mw8o08xns0tx"
       ],
       "reply": "亲，一般发货后省内1~2天、周边省份2~3天、偏远地区4~6天。具体以快递揽收后的物流信息为准。",
       "pass": true,

@@ -256,6 +256,19 @@ test('商品说明书：白萝卜要泡水，番茄可以不泡', () => {
   assert.ok(tomato.sections[0].content.includes('不泡'), tomato.sections[0].content);
 });
 
+test('商品简称不截断长标题（ISS-022）', async () => {
+  const title = '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚';
+  const r = await engine.generate(
+    { engine: 'pro', messages: [{ role: 'buyer', text: '有货吗' }], goods: { goodsId: 'g-long', title } },
+    baseCfg,
+    KB,
+    { products: [{ goodsId: 'g-long', storeId: 'test', title, price: '1.85', stock: 4500, syncedAt: new Date().toISOString() }] }
+  );
+  const t = r.suggestions[0].text;
+  assert.ok(t.includes('天然花椒木站杆'), t);
+  assert.ok(!t.includes('…'), t);
+});
+
 test('说明书优先于知识库（问用法 + 有商品上下文）', async () => {
   const r = await engine.generate(
     { engine: 'pro', messages: [{ role: 'buyer', text: '那要泡水吗' }], goods: { goodsId: '1001' } },

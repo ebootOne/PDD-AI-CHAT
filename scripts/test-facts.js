@@ -257,7 +257,7 @@ console.log('\n=== 7. 商品卡绑定 ===');
     products: [],
     knowledgeHits: [],
     kb: [],
-    storeId: 'real',
+    storeId: 'demo',
   });
   check('F34', '商品卡标题能绑说明书', has(p, 'manual'), JSON.stringify(p.route));
   check('F35', '「多深」问法命中深度节', /覆土/.test(textOf(p, 'manual')), textOf(p, 'manual'));
@@ -490,6 +490,16 @@ console.log('\n=== 13. 事实元数据/冲突/过期 ===');
     storeId: 'real',
   });
   check('M05', '价格多来源 → 冲突交给模型判断', oneSource.conflicts.length === 1 && oneSource.items.length >= 2, JSON.stringify({ items: oneSource.items.map((i) => i.text), conflicts: oneSource.conflicts }));
+
+  const jg = require(require('path').join(__dirname, '..', 'server', 'judge.js'));
+  const safety = jg.review({
+    buyerText: '鹦鹉啃了会不会中毒',
+    understanding: { ask: 'other', text: '鹦鹉啃了会不会中毒' },
+    suggestions: [{ tone: '标准', text: '这款是天然木，您可以放心使用。' }],
+    knowledge: [{ id: 'k', title: '适用对象' }],
+    products: [],
+  });
+  check('N09', '安全类「放心使用」→ 兜底', safety.action === 'fallback' && safety.issues.includes('安全绝对化'), JSON.stringify(safety));
 
 console.log('\n----------------------------------------');
 console.log(`事实包单测：${pass} PASS / ${fail} FAIL`);

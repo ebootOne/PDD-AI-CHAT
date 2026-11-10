@@ -135,6 +135,7 @@ node scripts/eval.js
 | 兜底计费文案修正 + 补模板引导 | `server/judge.js`、`desktop/renderer/app.js`、`docs/42` | 实测 fallback cost=0.5 | 通过 |
 | 模型侧同步「不替商家否定」（三套 prompt + 自检 + judge） | `pdd-cs-backend/src/server.js`、`server/prompt.js`、`server/judge.js` | 5 连测 + N01/N02 + 双引擎 39/39 | 0 FAIL |
 | 事实可信度（来源/时效/冲突） | `server/facts.js`、后端冲突提示、`docs/53` | `test-facts` M01–M04 | 见下 |
+| 多店铺商品隔离（ISS-013） | `server/products.js`、API、engine、前端、`docs/54` | `test-store-isolation` 4 + 双引擎 | 见下 |
 | 客服人格抽到工具侧 + 后端只剩执行 | `server/persona.js`、后端注入、`docs/52` | `test-persona` 6 + 双引擎 | 见下 |
 | 日常对话层（事实 / 日常 / 混合） | `server/chat.js`、`server/index.js`、后端 prompt、`server/judge.js` | `test-chat` 6 + 双引擎 | 见下 |
 | 双引擎四个常规模板 + 模板库清空 | `server/templates.js`、`server/kb-templates.js`、`server/policy.js`、`docs/48` | `test-templates` 15 + 单测 + 双引擎 | 见下 |
