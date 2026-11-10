@@ -24,6 +24,8 @@ run('点名退款单 → 说明退款', { ask: 'shipping_status', buyerText: '�
   (r) => { assert.ok(r && /退款成功/.test(r.text)); });
 run('价格题订单状态 → 价格口径', { ask: 'price', buyerText: '能便宜点吗', text: '已发货，申通尾号9410', orders, facts: { used: ['O1'] } },
   (r) => { assert.ok(r && /价格|优惠/.test(r.text) && !/已发货|物流/.test(r.text)); });
+run('泛问快递 → 不按多订单问哪一单', { ask: 'courier', buyerText: '可以发顺丰吗', text: '这单发的是申通，尾号9410，顺丰以页面为准', orders, facts: { used: ['O1'] } },
+  (r) => assert.strictEqual(r, null));
 run('干净回复 → 不触发', { ask: 'courier', buyerText: '发什么快递', text: '这单发的是申通，尾号9410', orders: [orders[0]], facts: { used: ['O1'] } },
   (r) => assert.strictEqual(r, null));
-console.log('answer-guard：6 PASS');
+console.log('answer-guard：7 PASS');

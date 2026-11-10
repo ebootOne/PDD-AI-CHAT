@@ -25,7 +25,9 @@ function orderText(o) {
   const bits = [];
   if (o.orderNo) bits.push('订单号：' + o.orderNo);
   if (o.status) bits.push('状态：' + o.status);
-  if (Array.isArray(o.items) && o.items.length) bits.push('商品：' + o.items.map((x) => clean(x.title)).filter(Boolean).join('、'));
+  if (Array.isArray(o.items) && o.items.length) {
+    bits.push('商品：' + o.items.map((x) => [clean(x.title), x.spec ? '规格' + clean(x.spec) : '', x.qty ? '数量' + clean(x.qty) : ''].filter(Boolean).join(' ')).filter(Boolean).join('、'));
+  }
   if (Array.isArray(o.packages) && o.packages.length) {
     bits.push('包裹：' + o.packages.map((p) => (p.courier || '快递') + (p.trackingNo ? '尾号' + String(p.trackingNo).slice(-4) : '')).join('；'));
   }

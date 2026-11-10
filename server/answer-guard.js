@@ -36,7 +36,10 @@ function guard(input = {}) {
   const facts = input.facts || {};
   const used = Array.isArray(facts.used) ? facts.used : [];
   const productAsk = ['stock', 'product', 'price', 'spec'].includes(ask) || /还有货|有货|库存|其他品种|别的大蒜/.test(buyer);
-  const orderAsk = ['shipping_status', 'courier', 'arrival_time', 'logistics'].includes(ask) || /那单.*(发货|到哪|物流|退款)|发货了吗|到哪了|快递呢/.test(buyer);
+  const explicitOrder = /那单|这单|订单|尾号|我买|这单/.test(buyer);
+  const orderAsk = ['shipping_status', 'arrival_time', 'logistics'].includes(ask)
+    || ((ask === 'courier' || /快递/.test(buyer)) && explicitOrder)
+    || /那单.*(发货|到哪|物流|退款)|发货了吗|到哪了/.test(buyer);
   const isQuestion = /[？?]/.test(text);
 
   // 1) 库存/品种题出现订单状态
