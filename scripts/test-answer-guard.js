@@ -26,6 +26,8 @@ run('价格题订单状态 → 价格口径', { ask: 'price', buyerText: '能便
   (r) => { assert.ok(r && /价格|优惠/.test(r.text) && !/已发货|物流/.test(r.text)); });
 run('泛问快递 → 不按多订单问哪一单', { ask: 'courier', buyerText: '可以发顺丰吗', text: '这单发的是申通，尾号9410，顺丰以页面为准', orders, facts: { used: ['O1'] } },
   (r) => assert.strictEqual(r, null));
+run('绝对否定配送 → 页面可选', { ask: 'courier', buyerText: '可以发顺丰吗', text: '这单发的是申通，顺丰发不了', orders, facts: { used: [] } },
+  (r) => { assert.ok(r && /可选/.test(r.text) && !/发不了/.test(r.text)); });
 run('干净回复 → 不触发', { ask: 'courier', buyerText: '发什么快递', text: '这单发的是申通，尾号9410', orders: [orders[0]], facts: { used: ['O1'] } },
   (r) => assert.strictEqual(r, null));
-console.log('answer-guard：7 PASS');
+console.log('answer-guard：8 PASS');
