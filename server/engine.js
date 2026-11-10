@@ -18,6 +18,7 @@ const { retrieve, confidenceFromScore } = require('./knowledge');
 const productStore = require('./products');
 const manualStore = require('./manuals');
 const facets = require('./facets');
+const orderSelect = require('./order-select');
 const router = require('./router');
 const buffer = require('./buffer');
 const { pickFallback, publicFallback, SHOP_ASK } = require('./policy');
@@ -543,27 +544,20 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
     return { ...c, text: natural.speakTime(warm(withSalutation, { tier, emotion: un.emotion, ask: un.ask })) };
   });
 
-  // 多商品订单 + 买家没点名：不猜商品，先问是哪一款（这条也算一次回复）
-  const orderItems = Array.isArray(ctx.order && ctx.order.items) ? ctx.order.items.filter((x) => x && x.title) : [];
-  const shortName = (s) => {
-    let x = String(s || '').replace(/\s+/g, '').replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '');
-    x = x.split(/精品|正宗|加量|大包|大号|可湿水|加厚|透气|母婴|家用|商用/)[0] || x;
-    return x.slice(0, 8);
-  };
-  const mentionedOrder = orderItems.some((x) => {
-    const t = String(x.title || '').replace(/\s+/g, '');
-    return t && (queryText.replace(/\s+/g, '').includes(t.slice(0, 4)) || t.includes(queryText));
-  });
-  let orderClarify = false;
-  if (orderItems.length > 1 && !mentionedOrder && ['product', 'stock', 'price', 'recommend'].includes(intent)) {
-    const names = orderItems.map((x) => shortName(x.title)).filter(Boolean);
-    const text = names.length >= 2
-      ? '亲，您问的是' + names.slice(0, 2).join('还是') + '呀？'
-      : '亲，您问的是哪一款呀？';
-    candidates = [{ tone: '标准', text }];
-    source = 'order';
-    confidence = 0.9;
-    orderClarify = true;
+  // 多订单/多商品：本地只筛候选，要不要问、选哪个由模型决定
+  const picked = orderSelect.pickOrders(queryText, ctx.orders, ctx.order);
+  const orderList = picked.orders;
+  const orderItems = orderList.length === 1 && Array.isArray(orderList[0].items) ? orderList[0].items : [];
+  const multiEntity = orderList.length > 1 || orderItems.length > 1;
+  const entitySensitive = ['shipping_status', 'courier', 'arrival_time', 'order_change', 'after_sale', 'return_policy', 'stock', 'price', 'product', 'recommend'].includes(un.ask);
+  if (multiEntity && entitySensitive) {
+    return Object.assign(base, {
+      decision: 'suggest', source: 'none', suggestions: [], confidence: 0,
+      needsModel: true, multiEntity: true,
+      reason: '多订单/多商品，交模型判断问哪一单/哪一款',
+      engine: ctx.engine || cfg.engine || 'standard',
+      latencyMs: Date.now() - started,
+    });
   }
 
   // 本地能答的前提：有候选 + 置信度 ≥0.85 + 来源是知识/商品/说明书。
@@ -658,7 +652,6 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   const ordered = tone.preferCandidate(candidates.slice(0, 3), tier);
 
   return Object.assign(base, {
-    orderClarify,
     decision,
     reason,
     manual: manualHit,

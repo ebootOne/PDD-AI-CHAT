@@ -573,6 +573,7 @@ const cfg = store.getConfig();
             kb: kbForStore,
             storeId: ctx.storeId,
             order: ctx.order || null,
+            orders: ctx.orders || [],
           })
         : null;
       let factUsed = factPack
@@ -786,6 +787,7 @@ const cfg = store.getConfig();
           capabilities: cfg.capabilities || {},
           facts: factUsed,
           clarify: Boolean(result.orderClarify),
+          multiEntity: Boolean(result.multiEntity),
         });
         judgeAction = verdict.action;
         const firstReply = !(ctx.messages || []).some((m) => m.role === 'seller');

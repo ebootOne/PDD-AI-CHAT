@@ -20,6 +20,7 @@ const manualStore = require('./manuals');
 const knowledge = require('./knowledge');
 const productStore = require('./products');
 const facets = require('./facets');
+const orderSelect = require('./order-select');
 const factRoute = require('./fact-route');
 
 // 商品域隔离（与 engine.domainMismatch 同一条判据）：
@@ -312,7 +313,23 @@ function build(input = {}) {
   // 1. 订单块：有信号、或注册表要求「必须有订单」，就一定要；没数据就明说缺
   const regNeeds = (routing.registry && routing.registry.needs) || [];
   const wantsOrderBlock = orderAsked || regNeeds.includes('order');
-  if (wantsOrderBlock) {
+  const pickedOrders = orderSelect.pickOrders(buyerText, input.orders, input.order).orders.slice(0, 5);
+  const multiOrders = pickedOrders;
+  if (multiOrders.length > 1) {
+    blocks.push('order');
+    multiOrders.forEach((o, i) => {
+      const tail = o.orderNo ? String(o.orderNo).slice(-4) : String(i + 1);
+      items.push({
+        block: 'order', label: '订单' + (i + 1), text: clip(scrub(describeOrder(o))),
+        priority: 0, source: 'order',
+      });
+    });
+    reasons.push('买家有多张订单，全部事实交给模型判断');
+  } else if (multiOrders.length === 1) {
+    blocks.push('order');
+    items.push({ block: 'order', label: '订单', text: clip(scrub(describeOrder(multiOrders[0]))), priority: 0, source: 'order' });
+    reasons.push('买家点名了其中一张订单，只带这一单事实');
+  } else if (wantsOrderBlock) {
     blocks.push('order');
     if (input.order && Object.keys(input.order).length) {
       items.push({
@@ -600,6 +617,7 @@ function widenItems({ buyerText, kb, scope, goodsInfo, goodsId, existing, concer
 
 function describeOrder(o) {
   const bits = [];
+  if (o.orderNo) bits.push('订单号：' + o.orderNo);
   if (o.status) bits.push('状态：' + o.status);
   if (o.paidAt) bits.push('付款：' + o.paidAt);
   if (o.shippedAt) bits.push('发货：' + o.shippedAt);

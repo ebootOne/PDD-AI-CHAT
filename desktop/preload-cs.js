@@ -195,6 +195,8 @@ function pddCapture() {
     || document.querySelector('.header-box .base-info .name')
     || document.querySelector('.chat-nickname .nickname-span');
 
+  const orderList = pddOrdersCapture();
+  const firstOrder = orderList[0] || pddOrderCapture();
   return {
     ok: true,
     source: 'pdd',
@@ -203,20 +205,18 @@ function pddCapture() {
     goodsTitle,
     goodsPrice,
     buyerName: nameEl ? nameEl.innerText.trim() : '',
-    order: pddOrderCapture(),
+    order: firstOrder,
+    orders: orderList.length ? orderList : (firstOrder && firstOrder.hasOrder ? [firstOrder] : []),
     url: location.href,
   };
 }
 
 // 右侧订单面板（2026-11-09 真实页取证：.right-panel-container，含「最新订单/个人订单」）
 // 只取白名单字段：状态/快递/运单号。收件人、电话、地址一律不取（docs/36 硬约束）。
-function pddOrderCapture() {
-  const panel = document.querySelector('.right-panel-container');
-  if (!panel) return null;
-  const card = panel.querySelector('.order-item');
-  // 只读第一张订单卡；标签栏里的「待发货/待签收」不是订单状态
-  const txt = card ? (card.innerText || card.textContent || '') : (panel.innerText || '');
-  const hintEl = card && card.querySelector('.order-status .title-status, .title-status');
+function parseOrderCard(card) {
+  if (!card) return null;
+  const txt = card.innerText || card.textContent || '';
+  const hintEl = card.querySelector('.order-status .title-status, .title-status');
   const hint = hintEl ? (hintEl.innerText || hintEl.textContent || '') : '';
   const parsed = parseOrderPanel(txt, hint);
   if (!parsed.hasOrder) return parsed;
@@ -225,6 +225,26 @@ function pddOrderCapture() {
   const nums = [...card.querySelectorAll('.goods-num')].map((e) => (e.textContent || '').trim());
   const prices = [...card.querySelectorAll('.goods-price')].map((e) => (e.textContent || '').trim());
   parsed.items = names.map((title, i) => ({ title, spec: specs[i] || '', qty: nums[i] || '', price: prices[i] || '' }));
+  const sn = card.querySelector('.order-sn');
+  parsed.orderNo = sn ? (sn.textContent || '').trim() : '';
+  const t = txt.match(/下单时间[:：]\s*([0-9/\- :]+)/);
+  parsed.createdAt = t ? t[1].trim() : '';
+  return parsed;
+}
+
+function pddOrdersCapture() {
+  const panel = document.querySelector('.right-panel-container');
+  if (!panel) return [];
+  const cards = [...panel.querySelectorAll('.order-item')].slice(0, 5);
+  return cards.map(parseOrderCard).filter((x) => x && x.hasOrder);
+}
+
+function pddOrderCapture() {
+  const panel = document.querySelector('.right-panel-container');
+  if (!panel) return null;
+  const list = pddOrdersCapture();
+  if (list.length) return list[0];
+  const parsed = parseOrderPanel(panel.innerText || '', '');
   return parsed;
 }
 
@@ -242,17 +262,16 @@ async function ensureOrderDetail() {
     const tab = [...panel.querySelectorAll('*')].find((e) => !e.children.length && (e.textContent || '').trim() === '个人订单');
     if (tab) { tab.click(); lastOrderOpenAt = Date.now(); await sleep(350); card = panel.querySelector('.order-item'); }
   }
-  if (!card) return;
-  const txt = card.innerText || '';
-  if (/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.test(txt)) return;
-  const btns = [...card.querySelectorAll('*')]
-    .filter((e) => (e.textContent || '').trim() === '物流信息' && e.getBoundingClientRect().width)
-    .slice(0, 3);
-  for (const btn of btns) {
-    btn.click();
-    await sleep(250);
+  const cards = [...panel.querySelectorAll('.order-item')].slice(0, 3);
+  for (const c of cards) {
+    const txt = c.innerText || '';
+    if (/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.test(txt)) continue;
+    const btns = [...c.querySelectorAll('*')]
+      .filter((e) => (e.textContent || '').trim() === '物流信息' && e.getBoundingClientRect().width)
+      .slice(0, 3);
+    for (const btn of btns) { btn.click(); await sleep(180); }
   }
-  if (btns.length) { lastOrderOpenAt = Date.now(); await sleep(250); }
+  if (cards.length) { lastOrderOpenAt = Date.now(); await sleep(250); }
 }
 
 async function capture() {

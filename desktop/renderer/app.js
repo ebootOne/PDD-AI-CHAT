@@ -365,6 +365,7 @@ async function generate(isAuto = false, runId = '') {
       buyerName: cap.buyerName || '',
       goods: { title: cap.goodsTitle || '', goodsId: '', spec: '' },
       order: cap.order || null,
+      orders: cap.orders || [],
       messages: cap.messages || [],
       mode: state.auto ? 'auto' : 'suggest',
       engine: state.engine,
