@@ -7,6 +7,8 @@
  * 相关性、取舍、是否反问，由模型基于这些带 ID 的候选决定。
  */
 
+const registry = require('./block-registry');
+
 function clean(text) {
   return String(text || '')
     .replace(/\s+/g, ' ')
@@ -46,7 +48,7 @@ function build(input = {}) {
     items.push({
       id: 'P0', block: 'product', label: '当前商品',
       text: clean(goods.title) + (goods.spec ? '；规格：' + clean(goods.spec) : ''),
-      source: 'goods',
+      source: 'goods', goodsId: goods.goodsId || '',
     });
     stats.products++;
   }
@@ -55,7 +57,7 @@ function build(input = {}) {
   const orders = (Array.isArray(input.orders) ? input.orders : (input.order ? [input.order] : []))
     .filter((o) => o && o.hasOrder && inStore(o)).slice(0, 5);
   orders.forEach((o, i) => {
-    items.push({ id: 'O' + (i + 1), block: 'order', label: '订单' + (i + 1), text: clean(orderText(o)), source: 'order' });
+    items.push({ id: 'O' + (i + 1), block: 'order', label: '订单' + (i + 1), text: clean(orderText(o)), source: 'order', orderNo: o.orderNo || '' });
   });
   stats.orders = orders.length;
 
@@ -65,7 +67,7 @@ function build(input = {}) {
     items.push({
       id: 'G' + (i + 1), block: 'product', label: '商品' + (i + 1),
       text: shortTitle(p.title) + (p.price != null ? '；价格 ' + p.price + (Number(p.priceMax) > Number(p.price) ? '~' + p.priceMax : '') + ' 元' : '') + (Number.isFinite(Number(p.stock)) ? '；库存 ' + p.stock : ''),
-      source: 'catalog', updatedAt: p.syncedAt || null,
+      source: 'catalog', updatedAt: p.syncedAt || null, goodsId: p.goodsId || '',
     });
   });
   stats.products += products.length;
@@ -74,14 +76,14 @@ function build(input = {}) {
   const manual = input.manual;
   if (manual && Array.isArray(manual.sections)) {
     manual.sections.filter((s) => domainOk((s.title || '') + (s.content || ''))).forEach((s, i) => {
-      items.push({ id: 'M' + (i + 1), block: 'manual', label: clean(s.title), text: clean(s.content), source: 'manual' });
+      items.push({ id: 'M' + (i + 1), block: 'manual', label: clean(s.title), text: clean(s.content), source: 'manual', section: s.title });
     });
   }
 
   // 5) 店铺知识/政策
   const kb = (Array.isArray(input.kb) ? input.kb : []).filter(inStore).filter((k) => domainOk((k.title || '') + (k.answer || ''))).slice(0, 20);
   kb.forEach((k, i) => {
-    items.push({ id: 'K' + (i + 1), block: 'policy', label: clean(k.title), text: clean(k.answer), source: 'knowledge', updatedAt: k.updatedAt || null });
+    items.push({ id: 'K' + (i + 1), block: 'policy', label: clean(k.title), text: clean(k.answer), source: 'knowledge', updatedAt: k.updatedAt || null, topic: k.title });
   });
   stats.policies = kb.length;
 
@@ -98,8 +100,10 @@ function build(input = {}) {
     items.push({ id: 'S1', block: 'profile', label: '客服在线', text: input.profile.hours.start + '到' + input.profile.hours.end, source: 'profile' });
   }
 
+  const blocks = registry.manifest({ orders, products, manual, kb, messages: msgs, profile: input.profile, goods });
   return {
     items,
+    blocks,
     stats,
     route: { asks: [], mode: 'candidate-pool', blocks: [...new Set(items.map((x) => x.block))] },
     budget: { tokens: 0 },

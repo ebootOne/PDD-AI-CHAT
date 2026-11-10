@@ -32,6 +32,7 @@ const session = require('./session');
 const policy = require('./policy');
 const facts = require('./facts');
 const context = require('./context');
+const blockRegistry = require('./block-registry');
 const factRegistry = require('./fact-registry');
 const metrics = require('./metrics');
 
@@ -686,7 +687,7 @@ const cfg = store.getConfig();
           .filter(Boolean)
           .map((x) => ({ title: x.title, answer: x.answer }));
 
-        const r = await backend.reply(cfg, {
+        const basePayload = {
           session: session.summary(ctx.storeId || 'default', conversationId),
           messages: ctx.messages,
           knowledge: hits,
@@ -699,7 +700,32 @@ const cfg = store.getConfig();
           profile: (cfg.businessHours && cfg.businessHours.start && cfg.businessHours.end)
             ? { hours: { start: natural.speakTime(cfg.businessHours.start), end: natural.speakTime(cfg.businessHours.end) } }
             : undefined,
-        });
+        };
+        let r = await backend.reply(cfg, basePayload);
+        let needInfo = null;
+        if (r && r.ok && factPack && Array.isArray(r.need) && r.need.length) {
+          const resolved = blockRegistry.resolve(factPack, r.need);
+          if (resolved.items.length) {
+            const ids = new Set([...(r.used || []), ...resolved.items.map((x) => x.id)]);
+            const secondPack = Object.assign({}, factPack, {
+              items: factPack.items.filter((x) => ids.has(x.id)),
+              blocks: factPack.blocks,
+            });
+            const r2 = await backend.reply(cfg, Object.assign({}, basePayload, { facts: secondPack, phase: 'answer' }));
+            if (r2 && r2.ok) {
+              const p1 = r.billing && Number(r.billing.points) || 0;
+              const p2 = r2.billing && Number(r2.billing.points) || 0;
+              r2.billing = Object.assign({}, r2.billing, { points: p1 + p2 });
+              r2.ms = Number(r.ms || 0) + Number(r2.ms || 0);
+              needInfo = { requested: r.need, resolved: resolved.items.map((x) => x.id), errors: resolved.errors };
+              r = r2;
+            }
+          } else {
+            needInfo = { requested: r.need, resolved: [], errors: resolved.errors };
+          }
+        }
+
+        if (needInfo) result.needInfo = needInfo;
 
         // 引用校验第一步：模型说它用了哪条，必须真的存在（假引用按无依据处理）
         if (factPack && r && r.ok) {
