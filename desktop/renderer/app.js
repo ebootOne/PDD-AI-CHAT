@@ -26,6 +26,7 @@ const state = {
   autoPrimed: false, // 首帧只登记、不自动回，避免一启动就把旧消息发出去
   autoRunId: '',
   pendingAuto: null, // 3 分钟兜底：每条买家新消息必须有一条回复
+  lastAutoSent: null, // 自动发送去重：同一句 2 分钟内不重复发
   logView: 'current', // 回复日志：current=当前店铺 / all=所有店铺
   logScope: 'current', // 从日志加入模板：current=当前店铺 / global=整个工具
 };
@@ -400,6 +401,7 @@ async function generate(isAuto = false, runId = '') {
         await sleep(600 + Math.random() * 1200);
         const ok = await doSend(cand.text, true, runId);
         if (ok) markAutoSent(runId);
+        else await sendHolding(runId);
       } else {
         logAuto('hold', { runId, decision: result.decision, reason: result.reason || '' });
         await sleep(500);
@@ -429,6 +431,11 @@ async function doFill(text) {
 
 async function doSend(text, auto, runId = '') {
   const started = Date.now();
+  if (auto && state.lastAutoSent && state.lastAutoSent.text === text
+      && Date.now() - state.lastAutoSent.ts < 120000) {
+    logAuto('dup_skip', { runId, text });
+    return false;
+  }
   const filled = await B.page.fill(text);
   if (!filled || !filled.ok) {
     if (auto) logAuto('fill_fail', { runId, error: (filled && filled.error) || 'fill failed' });
@@ -448,7 +455,10 @@ async function doSend(text, auto, runId = '') {
   await sleep(300 + Math.random() * 300);
   const sent = await B.page.send();
   if (sent && sent.ok) {
-    if (auto) logAuto('send_ok', { runId, text, elapsedMs: Date.now() - started });
+    if (auto) {
+      state.lastAutoSent = { text, ts: Date.now() };
+      logAuto('send_ok', { runId, text, elapsedMs: Date.now() - started });
+    }
     toast(auto ? '已自动发送' : '已发送');
     B.api('/api/log', 'POST', {
       type: 'send',

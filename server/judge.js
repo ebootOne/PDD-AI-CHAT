@@ -249,6 +249,13 @@ function review(input) {
     }
   }
 
+  // 1.18 不许说买家没发过的内容（“您发的这串数字”）
+  if (!input.buffer && /(?:您|你)(?:发|给)的?(?:这|那)?(?:串)?(?:数字|号码|单号)/.test(text)
+      && !/\d{3,}/.test(String(input.buyerText || ''))) {
+    issues.push('无中生有');
+    return { action: 'fallback', issues, reason: '候选说买家发了数字/单号，但买家没发，改为兜底' };
+  }
+
   // 1.2 事实题不能拿反问当回答
   if (!input.buffer && typeof ask !== 'undefined' && SHOP_ASK.has(ask) && /[？?]\s*$/.test(text)) {
     issues.push('答非所问');

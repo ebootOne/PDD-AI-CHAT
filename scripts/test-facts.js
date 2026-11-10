@@ -227,6 +227,14 @@ console.log('\n=== 6. 质检引用校验 ===');
   });
   check('N06', '明确说包装标注 → 不误杀', unitOk.action === 'keep', JSON.stringify(unitOk));
 
+  const noSuch = judge.review({
+    ...base,
+    buyerText: '到底什么时候能到呢',
+    suggestions: [{ tone: '标准', text: '亲，您发的这串数字我这边看不到物流详情呢。' }],
+    facts: { items: [{ id: 'F1', block: 'order', label: '订单', text: '状态：已发货' }], missing: [] },
+  });
+  check('N10', '不能说买家没发过的数字', noSuch.action === 'fallback' && noSuch.issues.includes('无中生有'), JSON.stringify(noSuch));
+
   const numBad = judge.review({
     ...base,
     buyerText: '这个多少钱',
