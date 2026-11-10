@@ -315,7 +315,7 @@ function build(input = {}) {
   const wantsOrderBlock = orderAsked || regNeeds.includes('order');
   const pickedOrders = orderSelect.pickOrders(buyerText, input.orders, input.order).orders.slice(0, 5);
   const multiOrders = pickedOrders;
-  if (multiOrders.length > 1) {
+  if (wantsOrderBlock && multiOrders.length > 1) {
     blocks.push('order');
     multiOrders.forEach((o, i) => {
       const tail = o.orderNo ? String(o.orderNo).slice(-4) : String(i + 1);
@@ -325,7 +325,7 @@ function build(input = {}) {
       });
     });
     reasons.push('买家有多张订单，全部事实交给模型判断');
-  } else if (multiOrders.length === 1) {
+  } else if (wantsOrderBlock && multiOrders.length === 1) {
     blocks.push('order');
     items.push({ block: 'order', label: '订单', text: clip(scrub(describeOrder(multiOrders[0]))), priority: 0, source: 'order' });
     reasons.push('买家点名了其中一张订单，只带这一单事实');

@@ -549,7 +549,7 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   const orderList = picked.orders;
   const orderItems = orderList.length === 1 && Array.isArray(orderList[0].items) ? orderList[0].items : [];
   const multiEntity = orderList.length > 1 || orderItems.length > 1;
-  const entitySensitive = ['shipping_status', 'courier', 'arrival_time', 'order_change', 'after_sale', 'return_policy', 'stock', 'price', 'product', 'recommend'].includes(un.ask);
+  const entitySensitive = ['shipping_status', 'courier', 'arrival_time', 'order_change', 'after_sale', 'return_policy'].includes(un.ask);
   if (multiEntity && entitySensitive) {
     return Object.assign(base, {
       decision: 'suggest', source: 'none', suggestions: [], confidence: 0,

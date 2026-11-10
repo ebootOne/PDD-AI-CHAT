@@ -256,15 +256,28 @@ test('商品说明书：白萝卜要泡水，番茄可以不泡', () => {
   assert.ok(tomato.sections[0].content.includes('不泡'), tomato.sections[0].content);
 });
 
-test('多商品未点名 → 交模型判断，不本地猜', async () => {
+test('库存问题不被多订单劫持', async () => {
   const r = await engine.generate(
     { engine: 'pro', messages: [{ role: 'buyer', text: '还有吗' }],
       order: { hasOrder: true, items: [{ title: '26年金乡大蒜精品山东新干蒜' }, { title: '加量520张大包抽纸大号可湿水' }] } },
     baseCfg, KB, {}
   );
+  assert.ok(!r.multiEntity);
+  const t = (r.suggestions || []).map((x) => x.text).join(' ');
+  assert.ok(!/订单|哪一单/.test(t), t);
+});
+
+test('多订单发货问题交模型，不本地选单', async () => {
+  const r = await engine.generate(
+    { engine: 'pro', messages: [{ role: 'buyer', text: '发货了吗' }],
+      orders: [
+        { hasOrder: true, orderNo: 'A9410', status: '已发货', items: [{ title: '大蒜' }] },
+        { hasOrder: true, orderNo: 'B6789', status: '待发货', items: [{ title: '抽纸' }] },
+      ] },
+    baseCfg, KB, {}
+  );
   assert.strictEqual(r.multiEntity, true);
   assert.strictEqual(r.needsModel, true);
-  assert.strictEqual((r.suggestions || []).length, 0);
 });
 
 test('商品简称不截断长标题（ISS-022）', async () => {
