@@ -21,6 +21,8 @@ const ENGINE = process.env.ENGINE || 'pro';
 const args = process.argv.slice(2);
 const limitArg = args.indexOf('--limit');
 const LIMIT = limitArg > -1 ? Number(args[limitArg + 1]) || 0 : 0;
+const startArg = args.indexOf('--start');
+const START = startArg > -1 ? Number(args[startArg + 1]) || 0 : 0;
 
 const GOODS = {
   stand: '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚',
@@ -41,7 +43,8 @@ function noAny(text, patterns) {
 }
 
 (async () => {
-  const list = LIMIT ? cases.slice(0, LIMIT) : cases;
+  const list = cases.slice(START, LIMIT ? START + LIMIT : undefined);
+  console.log('cases', START + 1, '-', START + list.length);
   const results = [];
   for (const c of list) {
     const body = {
@@ -57,7 +60,7 @@ function noAny(text, patterns) {
     };
     let r = {};
     try {
-      r = await (await fetch(API + '/api/reply', {
+      r = await (await fetch(API + '/api/reply', { signal: AbortSignal.timeout(45000),
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -79,7 +82,7 @@ function noAny(text, patterns) {
       reply: text.slice(0, 120),
       order: c.order || null, goods: c.goods || null,
     });
-    if ((results.length % 10) === 0) console.log(`  ... ${results.length}/${list.length}`);
+    console.log('  done', c.id, r.source || 'none');
   }
 
   const byCat = {};

@@ -17,6 +17,7 @@
 const { retrieve, confidenceFromScore } = require('./knowledge');
 const productStore = require('./products');
 const manualStore = require('./manuals');
+const facets = require('./facets');
 const router = require('./router');
 const buffer = require('./buffer');
 const { pickFallback, publicFallback, SHOP_ASK } = require('./policy');
@@ -432,8 +433,9 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   let manualHit = null;
   // 说明书用它自己的分节关键词匹配，不再依赖分流器的"用法"判定
   // （不然"怎么清洗""会不会掉色"这种，分流器不认识就不会去查说明书）
-  if (!candidates.length && goodsId) {
-    const mr = manualStore.match(goodsId, queryText);
+  const facet = facets.facetOf(queryText);
+  if (!candidates.length && goodsId && facet !== 'durability' && facet !== 'behavior') {
+    const mr = manualStore.match(goodsId, facets.manualQueryFor(queryText));
     if (mr.mode !== 'none') {
       let cs = manualStore.candidatesOf(mr);
       // 焦点不过（问中毒答"都能用"）→ 不算命中，让位给模型

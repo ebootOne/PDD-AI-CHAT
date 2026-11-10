@@ -19,6 +19,7 @@
 const manualStore = require('./manuals');
 const knowledge = require('./knowledge');
 const productStore = require('./products');
+const facets = require('./facets');
 const factRoute = require('./fact-route');
 
 // 商品域隔离（与 engine.domainMismatch 同一条判据）：
@@ -338,9 +339,7 @@ function build(input = {}) {
   missing.push(...p.missing);
 
   // 3. 说明书块
-  const manualText = routing.asks.includes('spec')
-    ? manualQuery(buyerText) + ' 规格 尺寸'
-    : manualQuery(buyerText);
+  const manualText = facets.manualQueryFor(manualQuery(buyerText));
   const m = manualItems(goodsId, manualText, concern);
   if (m.items.length) {
     blocks.push('manual');

@@ -216,7 +216,7 @@ console.log('\n=== 6. 质检引用校验 ===');
     suggestions: [{ tone: '标准', text: '这款是520张的大包抽纸哈。' }],
     facts: { items: [{ id: 'F1', block: 'product', label: '商品', text: '加量520张大包抽纸：520张/包' }], missing: [] },
   });
-  check('N05', '问抽答张 → 单位不一致', unitBad.action === 'fallback' && unitBad.issues.includes('单位不一致'), JSON.stringify(unitBad));
+  check('N05', '问抽答张 → 只替换数量句', ['replace', 'fallback'].includes(unitBad.action) && unitBad.issues.includes('单位不一致'), JSON.stringify(unitBad));
 
   const unitOk = judge.review({
     ...base,

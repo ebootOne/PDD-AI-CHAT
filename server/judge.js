@@ -84,6 +84,7 @@ const INTERNAL = /(资料|知识库|模型|系统|数据库).{0,10}(没有|暂�
 const DIM_SIGNALS = {
   tax_rate: /税率|税点|个点|%|％/,
   days: /\d+\s*天|天左右|当天|次日|\d+~\d+\s*天/,
+  usage_duration: /时间|时长|多久|看情况/,
   price: /\d+(\.\d+)?\s*元|没货|补货/,
   weight: /\d+\s*(克|g|粒)/i,
   fee: /\d+\s*元|包邮|运费/,
@@ -113,6 +114,24 @@ function numericUnits(text) {
   let m;
   while ((m = NUM_UNIT.exec(String(text || '')))) set.add(String(m[3]).toLowerCase());
   return set;
+}
+
+function unitDeferred(text, wantUnit) {
+  const u = escapeRe(wantUnit);
+  return new RegExp('(?:多少|具体)?' + u + '数?[^。]{0,16}(?:包装|页面|商品页)[^。]{0,8}(?:标注|为准)').test(String(text || ''));
+}
+
+function repairUnitClaims(text, badUnit, wantUnit) {
+  const parts = String(text || '').split(/([，。；！？\n])/);
+  let changed = false;
+  for (let i = 0; i < parts.length; i += 2) {
+    const seg = parts[i];
+    if (seg && new RegExp('\\d+\\s*' + escapeRe(badUnit)).test(seg)) {
+      parts[i] = '具体' + wantUnit + '数以包装或页面标注为准';
+      changed = true;
+    }
+  }
+  return changed ? parts.join('') : '';
 }
 
 // 问「抽」不能答「张」，问「克」不能答「粒」
@@ -207,6 +226,27 @@ function review(input) {
   if (overPromise(text)) {
     issues.push('越界承诺');
     return { action: 'fallback', issues, reason: '候选里出现保证/赔付口吻，已丢弃，改为兜底' };
+  }
+
+  // 1.15 范围纪律：只问地区/运费，不追加发货时效
+  const asks = Array.isArray(un.asks) ? un.asks : [ask];
+  if (asks.includes('freight') && !asks.includes('shipping_time') && !asks.includes('arrival_time')) {
+    let changed = false;
+    const cleanedList = list.map((s) => {
+      const parts = String(s.text || '').split(/([，。；！？\n])/);
+      for (let i = 0; i < parts.length; i += 2) {
+        const seg = parts[i] || '';
+        if (/16点|顺延|当天.{0,4}(发|发出)/.test(seg) && !/运费|包邮|补差|新疆|西藏|内蒙古/.test(seg)) {
+          parts[i] = '';
+          changed = true;
+        }
+      }
+      return parts.join('');
+    }).filter((s) => s && s.trim());
+    if (changed) {
+      issues.push('答非所问');
+      return { action: 'replace', issues, reason: '只问地区/运费，已去掉多余的发货时效', cleanedList };
+    }
   }
 
   // 1.2 事实题不能拿反问当回答
@@ -402,10 +442,20 @@ function review(input) {
     ? input.facts.items.map((i) => String(i.text || '')).join(' \n ')
     : '';
   if (factText) {
-    const um = DEFER.test(text) ? '' : unitMismatch(input.buyerText, text);
+    const um = unitMismatch(input.buyerText, text);
     if (um) {
+      const [wantUnit, badUnit] = um.split('/');
+      if (unitDeferred(text, wantUnit)) {
+        // 已经明确把该单位推到包装/页面，不算答错
+      } else {
+      const cleanedList = list.map((s) => repairUnitClaims(s.text, badUnit, wantUnit)).filter((s) => s);
+      if (cleanedList.length) {
+        issues.push('单位不一致');
+        return { action: 'replace', issues, reason: '只替换数量单位那一句，保留价格/其他事实', cleanedList };
+      }
       issues.push('单位不一致');
-      return { action: 'fallback', issues, reason: '买家问的单位是「' + um.split('/')[0] + '」，候选答成了「' + um.split('/')[1] + '」，改为页面口径' };
+      return { action: 'fallback', issues, reason: '买家问的单位是「' + wantUnit + '」，候选答成了「' + badUnit + '」，改为页面口径' };
+      }
     }
     const bad = ungroundedNumbers(text, factText);
     if (bad.length) {

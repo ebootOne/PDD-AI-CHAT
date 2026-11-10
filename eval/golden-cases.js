@@ -109,7 +109,7 @@ module.exports = [
   c('G082', 'domain', '放阳台晒太阳可以吗', { goods: 'stand', has: ['阳台|暴晒|遮阴'], not: ['浸种|催芽'] }),
   c('G083', 'domain', '怎么清洗', { goods: 'stand', has: ['清洗|刷洗|清水'] }),
   c('G084', 'domain', '站杆掉色正常吗', { goods: 'stand', has: ['色差|正常|开裂'] }),
-  c('G085', 'domain', '一根能用多久', { goods: 'stand', has: ['结实|啃咬|多久'] }),
+  c('G085', 'domain', '一根能用多久', { goods: 'stand', has: ['多久|时间|固定|开裂'] }),
   c('G086', 'domain', '木头有味道吗', { goods: 'stand', has: ['木味|通风|味道'] }),
   c('G087', 'domain', '适合牡丹鹦鹉吗', { goods: 'stand', has: ['牡丹|能用|适合'] }),
   c('G088', 'domain', '鹦鹉不爱啃怎么办', { goods: 'stand', has: ['正常|适应|换|位置'] }),

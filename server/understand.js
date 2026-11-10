@@ -97,7 +97,8 @@ const ASK_RULES = [
   ['spec', /规格|尺寸|多大(?!的?(?:鸟|鹦鹉|动物|猫|狗|仓鼠|兔))|多长(?!时间)|多高|多宽|多厚|多少克|克数|多少张|几张|多少抽|几抽|多少粒|几盆|多少地|斤|袋|厘米|cm/],
   ['stock', /有货|库存|现货|还有吗|有吗|有没有/],
   ['recommend', /推荐|哪个好|选哪|哪个适合/],
-  ['usage', /怎么种|催芽|温度|播种|泡多久|泡[几多少]?天|浸种.*天|适合|阳台|光照|浇水|施肥|能种吗|季节|冬天|发芽|出芽|出苗/],
+  ['usage', /怎么种|催芽|温度|播种|泡多久|泡[几多少]?天|浸种.*天|适合|阳台|光照|浇水|施肥|能种吗|季节|冬天|发芽|出芽|出苗|能用多久|耐用|耐啃|用多久|会不会断|不爱啃|不啃|不玩|不愿.{0,4}(啃|磨)/],
+  ['order_change', /改地址|修改地址|换地址|改收货|收货地址|改电话|改手机号/],
   ['privacy', /老板.{0,6}(电话|手机|微信|姓名|叫啥|叫什么|是谁|联系方式)|电话|手机号|法人|营业执照|身份证|微信|QQ/],
   ['greeting', /^(在吗|在不在|有人吗|你好|您好|老板|hi|hello)[\s，。！？!?~]*$/],
 ];
@@ -139,6 +140,9 @@ function classify(text) {
   } else if (DURATION.test(t) && ARRIVAL_OBJ.test(t)) {
     ask = 'arrival_time';
     predicate = '到货时效';
+  } else if (REGION.test(t) && /发|寄|送|到|邮|运|收/.test(t) && !DURATION.test(t)) {
+    ask = 'freight';
+    predicate = '地区配送';
   } else if (CARRIER.test(t)) {
     ask = 'courier';
     predicate = '快递公司';
@@ -155,6 +159,7 @@ function classify(text) {
 // 回复里没有同维度答案，就是答非所问——这一条对「多少天/多少克/多少钱」同样成立。
 const DIMENSIONS = [
   ['tax_rate', /税率|税点|几个点|百分之几/],
+  ['usage_duration', /能用多久|耐用|用多久|耐啃|能用多长时间/],
   ['days', /多少天|几天|多久|多长时间/],
   ['price', /多少钱|多钱|几块|价格是多少/],
   ['weight', /多少克|几克|多少粒|几粒|多重/],
@@ -164,7 +169,9 @@ const DIMENSIONS = [
 
 function detectDims(text) {
   const t = String(text || '');
-  return DIMENSIONS.filter(([, re]) => re.test(t)).map(([k]) => k);
+  const dims = DIMENSIONS.filter(([, re]) => re.test(t)).map(([k]) => k);
+  // “能用多久”问的是耐久，不是到货天数
+  return dims.includes('usage_duration') ? dims.filter((d) => d !== 'days') : dims;
 }
 
 // 威胁 ≠ 投诉：买家还没投诉，是在用「退款/差评/找平台」施压。

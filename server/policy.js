@@ -143,10 +143,11 @@ const PUBLIC_FALLBACK = {
   nego: '亲，优惠以下单页显示为准，能用的券会自动抵扣。',
   freight: '亲，运费以下单页显示为准哦。',
   usage: '亲，具体用法可以看商品页的说明。',
+  order_change: '亲，地址/电话修改可以在订单页操作，具体以页面显示为准。',
 };
 
 // 这些属于「店铺事实」：库里没有时，对外用口径兜底，对内记缺口
-const SHOP_ASK = new Set(['courier', 'shipping_time', 'arrival_time', 'invoice', 'payment', 'return_policy', 'after_sale', 'spec', 'stock', 'price']);
+const SHOP_ASK = new Set(['courier', 'shipping_time', 'arrival_time', 'invoice', 'payment', 'return_policy', 'after_sale', 'spec', 'stock', 'price', 'order_change']);
 
 function publicFallback(ask, buyerText) {
   // 关切优先：问"有没有质检报告"不该回"库存以页面为准"
