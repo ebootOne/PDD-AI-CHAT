@@ -90,6 +90,7 @@ function build(input = {}) {
     items,
     stats,
     route: { asks: [], mode: 'candidate-pool', blocks: [...new Set(items.map((x) => x.block))] },
+    budget: { tokens: 0 },
     missing: [],
   };
 }

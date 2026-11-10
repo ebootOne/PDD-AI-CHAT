@@ -31,6 +31,7 @@ const focus = require('./focus');
 const session = require('./session');
 const policy = require('./policy');
 const facts = require('./facts');
+const context = require('./context');
 const factRegistry = require('./fact-registry');
 const metrics = require('./metrics');
 
@@ -562,18 +563,17 @@ const cfg = store.getConfig();
       // Pro：先把「这一单知道什么」取成事实包，模型只拿事实，不拿一堆无关资料。
       // 取数只在配了服务端时做，本地能直接答的不会花这份算力。
       const factPack = engineMode === 'pro' && bcfg.url
-        ? facts.build({
-            buyerText: result.buyerText,
-            understanding: result.understanding,
-            goods: ctx.goods,
-            products: result.products,
-            knowledgeHits: (result.knowledge || [])
-              .map((k) => ({ entry: kbForStore.find((x) => x.id === k.id), score: k.score }))
-              .filter((h) => h.entry),
-            kb: kbForStore,
+        ? context.build({
             storeId: ctx.storeId,
-            order: ctx.order || null,
+            goods: ctx.goods,
             orders: ctx.orders || [],
+            order: ctx.order || null,
+            products: productStore.forStore(ctx.storeId || ''),
+            kb: kbForStore,
+            messages: ctx.messages || [],
+            profile: (cfg.businessHours && cfg.businessHours.start && cfg.businessHours.end)
+              ? { hours: { start: natural.speakTime(cfg.businessHours.start), end: natural.speakTime(cfg.businessHours.end) } }
+              : null,
           })
         : null;
       let factUsed = factPack
@@ -665,8 +665,13 @@ const cfg = store.getConfig();
       const factualAsk = policy.SHOP_ASK.has(askKey0) || askKey0 === 'privacy';
 
       const willReplace = Boolean((result.understanding || {}).threat);
-      // 三级缓冲是"故意不答、先问一句"，不能被模型的答案覆盖
-      if (bcfg.url && lowLocal && !result.orderClarify && !result.buffer && !highRisk && !authoritative && !willReplace && !(noGround && askKey0 === 'privacy') && result.decision !== 'handoff') {
+      // 上下文选择架构：Pro 默认把候选池交给模型，本地不再决定事实取舍
+      const contextFirst = engineMode === 'pro' && bcfg.url
+        && !result.buffer && !highRisk && !willReplace
+        && result.decision !== 'handoff'
+        && askKey0 !== 'greeting' && askKey0 !== 'privacy';
+      const callModel = contextFirst || (lowLocal && !result.orderClarify && !result.buffer && !highRisk && !authoritative && !willReplace && !(noGround && askKey0 === 'privacy') && result.decision !== 'handoff');
+      if (bcfg.url && callModel) {
         const kbAll = store.getKnowledge();
         const hits = (result.knowledge || [])
           .map((k) => kbAll.find((x) => x.id === k.id))
@@ -702,7 +707,28 @@ const cfg = store.getConfig();
           result.facts.invalidUsed = v.invalid;
         }
 
-        if (r && r.ok && Array.isArray(r.candidates) && r.candidates.length) {
+        let backendAsk = null;
+        if (r && r.ok && r.ask && r.ask.needed && r.ask.text && factPack) {
+          const ids = new Set(factPack.items.map((i) => String(i.id)));
+          const valid = (r.ask.ids || []).length > 0 && (r.ask.ids || []).every((id) => ids.has(String(id)));
+          if (valid) {
+            backendAsk = r.ask;
+            result.suggestions = [{ tone: '标准', text: r.ask.text }];
+            result.source = 'backend';
+            result.reason = '模型选择先澄清';
+            result.decision = 'suggest';
+            result.clarify = true;
+            result.ask = r.ask;
+            result.confidence = r.confidence;
+            const billPts = r.billing ? Number(r.billing.points) : NaN;
+            result.cost = Number.isFinite(billPts) && billPts > 0 ? billPts : localPoints;
+            result.costReason = 'model';
+            result.billing = { points: result.cost, peak: Boolean(r.billing && r.billing.peak) };
+            result.backendMs = r.ms;
+          }
+        }
+
+        if (!backendAsk && r && r.ok && Array.isArray(r.candidates) && r.candidates.length) {
           const styled = [];
           for (const c of r.candidates) {
             const rw = await rewrite(c.text, cfg.style);
@@ -786,7 +812,7 @@ const cfg = store.getConfig();
           buffer: result.buffer || null,
           capabilities: cfg.capabilities || {},
           facts: factUsed,
-          clarify: Boolean(result.orderClarify),
+          clarify: Boolean(result.clarify || result.orderClarify),
           multiEntity: Boolean(result.multiEntity),
         });
         judgeAction = verdict.action;
