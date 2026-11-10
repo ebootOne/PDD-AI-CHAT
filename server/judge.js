@@ -519,7 +519,7 @@ function review(input) {
       && input.facts && Array.isArray(input.facts.items)) {
     const orders = input.facts.items.filter((i) => i.block === 'order');
     const names = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').split('、')[0])
-      .map((s) => s.replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/\s/g, '').slice(0, 6))
+      .map((s) => s.replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/\s/g, '').slice(0, 8))
       .filter(Boolean);
     const hit = names.filter((n) => firstCandidateText.includes(n)).length;
     if (names.length > 1 && hit < 2) {

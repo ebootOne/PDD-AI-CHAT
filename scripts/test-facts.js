@@ -227,6 +227,20 @@ console.log('\n=== 6. 质检引用校验 ===');
   });
   check('N06', '明确说包装标注 → 不误杀', unitOk.action === 'keep', JSON.stringify(unitOk));
 
+  const multiProduct = judge.review({
+    ...base,
+    buyerText: '还有货嘛',
+    understanding: { ask: 'stock', text: '还有货嘛', dims: [] },
+    suggestions: [{ tone: '标准', text: '亲，是申通哦，订单页可查物流哈。' }],
+    facts: { items: [
+      { id: 'F1', block: 'order', label: '订单1', text: '状态：已发货；商品：金乡大蒜' },
+      { id: 'F2', block: 'order', label: '订单2', text: '状态：退款成功；商品：天然花椒木站杆' },
+      { id: 'F3', block: 'order', label: '订单3', text: '状态：退款成功；商品：抽纸' },
+    ], missing: [] },
+    multiEntity: true,
+  });
+  check('N15', '多商品库存问题不能假定某款', multiProduct.action === 'replace' && /花椒木/.test((multiProduct.cleanedList || []).join('')), JSON.stringify(multiProduct));
+
   const multiPkg = judge.review({
     ...base,
     buyerText: '发的哪家快递',
