@@ -256,6 +256,18 @@ test('商品说明书：白萝卜要泡水，番茄可以不泡', () => {
   assert.ok(tomato.sections[0].content.includes('不泡'), tomato.sections[0].content);
 });
 
+test('多商品未点名 → 先问哪一款', async () => {
+  const r = await engine.generate(
+    { engine: 'pro', messages: [{ role: 'buyer', text: '还有吗' }],
+      order: { hasOrder: true, items: [{ title: '26年金乡大蒜精品山东新干蒜' }, { title: '加量520张大包抽纸大号可湿水' }] } },
+    baseCfg, KB, {}
+  );
+  const t = r.suggestions[0].text;
+  assert.strictEqual(r.orderClarify, true);
+  assert.ok(t.includes('金乡大蒜') && t.includes('抽纸'), t);
+  assert.ok(/[？?]/.test(t), t);
+});
+
 test('商品简称不截断长标题（ISS-022）', async () => {
   const title = '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚';
   const r = await engine.generate(

@@ -218,7 +218,14 @@ function pddOrderCapture() {
   const txt = card ? (card.innerText || card.textContent || '') : (panel.innerText || '');
   const hintEl = card && card.querySelector('.order-status .title-status, .title-status');
   const hint = hintEl ? (hintEl.innerText || hintEl.textContent || '') : '';
-  return parseOrderPanel(txt, hint);
+  const parsed = parseOrderPanel(txt, hint);
+  if (!parsed.hasOrder) return parsed;
+  const names = [...card.querySelectorAll('.goods-name')].map((e) => (e.textContent || '').trim()).filter(Boolean);
+  const specs = [...card.querySelectorAll('.goods-spec')].map((e) => (e.textContent || '').trim());
+  const nums = [...card.querySelectorAll('.goods-num')].map((e) => (e.textContent || '').trim());
+  const prices = [...card.querySelectorAll('.goods-price')].map((e) => (e.textContent || '').trim());
+  parsed.items = names.map((title, i) => ({ title, spec: specs[i] || '', qty: nums[i] || '', price: prices[i] || '' }));
+  return parsed;
 }
 
 function pddInput() {

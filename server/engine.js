@@ -543,14 +543,37 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
     return { ...c, text: natural.speakTime(warm(withSalutation, { tier, emotion: un.emotion, ask: un.ask })) };
   });
 
+  // 多商品订单 + 买家没点名：不猜商品，先问是哪一款（这条也算一次回复）
+  const orderItems = Array.isArray(ctx.order && ctx.order.items) ? ctx.order.items.filter((x) => x && x.title) : [];
+  const shortName = (s) => {
+    let x = String(s || '').replace(/\s+/g, '').replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '');
+    x = x.split(/精品|正宗|加量|大包|大号|可湿水|加厚|透气|母婴|家用|商用/)[0] || x;
+    return x.slice(0, 8);
+  };
+  const mentionedOrder = orderItems.some((x) => {
+    const t = String(x.title || '').replace(/\s+/g, '');
+    return t && (queryText.replace(/\s+/g, '').includes(t.slice(0, 4)) || t.includes(queryText));
+  });
+  let orderClarify = false;
+  if (orderItems.length > 1 && !mentionedOrder && ['product', 'stock', 'price', 'recommend'].includes(intent)) {
+    const names = orderItems.map((x) => shortName(x.title)).filter(Boolean);
+    const text = names.length >= 2
+      ? '亲，您问的是' + names.slice(0, 2).join('还是') + '呀？'
+      : '亲，您问的是哪一款呀？';
+    candidates = [{ tone: '标准', text }];
+    source = 'order';
+    confidence = 0.9;
+    orderClarify = true;
+  }
+
   // 本地能答的前提：有候选 + 置信度 ≥0.85 + 来源是知识/商品/说明书。
   // 不再限定「四个模板」：模板会随商家增长，本地也跟着多答，模板之外的才交模型。
   const engineMode = ctx.engine || cfg.engine || 'standard';
   const guardOk = un.ask === 'greeting' || un.ask === 'privacy'; // 问候/隐私不是事实题
   const confidentLocal = candidates.length > 0
     && confidence >= 0.85
-    && !supplemental.length // 跨了多条知识：交给模型综合，别用单条硬答
-    && (source === 'product' || source === 'manual' || source === 'rule');
+    && (!supplemental.length || orderClarify) // 跨了多条知识：交给模型综合，别用单条硬答
+    && (source === 'product' || source === 'manual' || source === 'rule' || source === 'order');
   // 没有模型通道时（评测/离线），交模型等于没有回复——直接走兜底，保证每句都有可发的话
   const hasModelChannel = Boolean((cfg.backend && cfg.backend.url) || (cfg.llm && cfg.llm.baseUrl));
   if (!confidentLocal && !guardOk && hasModelChannel) {
@@ -635,6 +658,7 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   const ordered = tone.preferCandidate(candidates.slice(0, 3), tier);
 
   return Object.assign(base, {
+    orderClarify,
     decision,
     reason,
     manual: manualHit,

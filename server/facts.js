@@ -605,6 +605,7 @@ function describeOrder(o) {
   if (o.shippedAt) bits.push('发货：' + o.shippedAt);
   if (o.courier) bits.push('快递：' + o.courier);
   if (o.trackingNo && /^\d{6,}$/.test(String(o.trackingNo))) bits.push('运单尾号：' + String(o.trackingNo).slice(-4));
+  if (Array.isArray(o.items) && o.items.length) bits.push('商品：' + o.items.map((x) => String(x.title || '')).filter(Boolean).join('、'));
   return bits.join('；');
 }
 

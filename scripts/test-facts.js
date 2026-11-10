@@ -227,6 +227,16 @@ console.log('\n=== 6. 质检引用校验 ===');
   });
   check('N06', '明确说包装标注 → 不误杀', unitOk.action === 'keep', JSON.stringify(unitOk));
 
+  const clarify = judge.review({
+    ...base,
+    buyerText: '还有吗',
+    understanding: { ask: 'stock', text: '还有吗', dims: [] },
+    suggestions: [{ tone: '标准', text: '亲，您问的是金乡大蒜还是抽纸呀？' }],
+    facts: { items: [{ id: 'F1', block: 'order', label: '订单商品', text: '商品：金乡大蒜、抽纸' }], missing: [] },
+    clarify: true,
+  });
+  check('N12', '多商品澄清问句 → 放行', clarify.action === 'keep', JSON.stringify(clarify));
+
   const courier = judge.review({
     ...base,
     buyerText: '发的哪家的快递呢',

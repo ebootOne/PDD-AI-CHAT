@@ -257,7 +257,7 @@ function review(input) {
   }
 
   // 1.2 事实题不能拿反问当回答
-  if (!input.buffer && typeof ask !== 'undefined' && SHOP_ASK.has(ask) && /[？?]\s*$/.test(text)) {
+  if (!input.buffer && !input.clarify && typeof ask !== 'undefined' && SHOP_ASK.has(ask) && /[？?]\s*$/.test(text)) {
     issues.push('答非所问');
     return { action: 'fallback', issues, reason: '买家问事实，候选却反问，改为页面口径' };
   }
@@ -495,7 +495,7 @@ function review(input) {
   const concernAddressed = concern && concern.a.test(text);
   const buffered = Boolean(input.buffer); // 三级缓冲：这一句本来就是在问/在安抚
   const signal = TOPIC_SIGNALS[ask];
-  if (signal && !signal.test(text) && !concernAddressed && !buffered) {
+  if (signal && !signal.test(text) && !concernAddressed && !buffered && !input.clarify) {
     issues.push('答非所问');
     return { action: 'fallback', issues, reason: '候选没有回答「' + ask + '」，已丢弃，改为兜底' };
   }
@@ -503,7 +503,7 @@ function review(input) {
   // 6.5 限定词：问「多少」就得给出那个数，或者明确让去看权威页面
   const dims = un.dims || [];
   const missing = missingDims(text, dims);
-  if (missing.length && !DEFER.test(text)) {
+  if (!input.clarify && missing.length && !DEFER.test(text)) {
     issues.push('没答到数值');
     return { action: 'fallback', issues, reason: '买家问的是具体数值（' + missing.join('、') + '），候选没有给出，改为兜底' };
   }

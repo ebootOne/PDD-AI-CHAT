@@ -635,10 +635,20 @@ const cfg = store.getConfig();
       const highRisk = result.alert === 'high';
       // 商品目录/说明书是权威数据：本地已经从目录里答出来了，就不该再让模型覆盖成「以页面为准」
       // 多意图例外：单条模板只能答一件事，必须交给模型逐条覆盖（ISS-008）
-      const authoritative = !multiIntent && !regForce && !factsOverride && (result.source === 'product' || result.source === 'manual');
+      const authoritative = !multiIntent && !regForce && !factsOverride && (result.source === 'product' || result.source === 'manual' || result.orderClarify);
       // 一点依据都没有的事实类问题，模型只会编或只会说“查不到”，白白多等 1~2 秒
       // 事实包里的结构化事实（商品/说明书/订单/政策）也算依据：
       // 商品卡标题绑定出的规格、说明书分节，引擎的 knowledge/products 里是看不到的
+      if (result.orderClarify && factPack && !factPack.items.some((i) => i.block === 'order')
+          && Array.isArray(ctx.order && ctx.order.items) && ctx.order.items.length) {
+        factPack.items.push({
+          id: 'F' + (factPack.items.length + 1),
+          block: 'order',
+          label: '订单商品',
+          text: '商品：' + ctx.order.items.map((x) => String(x.title || '')).filter(Boolean).join('、'),
+          source: 'order',
+        });
+      }
       const factGround = Boolean(factPack && factPack.items.some((i) => ['order', 'product', 'manual', 'policy', 'general', 'profile'].includes(i.block)));
       const noGround = !(result.knowledge || []).length && !(result.products || []).length && !factGround;
       const askKey0 = (result.understanding || {}).ask;
@@ -655,7 +665,7 @@ const cfg = store.getConfig();
 
       const willReplace = Boolean((result.understanding || {}).threat);
       // 三级缓冲是"故意不答、先问一句"，不能被模型的答案覆盖
-      if (bcfg.url && lowLocal && !result.buffer && !highRisk && !authoritative && !willReplace && !(noGround && askKey0 === 'privacy') && result.decision !== 'handoff') {
+      if (bcfg.url && lowLocal && !result.orderClarify && !result.buffer && !highRisk && !authoritative && !willReplace && !(noGround && askKey0 === 'privacy') && result.decision !== 'handoff') {
         const kbAll = store.getKnowledge();
         const hits = (result.knowledge || [])
           .map((k) => kbAll.find((x) => x.id === k.id))
@@ -775,6 +785,7 @@ const cfg = store.getConfig();
           buffer: result.buffer || null,
           capabilities: cfg.capabilities || {},
           facts: factUsed,
+          clarify: Boolean(result.orderClarify),
         });
         judgeAction = verdict.action;
         const firstReply = !(ctx.messages || []).some((m) => m.role === 'seller');
@@ -855,7 +866,7 @@ const cfg = store.getConfig();
       }
 
       // 店铺事实且库里没有：模型答了也不能用（会编），统一换成公开口径
-      if (noGround && policy.SHOP_ASK.has(askKey0) && !result.buffer) {
+      if (!result.orderClarify && noGround && policy.SHOP_ASK.has(askKey0) && !result.buffer) {
         const firstReply = !(ctx.messages || []).some((m) => m.role === 'seller');
         result.suggestions = [{ tone: '兜底', text: engine.applySalutation(policy.publicFallback(askKey0, result.buyerText || ''), cfg, firstReply) }];
         result.decision = 'fallback';
