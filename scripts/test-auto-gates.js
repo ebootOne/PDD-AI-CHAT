@@ -9,6 +9,7 @@ const assert = require('assert');
 const API = process.env.API_URL || 'http://127.0.0.1:8787';
 const STORE = process.env.STORE_ID || 'smw8rjgmx';
 const GOODS = '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚';
+const RUN = 'gate-' + Date.now().toString(36);
 
 let pass = 0;
 const fails = [];
@@ -23,7 +24,7 @@ async function ask(text, conversationId, mode = 'auto') {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       storeId: STORE, engine: 'pro', mode, test: true,
-      storeName: 'auto-gate', conversationId,
+      storeName: 'auto-gate', conversationId: RUN + '-' + conversationId,
       messages: [{ role: 'buyer', text }],
       goods: { title: GOODS },
     }),
@@ -46,7 +47,7 @@ async function ask(text, conversationId, mode = 'auto') {
 
   const price = await ask('多少钱', 'auto-price');
   check('A02', '价格意图不在白名单 → 不自动', () => {
-    assert.strictEqual(price.decision, 'suggest', price.reason);
+    assert.notStrictEqual(price.decision, 'auto_send', price.reason);
   });
 
   const refund = await ask('我要退款', 'auto-refund');

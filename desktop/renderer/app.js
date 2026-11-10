@@ -25,6 +25,7 @@ const state = {
   lastAutoKey: '', // 自动模式：上一次自动生成的「会话+最后一句」，防止同一句反复扣点
   autoPrimed: false, // 首帧只登记、不自动回，避免一启动就把旧消息发出去
   autoRunId: '',
+  pendingAuto: null, // 3 分钟兜底：每条买家新消息必须有一条回复
   logView: 'current', // 回复日志：current=当前店铺 / all=所有店铺
   logScope: 'current', // 从日志加入模板：current=当前店铺 / global=整个工具
 };
@@ -383,20 +384,33 @@ async function generate(isAuto = false, runId = '') {
     }
 
     if (isAuto) {
-      const willSend = !result.deduped && result.decision === 'auto_send' && !!(result.suggestions || [])[0];
-      logAuto('gate', { runId, decision: result.decision, deduped: !!result.deduped, dryRun: state.dryRun, willSend });
-      if (willSend) {
-        if (state.dryRun) {
-          logAuto('dry', { runId, text: result.suggestions[0].text });
-          toast('演练模式：已生成候选，请手动点「填入」');
-        } else {
-          await sleep(1200 + Math.random() * 1800);
-          await doSend(result.suggestions[0].text, true, runId);
-        }
+      const cand = (result.suggestions || [])[0];
+      const clean = !result.deduped && cand && result.decision !== 'handoff';
+      // 3 分钟必回优先：本地自动、模型过质检、兜底都可以直接发；风险/无候选留到兜底计时器
+      const pending = state.pendingAuto && state.pendingAuto.runId === runId && !state.pendingAuto.sent;
+      const sendable = pending && clean && (result.decision === 'auto_send' || result.decision === 'fallback'
+        || (result.decision === 'suggest' && !(result.judge || []).length));
+      logAuto('gate', { runId, decision: result.decision, deduped: !!result.deduped, dryRun: state.dryRun, willSend: !!sendable });
+      if (result.deduped) {
+        markAutoSent(runId);
+      } else if (state.dryRun) {
+        logAuto('dry', { runId, text: cand ? cand.text : '' });
+        toast('演练模式：已生成候选，请手动点「填入」');
+      } else if (sendable) {
+        await sleep(600 + Math.random() * 1200);
+        const ok = await doSend(cand.text, true, runId);
+        if (ok) markAutoSent(runId);
+      } else {
+        logAuto('hold', { runId, decision: result.decision, reason: result.reason || '' });
+        await sleep(500);
+        await sendHolding(runId);
       }
     }
   } catch (e) {
-    if (isAuto) logAuto('error', { runId, error: e.message });
+    if (isAuto) {
+      logAuto('error', { runId, error: e.message });
+      await sendHolding(runId);
+    }
     toast('生成失败：' + e.message);
   } finally {
     state.busy = false;
@@ -418,7 +432,8 @@ async function doSend(text, auto, runId = '') {
   const filled = await B.page.fill(text);
   if (!filled || !filled.ok) {
     if (auto) logAuto('fill_fail', { runId, error: (filled && filled.error) || 'fill failed' });
-    return toast('填入失败，未发送');
+    toast('填入失败，未发送');
+    return false;
   }
   state.lastFilled = text;
 
@@ -427,7 +442,7 @@ async function doSend(text, auto, runId = '') {
     if (auto) logAuto('dry', { runId, text });
     toast('演练模式：已填入输入框，未发送');
     B.api('/api/log', 'POST', { type: 'dryrun', mode: auto ? 'auto' : 'manual', replyText: text, conversationId: state.activeId }).catch(() => {});
-    return;
+    return false;
   }
 
   await sleep(300 + Math.random() * 300);
@@ -442,12 +457,45 @@ async function doSend(text, auto, runId = '') {
       conversationId: state.activeId,
     }).catch(() => {});
     refreshStatus();
+    return true;
   } else {
     if (auto) logAuto('send_fail', { runId, text, error: (sent && sent.error) || 'send failed', elapsedMs: Date.now() - started });
     toast('没发出去：' + ((sent && sent.error) || '输入框未清空，请手动回车'));
+    return false;
   }
   setTimeout(renderAssistant, 600);
 }
+
+async function sendHolding(runId) {
+  const p = state.pendingAuto;
+  if (!p || p.runId !== runId || p.sent) return false;
+  logAuto('hold_send', { runId });
+  const ok = await doSend('亲，收到您的消息了，我帮您看看具体情况哈。', true, runId);
+  if (ok) markAutoSent(runId);
+  return ok;
+}
+
+function markAutoSent(runId) {
+  const p = state.pendingAuto;
+  if (p && p.runId === runId) {
+    p.sent = true;
+    logAuto('done', { runId });
+    state.pendingAuto = null;
+  }
+}
+
+// 3 分钟硬兜底：生成慢/被扣住/发送失败，到点也必须发一条
+setInterval(async () => {
+  const p = state.pendingAuto;
+  if (!p || p.sent || p.sending || !state.auto || state.dryRun) return;
+  if (Date.now() < p.deadline) return;
+  p.sending = true;
+  logAuto('deadline', { runId: p.runId, buyerText: state.capture && state.capture.lastBuyerText });
+  const ok = await sendHolding(p.runId);
+  p.sending = false;
+  if (ok) markAutoSent(p.runId);
+  else p.deadline = Date.now() + 30000;
+}, 5000);
 
 // ---------------------------------------------------------------- 事件
 
@@ -566,6 +614,7 @@ $('#dryToggle').addEventListener('change', (e) => {
 $('#autoToggle').addEventListener('change', (e) => {
   state.auto = e.target.checked;
   if (state.auto) state.autoPrimed = false;
+  else state.pendingAuto = null;
   localStorage.setItem('autoReply', state.auto ? '1' : '0');
   renderAssistant();
   toast(state.auto ? '自动回复已开启：新消息将按规则自动发送' : '自动回复已关闭：只给建议，需人工点发送');
