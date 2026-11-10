@@ -501,7 +501,10 @@ const cfg = store.getConfig();
       const cachedReply = replyCache.get(cacheKey);
       if (cachedReply && Date.now() - cachedReply.ts < 15000) {
         const q = quotaStore.getQuota();
-        return send(res, 200, { ...cachedReply.result, deduped: true, cost: 0, quota: { balance: q.balance, cost: 0 } });
+        const replay = { ...cachedReply.result, deduped: true, cost: 0, reason: '重复请求，已去重', quota: { balance: q.balance, cost: 0 } };
+        // 重复请求绝不能再自动发一次
+        if (replay.decision === 'auto_send') replay.decision = 'suggest';
+        return send(res, 200, replay);
       }
 
       // 点卡制：余额扣不起任何一条就直接拒绝，不产出回复（也就没有价值可交付）。

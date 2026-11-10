@@ -367,7 +367,7 @@ async function generate(isAuto = false) {
     renderAssistant();
     refreshStatus();
 
-    if (isAuto && (result.decision === 'auto_send' || result.decision === 'fallback') && result.suggestions && result.suggestions[0]) {
+    if (isAuto && !result.deduped && result.decision === 'auto_send' && result.suggestions && result.suggestions[0]) {
       if (state.dryRun) {
         // 演练模式不自动填：否则每条新消息都会在输入框里留一份草稿
         toast('演练模式：已生成候选，请手动点「填入」');
