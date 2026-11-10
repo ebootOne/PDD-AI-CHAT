@@ -214,6 +214,7 @@ function review(input) {
   const ask = un.ask || 'other';
   const list = Array.isArray(suggestions) ? suggestions : [];
   const text = list.map((s) => s.text || '').join('\n');
+  const firstCandidateText = (list[0] && list[0].text) || '';
   const caps = input.capabilities || {};
   const attended = Boolean(caps.humanAvailable);
   const hits = Array.isArray(input.knowledge) ? input.knowledge : [];
@@ -301,7 +302,8 @@ function review(input) {
 
   // 2.5 可执行性：无人值守时，不许承诺做不到的动作、不许索取信息
   //     但三级缓冲里的"问一句"是产品要求的，不算制造下一轮
-  if (!attended && !input.buffer) {
+  if (!attended && !input.buffer
+      && !(input.multiEntity && ['product', 'stock', 'price'].includes(ask))) {
     const cleanedList = list.map((x) => stripUnsafe(x.text, ask));
     if (!input.multiEntity && ask !== 'invoice' && SOLICIT.test(text)) {
       issues.push('引导下一步');
@@ -486,6 +488,45 @@ function review(input) {
           cleanedList: ['亲，这单分了' + parts.length + '个包裹：' + parts.join('；') + '，具体看订单页物流哈。'],
         };
       }
+    }
+  }
+
+  // 6.45 同名商品多单：只说“一单…一单…”不够，要报尾号或先问哪一单
+  if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
+    const orders = input.facts.items.filter((i) => i.block === 'order');
+    if (orders.length > 1 && !/[？?]\s*$/.test(text) && !/两单|都发|两笔|全部/.test(input.buyerText || '')) {
+      const products = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').trim()).filter(Boolean);
+      const token = (s) => s.replace(/^\d{2,4}年/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/[\s\d]/g, '').slice(-2);
+      const seen = {};
+      for (const p of products) seen[token(p)] = (seen[token(p)] || 0) + 1;
+      const shared = Object.keys(seen).find((k) => k && seen[k] > 1);
+      const tails = orders.map((o) => ((o.text.match(/订单号：([0-9-]+)/) || [])[1] || '').slice(-4)).filter(Boolean);
+      const hasAllTails = tails.length > 1 && tails.every((t) => text.includes(t));
+      if (shared && tails.length > 1 && !hasAllTails) {
+        issues.push('多订单未区分');
+        return {
+          action: 'replace', issues,
+          reason: '同商品多单，候选没有用尾号区分',
+          cleanedList: ['亲，您有两单都是' + shared + '，尾号' + tails.join('、') + '，您问的是哪一单呀？'],
+        };
+      }
+    }
+  }
+
+  // 6.48 多商品问句要带出候选商品名，不能只问“哪款”
+  if (!input.buffer && input.multiEntity && ['product', 'stock', 'price'].includes(ask)
+      && /[？?]\s*$/.test(firstCandidateText) && input.facts && Array.isArray(input.facts.items)) {
+    const orders = input.facts.items.filter((i) => i.block === 'order');
+    const names = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').split('、')[0])
+      .map((s) => s.replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/\s/g, '').slice(0, 6))
+      .filter(Boolean);
+    if (names.length > 1 && !names.some((n) => firstCandidateText.includes(n))) {
+      issues.push('多商品未点名');
+      return {
+        action: 'replace', issues,
+        reason: '多商品问句没有带出候选商品名',
+        cleanedList: ['亲，您问的是' + names.slice(0, 2).join('还是') + '呀？库存以页面显示为准哈。'],
+      };
     }
   }
 

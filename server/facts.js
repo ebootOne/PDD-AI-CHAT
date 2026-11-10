@@ -87,7 +87,7 @@ function estimateTokens(text) {
  */
 function scrub(text) {
   return String(text || '')
-    .replace(/1[3-9]\d{9}/g, '')
+    .replace(/(?<![\d-])1[3-9]\d{9}(?![\d-])/g, '')
     .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '')
     .replace(/\d{17}[\dxX]/g, '')
     .replace(/https?:\/\/\S+/g, '')
