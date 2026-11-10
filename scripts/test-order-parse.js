@@ -54,6 +54,14 @@ check('O05', '只有订单号 → 不把订单号当运单号', () => {
   assert.strictEqual(r.status, '待发货');
   assert.strictEqual(r.trackingNo, '');
 });
+check('O07', '卡片状态优先于标签栏', () => {
+  const r = parseOrderPanel('待发货\n待签收\n已发货，待签收', '已发货，待签收');
+  assert.strictEqual(r.status, '已发货，待签收');
+});
+check('O08', '「已发货，待签收」整体识别', () => {
+  const r = parseOrderPanel('已发货，待签收\n订单编号: 261110-579967424052115', '');
+  assert.strictEqual(r.status, '已发货，待签收');
+});
 check('O06', '隐私字段不进入结果', () => {
   const r = parseOrderPanel(shipped);
   assert.deepStrictEqual(Object.keys(r).sort(), ['courier', 'hasOrder', 'source', 'status', 'trackingNo']);

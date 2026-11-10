@@ -191,7 +191,9 @@ function pddCapture() {
   }
 
   const lastBuyer = [...messages].reverse().find((m) => m.role === 'buyer');
-  const nameEl = document.querySelector('.chat-nickname .nickname-span');
+  const nameEl = document.querySelector('.header-box .base-info-top .name')
+    || document.querySelector('.header-box .base-info .name')
+    || document.querySelector('.chat-nickname .nickname-span');
 
   return {
     ok: true,
@@ -211,7 +213,12 @@ function pddCapture() {
 function pddOrderCapture() {
   const panel = document.querySelector('.right-panel-container');
   if (!panel) return null;
-  return parseOrderPanel(panel.innerText || '');
+  const card = panel.querySelector('.order-item');
+  // 只读第一张订单卡；标签栏里的「待发货/待签收」不是订单状态
+  const txt = card ? (card.innerText || card.textContent || '') : (panel.innerText || '');
+  const hintEl = card && card.querySelector('.order-status .title-status, .title-status');
+  const hint = hintEl ? (hintEl.innerText || hintEl.textContent || '') : '';
+  return parseOrderPanel(txt, hint);
 }
 
 function pddInput() {
