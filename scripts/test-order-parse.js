@@ -67,9 +67,15 @@ check('O09', '物流详情里的快递+未标运单号也能取', () => {
   assert.strictEqual(r.courier, '申通');
   assert.strictEqual(r.trackingNo, '773451233139410');
 });
+check('O10', '多包裹：两个快递两个运单都读到', () => {
+  const r = parseOrderPanel('已发货，待签收\n申通快递\n773451233139410\n中通快递\n753123456789', '已发货，待签收');
+  assert.strictEqual(r.packages.length, 2);
+  assert.strictEqual(r.packages[1].courier, '中通');
+  assert.strictEqual(r.packages[1].trackingNo, '753123456789');
+});
 check('O06', '隐私字段不进入结果', () => {
   const r = parseOrderPanel(shipped);
-  assert.deepStrictEqual(Object.keys(r).sort(), ['courier', 'hasOrder', 'source', 'status', 'trackingNo']);
+  assert.deepStrictEqual(Object.keys(r).sort(), ['courier', 'hasOrder', 'packages', 'source', 'status', 'trackingNo']);
   assert.ok(!JSON.stringify(r).includes('张三'));
   assert.ok(!JSON.stringify(r).includes('13800000000'));
 });

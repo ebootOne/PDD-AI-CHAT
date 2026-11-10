@@ -245,8 +245,14 @@ async function ensureOrderDetail() {
   if (!card) return;
   const txt = card.innerText || '';
   if (/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.test(txt)) return;
-  const btn = [...card.querySelectorAll('*')].find((e) => (e.textContent || '').trim() === '物流信息' && e.getBoundingClientRect().width);
-  if (btn) { btn.click(); lastOrderOpenAt = Date.now(); await sleep(400); }
+  const btns = [...card.querySelectorAll('*')]
+    .filter((e) => (e.textContent || '').trim() === '物流信息' && e.getBoundingClientRect().width)
+    .slice(0, 3);
+  for (const btn of btns) {
+    btn.click();
+    await sleep(250);
+  }
+  if (btns.length) { lastOrderOpenAt = Date.now(); await sleep(250); }
 }
 
 async function capture() {

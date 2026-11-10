@@ -227,6 +227,15 @@ console.log('\n=== 6. 质检引用校验 ===');
   });
   check('N06', '明确说包装标注 → 不误杀', unitOk.action === 'keep', JSON.stringify(unitOk));
 
+  const multiPkg = judge.review({
+    ...base,
+    buyerText: '发的哪家快递',
+    understanding: { ask: 'courier', text: '发的哪家快递' },
+    suggestions: [{ tone: '标准', text: '这单发的是申通哈。' }],
+    facts: { items: [{ id: 'F1', block: 'order', label: '订单', text: '状态：已发货；包裹：申通尾号9410；中通尾号6789' }], missing: [] },
+  });
+  check('N13', '多包裹必须逐个报', multiPkg.action === 'replace' && /中通/.test((multiPkg.cleanedList || []).join('')), JSON.stringify(multiPkg));
+
   const clarify = judge.review({
     ...base,
     buyerText: '还有吗',

@@ -471,6 +471,24 @@ function review(input) {
     }
   }
 
+  // 6.4 多包裹：必须逐个报到，不能只报一个
+  if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
+    const order = input.facts.items.find((i) => i.block === 'order');
+    const pm = order && /包裹：([^；]+(?:；[^；]+)*?)(?:；商品：|$)/.exec(order.text || '');
+    if (pm && (ask === 'courier' || /快递|哪家|包裹/.test(input.buyerText || ''))) {
+      const parts = pm[1].split('；').map((x) => x.trim()).filter((x) => /(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.test(x));
+      const couriers = parts.map((x) => (x.match(/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/) || [])[1]).filter(Boolean);
+      if (parts.length > 1 && !couriers.every((c) => text.includes(c))) {
+        issues.push('包裹不全');
+        return {
+          action: 'replace', issues,
+          reason: '这单有多个包裹，候选没有逐个报全',
+          cleanedList: ['亲，这单分了' + parts.length + '个包裹：' + parts.join('；') + '，具体看订单页物流哈。'],
+        };
+      }
+    }
+  }
+
   // 6.5 订单实际快递优先于默认政策：不能拿“默认中通”答已发申通的单
   if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
     const order = input.facts.items.find((i) => i.block === 'order');
