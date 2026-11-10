@@ -38,6 +38,12 @@ async function ask(text, conversationId, mode = 'auto') {
     assert.ok(logistics.suggestions && logistics.suggestions[0]);
   });
 
+  const arrival = await ask('什么时候能到呢', 'auto-arrival');
+  check('A07', '到货时效（模型）通过质检 → 可自动', () => {
+    assert.strictEqual(arrival.decision, 'auto_send', arrival.reason);
+    assert.strictEqual(arrival.autoModel, true, 'should be model auto');
+  });
+
   const price = await ask('多少钱', 'auto-price');
   check('A02', '价格意图不在白名单 → 不自动', () => {
     assert.strictEqual(price.decision, 'suggest', price.reason);

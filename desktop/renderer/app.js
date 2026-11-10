@@ -23,6 +23,8 @@ const state = {
   stats: null,
   engine: 'standard', // standard | pro：以本地配置为准，界面只是开关
   lastAutoKey: '', // 自动模式：上一次自动生成的「会话+最后一句」，防止同一句反复扣点
+  autoPrimed: false, // 首帧只登记、不自动回，避免一启动就把旧消息发出去
+  autoRunId: '',
   logView: 'current', // 回复日志：current=当前店铺 / all=所有店铺
   logScope: 'current', // 从日志加入模板：current=当前店铺 / global=整个工具
 };
@@ -53,6 +55,12 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+function logAuto(type, data = {}) {
+  try {
+    B.api('/api/log', 'POST', Object.assign({ type: 'auto_' + type, ts: new Date().toISOString() }, data)).catch(() => {});
+  } catch (_) { /* 日志失败不影响发送 */ }
 }
 
 async function api(path, method = 'GET', body) {
@@ -321,7 +329,7 @@ function capKey(cap) {
   return [cap && cap.url, cap && cap.buyerName, cap && cap.lastBuyerText].join('|');
 }
 
-async function generate(isAuto = false) {
+async function generate(isAuto = false, runId = '') {
   if (state.busy) return;
   state.busy = true;
   const btn = $('#btnGen');
@@ -366,17 +374,29 @@ async function generate(isAuto = false) {
     if (result.quota) state.quota = { balance: result.quota.balance };
     renderAssistant();
     refreshStatus();
+    if (isAuto) {
+      logAuto('result', {
+        runId, decision: result.decision, reason: result.reason, source: result.source,
+        confidence: result.confidence, cost: result.cost, deduped: !!result.deduped,
+        text: ((result.suggestions || [])[0] || {}).text || '',
+      });
+    }
 
-    if (isAuto && !result.deduped && result.decision === 'auto_send' && result.suggestions && result.suggestions[0]) {
-      if (state.dryRun) {
-        // 演练模式不自动填：否则每条新消息都会在输入框里留一份草稿
-        toast('演练模式：已生成候选，请手动点「填入」');
-      } else {
-        await sleep(1200 + Math.random() * 1800);
-        await doSend(result.suggestions[0].text, true);
+    if (isAuto) {
+      const willSend = !result.deduped && result.decision === 'auto_send' && !!(result.suggestions || [])[0];
+      logAuto('gate', { runId, decision: result.decision, deduped: !!result.deduped, dryRun: state.dryRun, willSend });
+      if (willSend) {
+        if (state.dryRun) {
+          logAuto('dry', { runId, text: result.suggestions[0].text });
+          toast('演练模式：已生成候选，请手动点「填入」');
+        } else {
+          await sleep(1200 + Math.random() * 1800);
+          await doSend(result.suggestions[0].text, true, runId);
+        }
       }
     }
   } catch (e) {
+    if (isAuto) logAuto('error', { runId, error: e.message });
     toast('生成失败：' + e.message);
   } finally {
     state.busy = false;
@@ -393,13 +413,18 @@ async function doFill(text) {
   } else toast('填入失败：' + ((r && r.error) || '未知'));
 }
 
-async function doSend(text, auto) {
+async function doSend(text, auto, runId = '') {
+  const started = Date.now();
   const filled = await B.page.fill(text);
-  if (!filled || !filled.ok) return toast('填入失败，未发送');
+  if (!filled || !filled.ok) {
+    if (auto) logAuto('fill_fail', { runId, error: (filled && filled.error) || 'fill failed' });
+    return toast('填入失败，未发送');
+  }
   state.lastFilled = text;
 
   // 演练模式：只填不发。真实店铺第一次联调必须开着它。
   if (state.dryRun) {
+    if (auto) logAuto('dry', { runId, text });
     toast('演练模式：已填入输入框，未发送');
     B.api('/api/log', 'POST', { type: 'dryrun', mode: auto ? 'auto' : 'manual', replyText: text, conversationId: state.activeId }).catch(() => {});
     return;
@@ -408,6 +433,7 @@ async function doSend(text, auto) {
   await sleep(300 + Math.random() * 300);
   const sent = await B.page.send();
   if (sent && sent.ok) {
+    if (auto) logAuto('send_ok', { runId, text, elapsedMs: Date.now() - started });
     toast(auto ? '已自动发送' : '已发送');
     B.api('/api/log', 'POST', {
       type: 'send',
@@ -417,6 +443,7 @@ async function doSend(text, auto) {
     }).catch(() => {});
     refreshStatus();
   } else {
+    if (auto) logAuto('send_fail', { runId, text, error: (sent && sent.error) || 'send failed', elapsedMs: Date.now() - started });
     toast('没发出去：' + ((sent && sent.error) || '输入框未清空，请手动回车'));
   }
   setTimeout(renderAssistant, 600);
@@ -441,13 +468,23 @@ B.on('cs:changed', (cap) => {
 
   const lastMsg = cap && Array.isArray(cap.messages) ? cap.messages[cap.messages.length - 1] : null;
   // 只有「最后一条是买家」才自动生成：最后一条是客服（刚回过/手动回过）就不该再答一遍
-  if (state.auto && !state.busy && cap && cap.ok && cap.lastBuyerText && lastMsg && lastMsg.role === 'buyer') {
-    // 演练模式不会把回复发出去，买家那句还是「未答」；如果只看「有没有新消息」，
-    // 监控会每秒都认为有新消息，于是反复生成、反复扣点（2026-11-09 日志刷屏的原因）。
+  if (state.auto && !state.busy && cap && cap.ok) {
     const key = capKey(cap);
-    if (key !== state.lastAutoKey) {
+    // 首帧只登记，不自动回：刷新/开自动时旧消息不算新消息
+    if (!state.autoPrimed) {
+      state.autoPrimed = true;
       state.lastAutoKey = key;
-      generate(true);
+      logAuto('prime', { buyer: cap.buyerName, buyerText: cap.lastBuyerText, count: (cap.messages || []).length });
+    } else if (cap.lastBuyerText && lastMsg && lastMsg.role === 'buyer' && key !== state.lastAutoKey) {
+      state.lastAutoKey = key;
+      const runId = 'A' + Date.now().toString(36);
+      state.autoRunId = runId;
+      logAuto('trigger', {
+        runId, buyer: cap.buyerName, buyerText: cap.lastBuyerText,
+        count: (cap.messages || []).length,
+        order: cap.order ? { hasOrder: !!cap.order.hasOrder, status: cap.order.status || '' } : null,
+      });
+      generate(true, runId);
     }
   }
 });
@@ -493,6 +530,7 @@ B.on('store:active', (s) => {
   $('#stStore').textContent = s.name || s.url;
   state.capture = null;
   state.lastAutoKey = '';
+  state.autoPrimed = false;
   state.result = null;
   renderAssistant();
 });
@@ -527,6 +565,7 @@ $('#dryToggle').addEventListener('change', (e) => {
 
 $('#autoToggle').addEventListener('change', (e) => {
   state.auto = e.target.checked;
+  if (state.auto) state.autoPrimed = false;
   localStorage.setItem('autoReply', state.auto ? '1' : '0');
   renderAssistant();
   toast(state.auto ? '自动回复已开启：新消息将按规则自动发送' : '自动回复已关闭：只给建议，需人工点发送');

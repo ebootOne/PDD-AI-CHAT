@@ -358,8 +358,11 @@ async function send() {
     const valOf = () => String(pdd.value || '').trim();
     if (btn) {
       btn.click();
-      await sleep(600);
-      if (!pdd.isConnected || !valOf()) return { ok: true, source: 'pdd' };
+      // 平台发送是异步的：600ms 时输入框常常还没清空，会误判失败
+      for (let i = 0; i < 15; i++) {
+        await sleep(200);
+        if (!pdd.isConnected || !valOf()) return { ok: true, source: 'pdd', waitedMs: (i + 1) * 200 };
+      }
     }
     return { ok: false, error: '点了发送但输入框没清空' };
   }

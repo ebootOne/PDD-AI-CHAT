@@ -746,6 +746,7 @@ const cfg = store.getConfig();
 
       // 出厂质检：对题吗？站得住商家立场吗？到底有没有结论？
       // 放在计费之前——没答上就不该扣点，也不该作为高置信度候选发出去。
+      let judgeAction = '';
       if (result.decision !== 'handoff' && result.alert !== 'high' && (result.suggestions || []).length) {
         // 本地/模型都没给出候选（例如无服务端、或本地只允许四个模板）：先给兜底，别让空候选进质检
         if (!(result.suggestions || []).length) {
@@ -775,6 +776,7 @@ const cfg = store.getConfig();
           capabilities: cfg.capabilities || {},
           facts: factUsed,
         });
+        judgeAction = verdict.action;
         const firstReply = !(ctx.messages || []).some((m) => m.role === 'seller');
         // 本地答案被质检拒绝，也是路由/事实缺口：记下来，别只统计 wide/empty
         if (ctx.test && verdict.action !== 'keep' && result.source !== 'backend') {
@@ -876,6 +878,20 @@ const cfg = store.getConfig();
           tone: '兜底',
           text: engine.applySalutation('能不能送到，您先把收货地址填到下单页，看能不能选到哈。', cfg, !(ctx.messages || []).some((m) => m.role === 'seller')),
         }];
+      }
+
+      // 模型回复也服务用户：过质检 + 白名单 + 非风险，才允许自动发
+      const autoMode = ctx.mode === 'auto' || cfg.mode === 'auto';
+      if (autoMode && cfg.autoModel === true
+          && result.source === 'backend' && result.decision === 'suggest'
+          && judgeAction === 'keep' && !(result.judge || []).length
+          && !result.buffer && !highRisk && !result.threat
+          && ok && engine.inBusinessHours(cfg)
+          && (cfg.autoIntentWhitelist || []).includes(result.intent)
+          && (result.suggestions || []).length) {
+        result.decision = 'auto_send';
+        result.reason = '模型回复通过质检，自动发送';
+        result.autoModel = true;
       }
 
       // 知识缺口：买家问过、库里没有的店铺事实，记成商家待办
