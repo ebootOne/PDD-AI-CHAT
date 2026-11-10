@@ -675,7 +675,8 @@ const cfg = store.getConfig();
       const willReplace = Boolean((result.understanding || {}).threat);
       // 上下文选择架构：Pro 默认把候选池交给模型，本地不再决定事实取舍
       const contextFirst = engineMode === 'pro' && bcfg.url
-        && factPack && factPack.stats && factPack.stats.orders > 0
+        && factPack
+        && ((factPack.stats && factPack.stats.orders > 0) || ((ctx.messages || []).length > 1))
         && !result.buffer && !highRisk && !willReplace
         && result.decision !== 'handoff'
         && askKey0 !== 'greeting' && askKey0 !== 'privacy';
@@ -701,25 +702,27 @@ const cfg = store.getConfig();
             ? { hours: { start: natural.speakTime(cfg.businessHours.start), end: natural.speakTime(cfg.businessHours.end) } }
             : undefined,
         };
-        let r = await backend.reply(cfg, Object.assign({}, basePayload, { phase: 'select' }));
+        let r = await backend.reply(cfg, basePayload);
         let needInfo = null;
-        if (r && r.ok && !(r.ask && r.ask.needed) && factPack) {
-          const resolved = blockRegistry.resolve(factPack, r.need || []);
-          const usedIds = new Set(r.used || []);
-          const picked = (factPack.allItems || factPack.items).filter((x) => usedIds.has(x.id));
-          const merged = [];
-          const seen = new Set();
-          [...picked, ...resolved.items].forEach((x) => { if (!seen.has(x.id)) { seen.add(x.id); merged.push(x); } });
-          const answerItems = merged.length ? merged.slice(0, 8) : factPack.items;
-          const secondPack = Object.assign({}, factPack, { items: answerItems, blocks: factPack.blocks });
-          const r2 = await backend.reply(cfg, Object.assign({}, basePayload, { facts: secondPack, phase: 'answer' }));
-          if (r2 && r2.ok) {
-            const p1 = r.billing && Number(r.billing.points) || 0;
-            const p2 = r2.billing && Number(r2.billing.points) || 0;
-            r2.billing = Object.assign({}, r2.billing, { points: p1 + p2 });
-            r2.ms = Number(r.ms || 0) + Number(r2.ms || 0);
-            needInfo = { requested: r.need || [], resolved: resolved.items.map((x) => x.id), answerFacts: answerItems.map((x) => x.id), errors: resolved.errors };
-            r = r2;
+        if (r && r.ok && !(r.ask && r.ask.needed) && factPack && Array.isArray(r.need) && r.need.length) {
+          const resolved = blockRegistry.resolve(factPack, r.need);
+          if (resolved.items.length) {
+            const ids = new Set([...(r.used || []), ...resolved.items.map((x) => x.id)]);
+            const merged = [];
+            const seen = new Set();
+            (factPack.allItems || factPack.items).filter((x) => ids.has(x.id)).forEach((x) => { if (!seen.has(x.id)) { seen.add(x.id); merged.push(x); } });
+            const secondPack = Object.assign({}, factPack, { items: merged.slice(0, 8), blocks: factPack.blocks });
+            const r2 = await backend.reply(cfg, Object.assign({}, basePayload, { facts: secondPack, phase: 'answer' }));
+            if (r2 && r2.ok) {
+              const p1 = r.billing && Number(r.billing.points) || 0;
+              const p2 = r2.billing && Number(r2.billing.points) || 0;
+              r2.billing = Object.assign({}, r2.billing, { points: p1 + p2 });
+              r2.ms = Number(r.ms || 0) + Number(r2.ms || 0);
+              needInfo = { requested: r.need, resolved: resolved.items.map((x) => x.id), answerFacts: merged.map((x) => x.id), errors: resolved.errors };
+              r = r2;
+            }
+          } else {
+            needInfo = { requested: r.need, resolved: [], errors: resolved.errors };
           }
         }
         if (needInfo) result.needInfo = needInfo;
