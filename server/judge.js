@@ -513,19 +513,21 @@ function review(input) {
     }
   }
 
-  // 6.48 多商品问句要带出候选商品名，不能只问“哪款”
+  // 6.48 多商品：不能自己假定某一款，必须带出候选或问哪款
   if (!input.buffer && input.multiEntity && ['product', 'stock', 'price'].includes(ask)
-      && /[？?]\s*$/.test(firstCandidateText) && input.facts && Array.isArray(input.facts.items)) {
+      && !/两单|都发|全部都|全部/.test(input.buyerText || '')
+      && input.facts && Array.isArray(input.facts.items)) {
     const orders = input.facts.items.filter((i) => i.block === 'order');
     const names = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').split('、')[0])
       .map((s) => s.replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/\s/g, '').slice(0, 6))
       .filter(Boolean);
-    if (names.length > 1 && !names.some((n) => firstCandidateText.includes(n))) {
+    const hit = names.filter((n) => firstCandidateText.includes(n)).length;
+    if (names.length > 1 && hit < 2) {
       issues.push('多商品未点名');
       return {
         action: 'replace', issues,
-        reason: '多商品问句没有带出候选商品名',
-        cleanedList: ['亲，您问的是' + names.slice(0, 2).join('还是') + '呀？库存以页面显示为准哈。'],
+        reason: '多商品问题自己假定了某一款',
+        cleanedList: ['亲，您问的是' + names.slice(0, 3).join('、') + '里的哪一款呀？库存以页面显示为准哈。'],
       };
     }
   }
