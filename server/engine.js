@@ -540,7 +540,7 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   // 先补称呼，再补语气词：事实短句不带语气词会像机器播报（"1.85 元起。"）
   candidates = candidates.map((c) => {
     const withSalutation = applySalutation(c.text, cfg, isFirstReply);
-    return { ...c, text: natural.speakTime(warm(withSalutation, { tier, emotion: un.emotion, ask: un.ask })) };
+    return { ...c, text: natural.speakTime(warm(withSalutation, { tier, emotion: un.emotion, ask: un.ask, serious: /退款|退货|售后|投诉|赔付|质检|报告/.test(withSalutation) || ['after_sale', 'return_policy'].includes(un.ask) })) };
   });
 
   // 本地能答的前提：有候选 + 置信度 ≥0.85 + 来源是知识/商品/说明书。

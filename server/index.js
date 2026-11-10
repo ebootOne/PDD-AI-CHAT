@@ -17,7 +17,7 @@ const catalog = require('./catalog');
 const alerts = require('./alerts');
 const backend = require('./backend');
 const manuals = require('./manuals');
-const { rewrite, warm } = require('./style');
+const { rewrite, warm, professionalTone } = require('./style');
 const engine = require('./engine');
 const judge = require('./judge');
 const sensitive = require('./sensitive');
@@ -767,7 +767,7 @@ const cfg = store.getConfig();
             const rw = await rewrite(c.text, cfg.style);
             if (rw.remaining.some((i) => i.severity === 'high')) continue;
             // 模型的事实短句同样补温度（不改变数字/否定）
-            styled.push({ tone: c.tone || '标准', text: natural.speakTime(warm(rw.text, { ask: (result.understanding || {}).ask, tier: result.tier })) });
+            styled.push({ tone: c.tone || '标准', text: natural.speakTime(warm(rw.text, { ask: (result.understanding || {}).ask, tier: result.tier, serious: /退款|退货|售后|投诉|赔付|质检|报告/.test(rw.text) || ['after_sale', 'return_policy'].includes((result.understanding || {}).ask) })) });
           }
           // 服务端返回的候选同样要过本地敏感词闸——服务端不可信，闸门必须在自己手里
           const screened = styled.filter((c) => sensitive.check(c.text, cfg.forbiddenOutput).ok);
@@ -971,6 +971,11 @@ const cfg = store.getConfig();
       if (isGap) {
         store.addGap(gapAsk, result.buyerText).catch(() => {});
         result.knowledgeGap = gapAsk;
+      }
+
+      // 专业人感：严肃场景去掉轻快句末语气词，不改事实
+      if (Array.isArray(result.suggestions)) {
+        result.suggestions = result.suggestions.map((x) => ({ ...x, text: professionalTone(x.text) }));
       }
 
       // 会话状态：记下这一轮聊了什么、答了什么，供下一轮与模型参考

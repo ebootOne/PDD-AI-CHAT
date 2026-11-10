@@ -42,10 +42,10 @@ const ASK_PARTICLE = {
   price: '呢',
   stock: '呢',
   spec: '呢',
-  shipping_time: '哈',
-  arrival_time: '哈',
-  shipping_status: '哈',
-  courier: '哈',
+  shipping_time: '呢',
+  arrival_time: '呢',
+  shipping_status: '啦',
+  courier: '哦',
   payment: '哦',
   return_policy: '哦',
   invoice: '哦',
@@ -53,7 +53,7 @@ const ASK_PARTICLE = {
 };
 
 // 结尾要是这些"可以自然收尾"的词，才允许加语气词
-const TAIL_OK = /(元起|元|块钱|有货|现货|没货|缺货|发出|发货|到货|送达|签收|支持|不支持|可以|不可以|能用|包邮|不包邮|为准|左右|就行|就成|直接拍|可以拍|中通|圆通|顺丰|韵达|极兔|申通|邮政|付款|第二天|工作日|发货时间|时效)$/;
+const TAIL_OK = /(元起|元|块钱|有货|现货|没货|缺货|发出|发货|到货|送达|签收|支持|不支持|可以|不可以|能用|包邮|不包邮|为准|左右|就行|就成|直接拍|可以拍|中通|圆通|顺丰|韵达|极兔|申通|邮政|付款|第二天|工作日|发货时间|时效|物流|库存|订单页|页面|状态)$/;
 
 // 这些句子不加：致歉、指令、敏感信息
 const NEVER = /抱歉|对不起|请|麻烦|感谢|谢谢|投诉|退款|赔付|退货|税号|单号|链接|二维码|隐私/;
@@ -66,12 +66,13 @@ function warm(text, opts = {}) {
   const core = t.replace(/[。！!～~\s]+$/, '');
   if (!core) return t;
   if (core.length < 4 || core.length > 40) return t;      // 太短没内容，太长不加
+  if (opts.serious && /[哈啦]$/.test(core)) return core.replace(/[哈啦]$/, '') + '。';
   if (/[呢哈哦啦呀嘛吧吗啊]$/.test(core)) return t;       // 已经有语气词
   if (/[？?]$/.test(t)) return t;                          // 疑问句
   if (NEVER.test(core)) return t;
   if (!TAIL_OK.test(core)) return t;                       // 句型不在白名单，宁可不加
 
-  const p = ASK_PARTICLE[opts.ask] || (opts.tier === 'warm' ? '呢' : '哈');
+  const p = ASK_PARTICLE[opts.ask] || (opts.tier === 'warm' ? '呢' : '哦');
   const joined = core + p;
 
   // 加完做一次事实校验：数字、否定必须完全一致，否则放弃
@@ -216,4 +217,10 @@ function promptRule(style = {}) {
   return rules.join('；') + '。';
 }
 
-module.exports = { analyze, rewrite, rewriteByTable, polishByModel, promptRule, sameFacts, warm };
+function professionalTone(text) {
+  const t = String(text || '');
+  if (!/抱歉|理解您|售后|退款|退货|投诉|赔付|质检|报告/.test(t)) return t;
+  return t.replace(/[哈啦]([。！!]?)$/, '$1');
+}
+
+module.exports = { analyze, rewrite, rewriteByTable, polishByModel, promptRule, sameFacts, warm, professionalTone };
