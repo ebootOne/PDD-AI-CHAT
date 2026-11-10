@@ -324,6 +324,43 @@ function callPage(action, payload, timeoutMs = 8000) {
   });
 }
 
+ipcMain.on('cs:trusted-enter', (e, msg = {}) => {
+  try {
+    const wc = e.sender;
+    wc.focus();
+    wc.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+    wc.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+    e.sender.send('cs:trusted-result', { rid: msg.rid, ok: true });
+  } catch (err) {
+    e.sender.send('cs:trusted-result', { rid: msg.rid, ok: false, error: String((err && err.message) || err) });
+  }
+});
+
+ipcMain.handle('cs:trusted-type', async (e, text) => {
+  try {
+    const wc = e.sender;
+    wc.focus();
+    await wc.insertText(String(text || ''));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
+
+ipcMain.on('cs:trusted-click', (e, msg = {}) => {
+  try {
+    const wc = e.sender;
+    const x = Math.round(Number(msg.x) || 0);
+    const y = Math.round(Number(msg.y) || 0);
+    wc.sendInputEvent({ type: 'mouseMove', x, y });
+    wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+    wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+    e.sender.send('cs:trusted-result', { rid: msg.rid, ok: true });
+  } catch (err) {
+    e.sender.send('cs:trusted-result', { rid: msg.rid, ok: false, error: String((err && err.message) || err) });
+  }
+});
+
 ipcMain.on('cs:result', (_e, msg) => {
   const p = pending.get(msg && msg.rid);
   if (!p) return;

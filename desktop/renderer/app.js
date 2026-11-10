@@ -532,6 +532,7 @@ B.on('cs:changed', (cap) => {
         count: (cap.messages || []).length,
         order: cap.order ? { hasOrder: !!cap.order.hasOrder, status: cap.order.status || '' } : null,
       });
+      state.pendingAuto = { runId, key, at: Date.now(), deadline: Date.now() + 180000, sent: false, sending: false };
       generate(true, runId);
     }
   }

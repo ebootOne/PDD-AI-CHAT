@@ -337,12 +337,15 @@ function clearInput() {
   return { ok: true };
 }
 
-function fill(text) {
+async function fill(text) {
   const pdd = pddInput();
   if (pdd) {
     pdd.focus();
-    setNativeValue(pdd, text);
-    return { ok: true, source: 'pdd' };
+    // 先清空，让 React 收到空值；再用主进程真实输入，发送按钮才会进入可发送状态
+    setNativeValue(pdd, '');
+    const typed = await trustedType(text);
+    if (!typed.ok || String(pdd.value || '') !== String(text || '')) setNativeValue(pdd, text);
+    return { ok: true, source: 'pdd-trusted' };
   }
   const input = findInput();
   if (!input) return { ok: false, error: '没有找到输入框' };
@@ -351,17 +354,57 @@ function fill(text) {
   return { ok: true };
 }
 
+function trustedType(text) {
+  return ipcRenderer.invoke('cs:trusted-type', String(text || '')).catch((e) => ({ ok: false, error: String((e && e.message) || e) }));
+}
+
+function trustedEnter() {
+  return new Promise((resolve) => {
+    const rid = 'te' + Date.now() + Math.random().toString(36).slice(2, 6);
+    const on = (_e, msg) => {
+      if (!msg || msg.rid !== rid) return;
+      ipcRenderer.removeListener('cs:trusted-result', on);
+      resolve(msg);
+    };
+    ipcRenderer.on('cs:trusted-result', on);
+    ipcRenderer.send('cs:trusted-enter', { rid });
+    setTimeout(() => { ipcRenderer.removeListener('cs:trusted-result', on); resolve({ ok: false, error: 'trusted enter timeout' }); }, 2000);
+  });
+}
+
+function trustedClick(x, y) {
+  return new Promise((resolve) => {
+    const rid = 'tc' + Date.now() + Math.random().toString(36).slice(2, 6);
+    const on = (_e, msg) => {
+      if (!msg || msg.rid !== rid) return;
+      ipcRenderer.removeListener('cs:trusted-result', on);
+      resolve(msg);
+    };
+    ipcRenderer.on('cs:trusted-result', on);
+    ipcRenderer.send('cs:trusted-click', { rid, x, y });
+    setTimeout(() => { ipcRenderer.removeListener('cs:trusted-result', on); resolve({ ok: false, error: 'trusted click timeout' }); }, 2000);
+  });
+}
+
 async function send() {
   const pdd = pddInput();
   if (pdd) {
     const btn = document.querySelector('.send-btn');
     const valOf = () => String(pdd.value || '').trim();
     if (btn) {
-      btn.click();
-      // 平台发送是异步的：600ms 时输入框常常还没清空，会误判失败
-      for (let i = 0; i < 15; i++) {
+      // 拼多多真正认的是可信 Enter；鼠标点击在程序化输入后不生效
+      pdd.focus();
+      await trustedEnter();
+      for (let i = 0; i < 12; i++) {
         await sleep(200);
-        if (!pdd.isConnected || !valOf()) return { ok: true, source: 'pdd', waitedMs: (i + 1) * 200 };
+        if (!pdd.isConnected || !valOf()) return { ok: true, source: 'pdd-enter', waitedMs: (i + 1) * 200 };
+      }
+      // Enter 没发出去再补真实鼠标点击
+      const r = btn.getBoundingClientRect();
+      if (r.width && r.height) await trustedClick(r.x + r.width / 2, r.y + r.height / 2);
+      for (let i = 0; i < 8; i++) {
+        await sleep(200);
+        if (!pdd.isConnected || !valOf()) return { ok: true, source: 'pdd-click', waitedMs: 2400 + (i + 1) * 200 };
       }
     }
     return { ok: false, error: '点了发送但输入框没清空' };
@@ -441,7 +484,7 @@ ipcRenderer.on('cs:do', async (_e, msg) => {
   try {
     let data;
     if (msg.action === 'capture') data = capture();
-    else if (msg.action === 'fill') data = fill(msg.payload && msg.payload.text);
+    else if (msg.action === 'fill') data = await fill(msg.payload && msg.payload.text);
     else if (msg.action === 'send') data = await send();
     else if (msg.action === 'clear') data = clearInput();
     else if (msg.action === 'sendProduct') data = await sendProductCard(msg.payload && msg.payload.goodsId);
