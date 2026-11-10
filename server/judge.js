@@ -60,7 +60,10 @@ function isHonestUnknown(text) {
 }
 
 function saysRefund(text) {
-  return /退款|退货|取消订单|申请退|换一家|别家/.test(text);
+  const t = String(text || '');
+  // 订单状态里的“退款成功/已退款”是事实汇报，不是劝退
+  if (/退款成功|已退款|退款状态|退款中/.test(t)) return false;
+  return /退款|退货|取消订单|申请退|换一家|别家/.test(t);
 }
 
 function overPromise(text) {
@@ -252,9 +255,15 @@ function review(input) {
 
   // 1.16 凭证题不许改答材质/库存
   const ev = require('./concerns').detect(input.buyerText || '');
-  if (!input.buffer && ev && ev.key === 'evidence' && !/报告|检测|质检|证书|资质|认证|页面|标注/.test(text)) {
+  if (!input.buffer && ev && ev.key === 'evidence' && !/报告|检测|质检|证书|资质|认证/.test(text)) {
     issues.push('答非所问');
     return { action: 'fallback', issues, reason: '凭证题必须答凭证或页面口径' };
+  }
+
+  const region = require('./concerns').detect(input.buyerText || '');
+  if (!input.buffer && region && region.key === 'region' && !/配送|运费|邮费|地址|发到|能不能发/.test(text)) {
+    issues.push('答非所问');
+    return { action: 'fallback', issues, reason: '地域配送题必须答配送/运费/地址' };
   }
 
   // 1.18 不许说买家没发过的内容（“您发的这串数字”）
@@ -296,7 +305,7 @@ function review(input) {
 
   // 2. 威胁语境：必须先接情绪 + 给具体动作，不能讲规则、不能提退款
   if (un.threat) {
-    if (!hasEmpathy(text) || !hasAction(text) || saysRefund(text)) {
+    if (!hasEmpathy(firstCandidateText) || !hasAction(firstCandidateText) || saysRefund(firstCandidateText)) {
       issues.push('威胁未安抚');
       return {
         action: 'replace',
@@ -335,7 +344,7 @@ function review(input) {
 
   // 3. 立场：不是售后/退换话题，却主动把人往退款上带
   //    三级缓冲（买家已在谈退款）里引导售后是产品要求，不算劝退
-  if (!KEEP_TOPICS.has(ask) && saysRefund(text) && !input.buffer) {
+  if (!KEEP_TOPICS.has(ask) && saysRefund(firstCandidateText) && !input.buffer) {
     issues.push('劝退');
     return {
       action: 'replace',
@@ -366,7 +375,9 @@ function review(input) {
   }
 
   // 4.5 结果承诺 / 内部口径：能留事实就留，留不下就换正面模板
-  const outcome = OUTCOME.test(text) && ask !== 'return_policy';
+  // “退款成功/已退款”是订单状态，不是替商家做退款决定
+  const outcomeText = String(text || '').replace(/退款成功|已退款|退款状态|退款中/g, '');
+  const outcome = OUTCOME.test(outcomeText) && ask !== 'return_policy' && !/退款成功|退款进度|退款记录|已退款/.test(text);
   const internal = INTERNAL.test(text);
   if (outcome || internal) {
     if (outcome) issues.push('结果承诺');

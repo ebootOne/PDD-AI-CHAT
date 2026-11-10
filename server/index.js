@@ -32,6 +32,7 @@ const session = require('./session');
 const policy = require('./policy');
 const context = require('./context');
 const blockRegistry = require('./block-registry');
+const answerGuard = require('./answer-guard');
 const factRegistry = require('./fact-registry');
 const metrics = require('./metrics');
 
@@ -726,6 +727,17 @@ const cfg = store.getConfig();
         }
         if (needInfo) result.needInfo = needInfo;
 
+        // 兼容模型把块名当 ID：POLICY/PRODUCT/ORDER 映射到该块第一条，不当作假引用
+        if (factPack && r && r.ok && Array.isArray(r.used)) {
+          r.used = r.used.map((id) => {
+            const key = String(id || '').toUpperCase();
+            const block = key === 'POLICY' ? 'policy' : key === 'PRODUCT' ? 'product' : key === 'ORDER' ? 'order' : '';
+            if (!block) return id;
+            const hit = (factPack.allItems || factPack.items).find((x) => x.block === block);
+            return hit ? hit.id : id;
+          });
+        }
+
         // 引用校验第一步：模型说它用了哪条，必须真的存在（假引用按无依据处理）
         if (factPack && r && r.ok) {
           const v = context.validateUsed({ ...factPack, items: factPack.allItems || factPack.items }, r.used || []);
@@ -832,6 +844,22 @@ const cfg = store.getConfig();
           result.cost = 1;
           result.costReason = 'fallback';
           result.reason = '没有可用候选，给兜底话术';
+        }
+
+        const guardHit = answerGuard.guard({
+          ask: (result.understanding || {}).ask,
+          buyerText: result.buyerText,
+          text: (result.suggestions && result.suggestions[0] && result.suggestions[0].text) || '',
+          orders: ctx.orders || [],
+          facts: factUsed,
+        });
+        if (guardHit) {
+          result.suggestions = [{ tone: '标准', text: guardHit.text }];
+          result.source = 'guard';
+          result.reason = guardHit.reason;
+          result.guard = guardHit.reason;
+          result.decision = 'suggest';
+          result.clarify = /[？?]/.test(guardHit.text);
         }
 
         const verdict = judge.review({
@@ -971,6 +999,23 @@ const cfg = store.getConfig();
       if (isGap) {
         store.addGap(gapAsk, result.buyerText).catch(() => {});
         result.knowledgeGap = gapAsk;
+      }
+
+      // 最终守卫：judge fallback 也不能把已退款单改成通用页面
+      const finalGuard = answerGuard.guard({
+        ask: (result.understanding || {}).ask,
+        buyerText: result.buyerText,
+        text: (result.suggestions && result.suggestions[0] && result.suggestions[0].text) || '',
+        orders: ctx.orders || [],
+        facts: factUsed,
+      });
+      if (finalGuard) {
+        result.suggestions = [{ tone: '标准', text: finalGuard.text }];
+        result.source = 'guard';
+        result.reason = finalGuard.reason;
+        result.guard = finalGuard.reason;
+        result.decision = 'suggest';
+        result.clarify = /[？?]/.test(finalGuard.text);
       }
 
       // 专业人感：严肃场景去掉轻快句末语气词，不改事实
