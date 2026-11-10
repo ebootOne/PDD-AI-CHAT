@@ -227,6 +227,18 @@ console.log('\n=== 6. 质检引用校验 ===');
   });
   check('N06', '明确说包装标注 → 不误杀', unitOk.action === 'keep', JSON.stringify(unitOk));
 
+  const courier = judge.review({
+    ...base,
+    buyerText: '发的哪家的快递呢',
+    understanding: { ask: 'courier', text: '发的哪家的快递呢' },
+    suggestions: [{ tone: '标准', text: '默认中通，偏远走邮政哈。' }],
+    facts: { items: [
+      { id: 'F1', block: 'policy', label: '快递', text: '默认中通，偏远走邮政' },
+      { id: 'F2', block: 'order', label: '订单', text: '状态：已发货；快递：申通；运单尾号：9410' },
+    ], missing: [] },
+  });
+  check('N11', '订单实际快递优先于默认政策', courier.action === 'replace' && /申通/.test((courier.cleanedList || []).join('')), JSON.stringify(courier));
+
   const noSuch = judge.review({
     ...base,
     buyerText: '到底什么时候能到呢',

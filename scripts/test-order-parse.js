@@ -62,6 +62,11 @@ check('O08', '「已发货，待签收」整体识别', () => {
   const r = parseOrderPanel('已发货，待签收\n订单编号: 261110-579967424052115', '');
   assert.strictEqual(r.status, '已发货，待签收');
 });
+check('O09', '物流详情里的快递+未标运单号也能取', () => {
+  const r = parseOrderPanel('已发货，待签收\n申通快递\n\n773451233139410\n关闭', '已发货，待签收');
+  assert.strictEqual(r.courier, '申通');
+  assert.strictEqual(r.trackingNo, '773451233139410');
+});
 check('O06', '隐私字段不进入结果', () => {
   const r = parseOrderPanel(shipped);
   assert.deepStrictEqual(Object.keys(r).sort(), ['courier', 'hasOrder', 'source', 'status', 'trackingNo']);

@@ -16,8 +16,9 @@ function parseOrderPanel(text, statusHint) {
     || '';
   const courier = (txt.match(/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/) || [])[1] || '';
   // 必须带「运单/快递单号」标签才认，避免把订单号当运单号
-  const tn = txt.match(/(?:运单号|快递单号|物流单号)[:：\s]*([A-Za-z0-9]{8,})/);
-  const trackingNo = tn ? tn[1] : '';
+  const labeled = txt.match(/(?:运单号|快递单号|物流单号)[:：\s]*([A-Za-z0-9]{8,})/);
+  const nextToCourier = txt.match(/(?:顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)(?:快递)?\s*[\n:：]?\s*([A-Za-z0-9]{8,})/);
+  const trackingNo = labeled ? labeled[1] : (nextToCourier ? nextToCourier[1] : '');
   if (!status && !courier && !trackingNo) return { hasOrder: false };
   return { hasOrder: true, status, courier, trackingNo, source: 'right-panel' };
 }

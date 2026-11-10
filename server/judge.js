@@ -471,6 +471,24 @@ function review(input) {
     }
   }
 
+  // 6.5 订单实际快递优先于默认政策：不能拿“默认中通”答已发申通的单
+  if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
+    const order = input.facts.items.find((i) => i.block === 'order');
+    const m = order && /快递[：:]\s*(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.exec(order.text || '');
+    if (m && (ask === 'courier' || /发.{0,4}(哪家|什么).{0,2}快递|哪家快递|什么快递/.test(input.buyerText || ''))) {
+      const actual = m[1];
+      if (!text.includes(actual)) {
+        issues.push('快递不符');
+        return {
+          action: 'replace',
+          issues,
+          reason: '本单实际快递是' + actual + '，按订单事实纠正',
+          cleanedList: ['亲，您这单发的是' + actual + '哈，物流信息在订单页可以看到。'],
+        };
+      }
+    }
+  }
+
   // 6. 对题：问的东西，回复里有没有对应的答案信号
   //    但买家关切（安全/凭证/地域）被正面回应了，就不按 ask 再卡一次
   const concern = require('./concerns').detect((input.buyerText || '') + ' ' + (un.text || ''));

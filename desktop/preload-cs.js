@@ -225,7 +225,24 @@ function pddInput() {
   return document.querySelector('#replyTextarea');
 }
 
-function capture() {
+let lastOrderOpenAt = 0;
+async function ensureOrderDetail() {
+  const panel = document.querySelector('.right-panel-container');
+  if (!panel) return;
+  if (Date.now() - lastOrderOpenAt < 5000) return;
+  let card = panel.querySelector('.order-item');
+  if (!card) {
+    const tab = [...panel.querySelectorAll('*')].find((e) => !e.children.length && (e.textContent || '').trim() === '个人订单');
+    if (tab) { tab.click(); lastOrderOpenAt = Date.now(); await sleep(350); card = panel.querySelector('.order-item'); }
+  }
+  if (!card) return;
+  const txt = card.innerText || '';
+  if (/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.test(txt)) return;
+  const btn = [...card.querySelectorAll('*')].find((e) => (e.textContent || '').trim() === '物流信息' && e.getBoundingClientRect().width);
+  if (btn) { btn.click(); lastOrderOpenAt = Date.now(); await sleep(400); }
+}
+
+async function capture() {
   if (/mms\.pinduoduo\.com\/login/.test(location.href)) {
     return {
       ok: false,
@@ -263,6 +280,7 @@ function capture() {
   }
 
   if (isPddChat()) {
+    await ensureOrderDetail();
     const pdd = pddCapture();
     if (pdd) return pdd;
   }
@@ -483,7 +501,7 @@ async function sendProductCard(goodsId) {
 ipcRenderer.on('cs:do', async (_e, msg) => {
   try {
     let data;
-    if (msg.action === 'capture') data = capture();
+    if (msg.action === 'capture') data = await capture();
     else if (msg.action === 'fill') data = await fill(msg.payload && msg.payload.text);
     else if (msg.action === 'send') data = await send();
     else if (msg.action === 'clear') data = clearInput();
@@ -498,9 +516,12 @@ ipcRenderer.on('cs:do', async (_e, msg) => {
 // 轮询：页面是 SPA，MutationObserver 在切会话时容易丢，2 秒轮询最稳
 let lastKey = '';
 let lastSentAt = 0;
-setInterval(() => {
+let polling = false;
+setInterval(async () => {
+  if (polling) return;
+  polling = true;
   try {
-    const cap = capture();
+    const cap = await capture();
     if (!cap.ok) {
       if (lastKey !== '__noinput__') {
         lastKey = '__noinput__';
@@ -516,5 +537,7 @@ setInterval(() => {
     ipcRenderer.send('cs:changed', cap);
   } catch (_) {
     /* 页面还没加载完 */
+  } finally {
+    polling = false;
   }
 }, 2000);
