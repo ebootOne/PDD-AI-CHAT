@@ -211,7 +211,6 @@ function pddOrderCapture() {
   const panel = document.querySelector('.right-panel-container');
   if (!panel) return null;
   const txt = panel.innerText || '';
-  if (/没有相关订单|暂无订单|没有订单/.test(txt)) return { hasOrder: false };
   const status = (txt.match(/(待付款|待发货|已发货|待收货|已签收|交易成功|已取消|退款中|售后中)/) || [])[1] || '';
   const courier = (txt.match(/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/) || [])[1] || '';
   // 必须带「运单/快递单号」标签才认，避免把订单号当运单号
