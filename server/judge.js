@@ -532,6 +532,32 @@ function review(input) {
     }
   }
 
+  // 6.46 多订单：只答其中一单且没点名 → 先问哪一单
+  if (!input.buffer && input.multiEntity && ['shipping_status', 'courier', 'arrival_time', 'after_sale', 'return_policy'].includes(ask)
+      && !/两单|都发|全部都|全部|两笔/.test(input.buyerText || '')
+      && !/两单|都发|全部都|全部|两笔/.test(firstCandidateText)
+      && !/[？?]\s*$/.test(firstCandidateText)
+      && input.facts && Array.isArray(input.facts.items)) {
+    const orders = input.facts.items.filter((i) => i.block === 'order');
+    if (orders.length > 1) {
+      const names = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').split('、')[0])
+        .map((s) => s.replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/\s/g, '').slice(0, 8))
+        .filter(Boolean);
+      const tails = orders.map((o) => ((o.text.match(/订单号：([0-9-]+)/) || [])[1] || '').slice(-4)).filter(Boolean);
+      const covered = names.length > 1 && names.every((n) => firstCandidateText.includes(n));
+      if (!covered && names.length > 1) {
+        const uniqueTails = new Set(tails).size === tails.length;
+        const opts = names.slice(0, 3).map((n, i) => n + (uniqueTails && tails[i] ? '（尾号' + tails[i] + '）' : '')).join('、');
+        issues.push('多订单未覆盖');
+        return {
+          action: 'replace', issues,
+          reason: '多订单只答了一单，先问哪一单',
+          cleanedList: ['亲，您有多单：' + opts + '，您问的是哪一单呀？'],
+        };
+      }
+    }
+  }
+
   // 6.5 订单实际快递优先于默认政策：不能拿“默认中通”答已发申通的单
   if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
     const order = input.facts.items.find((i) => i.block === 'order');
