@@ -389,7 +389,7 @@ async function generate(isAuto = false, runId = '') {
       // 3 分钟必回优先：本地自动、模型过质检、兜底都可以直接发；风险/无候选留到兜底计时器
       const pending = state.pendingAuto && state.pendingAuto.runId === runId && !state.pendingAuto.sent;
       const sendable = pending && clean && (result.decision === 'auto_send' || result.decision === 'fallback'
-        || (result.decision === 'suggest' && !(result.judge || []).length));
+        || result.decision === 'suggest') && result.alert !== 'high';
       logAuto('gate', { runId, decision: result.decision, deduped: !!result.deduped, dryRun: state.dryRun, willSend: !!sendable });
       if (result.deduped) {
         markAutoSent(runId);
@@ -466,11 +466,19 @@ async function doSend(text, auto, runId = '') {
   setTimeout(renderAssistant, 600);
 }
 
+const HOLDINGS = [
+  '亲，收到您的消息了，我帮您看看具体情况哈。',
+  '亲，您的问题我看到了，我这边确认一下哈。',
+  '亲，消息收到了，我看下具体情况再跟您说哈。',
+];
+
 async function sendHolding(runId) {
   const p = state.pendingAuto;
   if (!p || p.runId !== runId || p.sent) return false;
-  logAuto('hold_send', { runId });
-  const ok = await doSend('亲，收到您的消息了，我帮您看看具体情况哈。', true, runId);
+  const idx = (p.attempts || 0) % HOLDINGS.length;
+  p.attempts = (p.attempts || 0) + 1;
+  logAuto('hold_send', { runId, attempt: idx + 1 });
+  const ok = await doSend(HOLDINGS[idx], true, runId);
   if (ok) markAutoSent(runId);
   return ok;
 }
@@ -532,7 +540,7 @@ B.on('cs:changed', (cap) => {
         count: (cap.messages || []).length,
         order: cap.order ? { hasOrder: !!cap.order.hasOrder, status: cap.order.status || '' } : null,
       });
-      state.pendingAuto = { runId, key, at: Date.now(), deadline: Date.now() + 180000, sent: false, sending: false };
+      state.pendingAuto = { runId, key, at: Date.now(), deadline: Date.now() + 180000, sent: false, sending: false, attempts: 0 };
       generate(true, runId);
     }
   }
