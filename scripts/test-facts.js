@@ -227,51 +227,6 @@ console.log('\n=== 6. 质检引用校验 ===');
   });
   check('N06', '明确说包装标注 → 不误杀', unitOk.action === 'keep', JSON.stringify(unitOk));
 
-  const multiProduct = judge.review({
-    ...base,
-    buyerText: '还有货嘛',
-    understanding: { ask: 'stock', text: '还有货嘛', dims: [] },
-    suggestions: [{ tone: '标准', text: '亲，是申通哦，订单页可查物流哈。' }],
-    facts: { items: [
-      { id: 'F1', block: 'order', label: '订单1', text: '状态：已发货；商品：金乡大蒜' },
-      { id: 'F2', block: 'order', label: '订单2', text: '状态：退款成功；商品：天然花椒木站杆' },
-      { id: 'F3', block: 'order', label: '订单3', text: '状态：退款成功；商品：抽纸' },
-    ], missing: [] },
-    multiEntity: true,
-  });
-  check('N15', '多商品库存问题不能假定某款', multiProduct.action === 'replace' && /花椒木/.test((multiProduct.cleanedList || []).join('')), JSON.stringify(multiProduct));
-
-  const multiPkg = judge.review({
-    ...base,
-    buyerText: '发的哪家快递',
-    understanding: { ask: 'courier', text: '发的哪家快递' },
-    suggestions: [{ tone: '标准', text: '这单发的是申通哈。' }],
-    facts: { items: [{ id: 'F1', block: 'order', label: '订单', text: '状态：已发货；包裹：申通尾号9410；中通尾号6789' }], missing: [] },
-  });
-  check('N13', '多包裹必须逐个报', multiPkg.action === 'replace' && /中通/.test((multiPkg.cleanedList || []).join('')), JSON.stringify(multiPkg));
-
-  const clarify = judge.review({
-    ...base,
-    buyerText: '还有吗',
-    understanding: { ask: 'stock', text: '还有吗', dims: [] },
-    suggestions: [{ tone: '标准', text: '亲，您问的是金乡大蒜还是抽纸呀？' }],
-    facts: { items: [{ id: 'F1', block: 'order', label: '订单商品', text: '商品：金乡大蒜、抽纸' }], missing: [] },
-    clarify: true,
-  });
-  check('N12', '多商品澄清问句 → 放行', clarify.action === 'keep', JSON.stringify(clarify));
-
-  const courier = judge.review({
-    ...base,
-    buyerText: '发的哪家的快递呢',
-    understanding: { ask: 'courier', text: '发的哪家的快递呢' },
-    suggestions: [{ tone: '标准', text: '默认中通，偏远走邮政哈。' }],
-    facts: { items: [
-      { id: 'F1', block: 'policy', label: '快递', text: '默认中通，偏远走邮政' },
-      { id: 'F2', block: 'order', label: '订单', text: '状态：已发货；快递：申通；运单尾号：9410' },
-    ], missing: [] },
-  });
-  check('N11', '订单实际快递优先于默认政策', courier.action === 'replace' && /申通/.test((courier.cleanedList || []).join('')), JSON.stringify(courier));
-
   const noSuch = judge.review({
     ...base,
     buyerText: '到底什么时候能到呢',

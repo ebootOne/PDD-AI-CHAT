@@ -18,7 +18,6 @@ const { retrieve, confidenceFromScore } = require('./knowledge');
 const productStore = require('./products');
 const manualStore = require('./manuals');
 const facets = require('./facets');
-const orderSelect = require('./order-select');
 const router = require('./router');
 const buffer = require('./buffer');
 const { pickFallback, publicFallback, SHOP_ASK } = require('./policy');
@@ -544,29 +543,13 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
     return { ...c, text: natural.speakTime(warm(withSalutation, { tier, emotion: un.emotion, ask: un.ask })) };
   });
 
-  // 多订单/多商品：本地只筛候选，要不要问、选哪个由模型决定
-  const picked = orderSelect.pickOrders(queryText, ctx.orders, ctx.order);
-  const orderList = picked.orders;
-  const orderItems = orderList.length === 1 && Array.isArray(orderList[0].items) ? orderList[0].items : [];
-  const multiEntity = orderList.length > 1 || orderItems.length > 1;
-  const entitySensitive = ['shipping_status', 'courier', 'arrival_time', 'order_change', 'after_sale', 'return_policy'].includes(un.ask);
-  if (multiEntity && entitySensitive) {
-    return Object.assign(base, {
-      decision: 'suggest', source: 'none', suggestions: [], confidence: 0,
-      needsModel: true, multiEntity: true,
-      reason: '多订单/多商品，交模型判断问哪一单/哪一款',
-      engine: ctx.engine || cfg.engine || 'standard',
-      latencyMs: Date.now() - started,
-    });
-  }
-
   // 本地能答的前提：有候选 + 置信度 ≥0.85 + 来源是知识/商品/说明书。
   // 不再限定「四个模板」：模板会随商家增长，本地也跟着多答，模板之外的才交模型。
   const engineMode = ctx.engine || cfg.engine || 'standard';
   const guardOk = un.ask === 'greeting' || un.ask === 'privacy'; // 问候/隐私不是事实题
   const confidentLocal = candidates.length > 0
     && confidence >= 0.85
-    && (!supplemental.length || orderClarify) // 跨了多条知识：交给模型综合，别用单条硬答
+    && !supplemental.length // 跨了多条知识：交给模型综合，别用单条硬答
     && (source === 'product' || source === 'manual' || source === 'rule' || source === 'order');
   // 没有模型通道时（评测/离线），交模型等于没有回复——直接走兜底，保证每句都有可发的话
   const hasModelChannel = Boolean((cfg.backend && cfg.backend.url) || (cfg.llm && cfg.llm.baseUrl));

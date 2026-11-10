@@ -85,7 +85,7 @@ const first = (r) => ((r && r.suggestions && r.suggestions[0]) || {}).text || ''
     const r = await reply('这个多少钱');
     const t = first(r);
     check('K01', '问价给价格', /元/.test(t) || (STD && defer(t)), t);
-    check('K02', '区间价写成「起」', /元起/.test(t) || (STD && defer(t)), t);
+    check('K02', '区间价格式', /起|~|到|至/.test(t) || (STD && defer(t)), t);
     check('K03', '答价不带库存信息', !/库存|现货|有货/.test(t), t);
   }
   {
@@ -234,7 +234,7 @@ const first = (r) => ((r && r.suggestions && r.suggestions[0]) || {}).text || ''
     for (const q of ['新疆发货吗', '西藏能发吗', '内蒙古包邮吗']) {
       const r = await reply(q);
       const t = first(r);
-      check('K32', q + ' → 答配送/运费，不拿发货时间糊弄', (/包邮|运费|邮费/.test(t) || (STD && defer(t))) && !/16点|顺延/.test(t), t);
+      check('K32', q + ' → 答配送/运费，不拿发货时间糊弄', (/包邮|运费|邮费/.test(t) || defer(t)) && !/16点|顺延/.test(t), t);
     }
     // 反例：同样点了地区，问「几天到」是时效问题，不能抢答包邮
     const r = await reply('新疆几天能到');

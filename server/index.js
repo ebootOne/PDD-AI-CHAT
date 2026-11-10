@@ -567,6 +567,13 @@ const cfg = store.getConfig();
             storeId: ctx.storeId,
             goods: ctx.goods,
             orders: ctx.orders || [],
+            manual: (() => {
+              const gid = (result.products && result.products[0] && result.products[0].goodsId) || (ctx.goods && ctx.goods.goodsId);
+              if (gid) { const m = manuals.find(gid); if (m) return m; }
+              const title = String((ctx.goods && ctx.goods.title) || '');
+              if (!title) return null;
+              return manuals.load().find((m) => m && m.title && (title.includes(m.title) || m.title.includes(title))) || null;
+            })(),
             order: ctx.order || null,
             products: productStore.forStore(ctx.storeId || ''),
             kb: kbForStore,
@@ -667,6 +674,7 @@ const cfg = store.getConfig();
       const willReplace = Boolean((result.understanding || {}).threat);
       // 上下文选择架构：Pro 默认把候选池交给模型，本地不再决定事实取舍
       const contextFirst = engineMode === 'pro' && bcfg.url
+        && factPack && factPack.stats && factPack.stats.orders > 0
         && !result.buffer && !highRisk && !willReplace
         && result.decision !== 'handoff'
         && askKey0 !== 'greeting' && askKey0 !== 'privacy';
@@ -813,7 +821,6 @@ const cfg = store.getConfig();
           capabilities: cfg.capabilities || {},
           facts: factUsed,
           clarify: Boolean(result.clarify || result.orderClarify),
-          multiEntity: Boolean(result.multiEntity),
         });
         judgeAction = verdict.action;
         const firstReply = !(ctx.messages || []).some((m) => m.role === 'seller');

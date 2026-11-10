@@ -258,7 +258,7 @@ function review(input) {
   }
 
   // 1.2 事实题不能拿反问当回答
-  if (!input.buffer && !input.clarify && !input.multiEntity && typeof ask !== 'undefined' && SHOP_ASK.has(ask) && /[？?]\s*$/.test(text)) {
+  if (!input.buffer && !input.clarify && typeof ask !== 'undefined' && SHOP_ASK.has(ask) && /[？?]\s*$/.test(text)) {
     issues.push('答非所问');
     return { action: 'fallback', issues, reason: '买家问事实，候选却反问，改为页面口径' };
   }
@@ -302,10 +302,9 @@ function review(input) {
 
   // 2.5 可执行性：无人值守时，不许承诺做不到的动作、不许索取信息
   //     但三级缓冲里的"问一句"是产品要求的，不算制造下一轮
-  if (!attended && !input.buffer
-      && !(input.multiEntity && ['product', 'stock', 'price'].includes(ask))) {
+  if (!attended && !input.buffer && !input.clarify) {
     const cleanedList = list.map((x) => stripUnsafe(x.text, ask));
-    if (!input.multiEntity && ask !== 'invoice' && SOLICIT.test(text)) {
+    if (ask !== 'invoice' && SOLICIT.test(text)) {
       issues.push('引导下一步');
       return {
         action: 'replace',
@@ -473,116 +472,13 @@ function review(input) {
     }
   }
 
-  // 6.4 多包裹：必须逐个报到，不能只报一个
-  if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
-    const order = input.facts.items.find((i) => i.block === 'order');
-    const pm = order && /包裹：([^；]+(?:；[^；]+)*?)(?:；商品：|$)/.exec(order.text || '');
-    if (pm && (ask === 'courier' || /快递|哪家|包裹/.test(input.buyerText || ''))) {
-      const parts = pm[1].split('；').map((x) => x.trim()).filter((x) => /(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.test(x));
-      const couriers = parts.map((x) => (x.match(/(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/) || [])[1]).filter(Boolean);
-      if (parts.length > 1 && !couriers.every((c) => text.includes(c))) {
-        issues.push('包裹不全');
-        return {
-          action: 'replace', issues,
-          reason: '这单有多个包裹，候选没有逐个报全',
-          cleanedList: ['亲，这单分了' + parts.length + '个包裹：' + parts.join('；') + '，具体看订单页物流哈。'],
-        };
-      }
-    }
-  }
-
-  // 6.45 同名商品多单：只说“一单…一单…”不够，要报尾号或先问哪一单
-  if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
-    const orders = input.facts.items.filter((i) => i.block === 'order');
-    if (orders.length > 1 && !/[？?]\s*$/.test(text) && !/两单|都发|两笔|全部/.test(input.buyerText || '')) {
-      const products = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').trim()).filter(Boolean);
-      const token = (s) => s.replace(/^\d{2,4}年/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/[\s\d]/g, '').slice(-2);
-      const seen = {};
-      for (const p of products) seen[token(p)] = (seen[token(p)] || 0) + 1;
-      const shared = Object.keys(seen).find((k) => k && seen[k] > 1);
-      const tails = orders.map((o) => ((o.text.match(/订单号：([0-9-]+)/) || [])[1] || '').slice(-4)).filter(Boolean);
-      const hasAllTails = tails.length > 1 && tails.every((t) => text.includes(t));
-      if (shared && tails.length > 1 && !hasAllTails) {
-        issues.push('多订单未区分');
-        return {
-          action: 'replace', issues,
-          reason: '同商品多单，候选没有用尾号区分',
-          cleanedList: ['亲，您有两单都是' + shared + '，尾号' + tails.join('、') + '，您问的是哪一单呀？'],
-        };
-      }
-    }
-  }
-
-  // 6.48 多商品：不能自己假定某一款，必须带出候选或问哪款
-  if (!input.buffer && input.multiEntity && ['product', 'stock', 'price'].includes(ask)
-      && !/两单|都发|全部都|全部/.test(input.buyerText || '')
-      && input.facts && Array.isArray(input.facts.items)) {
-    const orders = input.facts.items.filter((i) => i.block === 'order');
-    const names = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').split('、')[0])
-      .map((s) => s.replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/\s/g, '').slice(0, 8))
-      .filter(Boolean);
-    const hit = names.filter((n) => firstCandidateText.includes(n)).length;
-    if (names.length > 1 && hit < 2) {
-      issues.push('多商品未点名');
-      return {
-        action: 'replace', issues,
-        reason: '多商品问题自己假定了某一款',
-        cleanedList: ['亲，您问的是' + names.slice(0, 3).join('、') + '里的哪一款呀？库存以页面显示为准哈。'],
-      };
-    }
-  }
-
-  // 6.46 多订单：只答其中一单且没点名 → 先问哪一单
-  if (!input.buffer && input.multiEntity && ['shipping_status', 'courier', 'arrival_time', 'after_sale', 'return_policy'].includes(ask)
-      && !/两单|都发|全部都|全部|两笔/.test(input.buyerText || '')
-      && !/两单|都发|全部都|全部|两笔/.test(firstCandidateText)
-      && !/[？?]\s*$/.test(firstCandidateText)
-      && input.facts && Array.isArray(input.facts.items)) {
-    const orders = input.facts.items.filter((i) => i.block === 'order');
-    if (orders.length > 1) {
-      const names = orders.map((o) => ((o.text.match(/商品：([^；]+)/) || [])[1] || '').split('、')[0])
-        .map((s) => s.replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水|透气|母婴|家用|商用/)[0].replace(/\s/g, '').slice(0, 8))
-        .filter(Boolean);
-      const tails = orders.map((o) => ((o.text.match(/订单号：([0-9-]+)/) || [])[1] || '').slice(-4)).filter(Boolean);
-      const covered = names.length > 1 && names.every((n) => firstCandidateText.includes(n));
-      if (!covered && names.length > 1) {
-        const uniqueTails = new Set(tails).size === tails.length;
-        const opts = names.slice(0, 3).map((n, i) => n + (uniqueTails && tails[i] ? '（尾号' + tails[i] + '）' : '')).join('、');
-        issues.push('多订单未覆盖');
-        return {
-          action: 'replace', issues,
-          reason: '多订单只答了一单，先问哪一单',
-          cleanedList: ['亲，您有多单：' + opts + '，您问的是哪一单呀？'],
-        };
-      }
-    }
-  }
-
-  // 6.5 订单实际快递优先于默认政策：不能拿“默认中通”答已发申通的单
-  if (!input.buffer && input.facts && Array.isArray(input.facts.items)) {
-    const order = input.facts.items.find((i) => i.block === 'order');
-    const m = order && /快递[：:]\s*(顺丰|中通|圆通|韵达|申通|极兔|邮政|EMS|京东快递|德邦)/.exec(order.text || '');
-    if (m && (ask === 'courier' || /发.{0,4}(哪家|什么).{0,2}快递|哪家快递|什么快递/.test(input.buyerText || ''))) {
-      const actual = m[1];
-      if (!text.includes(actual)) {
-        issues.push('快递不符');
-        return {
-          action: 'replace',
-          issues,
-          reason: '本单实际快递是' + actual + '，按订单事实纠正',
-          cleanedList: ['亲，您这单发的是' + actual + '哈，物流信息在订单页可以看到。'],
-        };
-      }
-    }
-  }
-
   // 6. 对题：问的东西，回复里有没有对应的答案信号
   //    但买家关切（安全/凭证/地域）被正面回应了，就不按 ask 再卡一次
   const concern = require('./concerns').detect((input.buyerText || '') + ' ' + (un.text || ''));
   const concernAddressed = concern && concern.a.test(text);
   const buffered = Boolean(input.buffer); // 三级缓冲：这一句本来就是在问/在安抚
   const signal = TOPIC_SIGNALS[ask];
-  if (signal && !signal.test(text) && !concernAddressed && !buffered && !input.clarify && !input.multiEntity) {
+  if (signal && !signal.test(text) && !concernAddressed && !buffered && !input.clarify) {
     issues.push('答非所问');
     return { action: 'fallback', issues, reason: '候选没有回答「' + ask + '」，已丢弃，改为兜底' };
   }
@@ -590,7 +486,7 @@ function review(input) {
   // 6.5 限定词：问「多少」就得给出那个数，或者明确让去看权威页面
   const dims = un.dims || [];
   const missing = missingDims(text, dims);
-  if (!input.clarify && !input.multiEntity && missing.length && !DEFER.test(text)) {
+  if (!input.clarify && missing.length && !DEFER.test(text)) {
     issues.push('没答到数值');
     return { action: 'fallback', issues, reason: '买家问的是具体数值（' + missing.join('、') + '），候选没有给出，改为兜底' };
   }

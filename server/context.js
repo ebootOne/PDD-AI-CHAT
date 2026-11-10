@@ -35,6 +35,10 @@ function build(input = {}) {
   const items = [];
   const stats = { orders: 0, products: 0, policies: 0, conversation: 0 };
   const inStore = (x) => !storeId || !x.storeId || x.storeId === storeId;
+  const goodsTitle = String((input.goods && input.goods.title) || '');
+  const isSeedGoods = /种子|籽|种苗|育苗|菜种|花种|萝卜|番茄|生菜|辣椒|黄瓜|南瓜|玉米/.test(goodsTitle);
+  const seedWord = /种子|播种|浸种|催芽|发芽|出芽|出苗|种植|土壤|浇水|施肥|苗期|泡种|露白/;
+  const domainOk = (text) => isSeedGoods || !seedWord.test(String(text || ''));
 
   // 1) 当前商品
   const goods = input.goods || {};
@@ -60,14 +64,22 @@ function build(input = {}) {
   products.forEach((p, i) => {
     items.push({
       id: 'G' + (i + 1), block: 'product', label: '商品' + (i + 1),
-      text: shortTitle(p.title) + (p.price != null ? '；价格 ' + p.price + ' 元' : '') + (Number.isFinite(Number(p.stock)) ? '；库存 ' + p.stock : ''),
+      text: shortTitle(p.title) + (p.price != null ? '；价格 ' + p.price + (Number(p.priceMax) > Number(p.price) ? '~' + p.priceMax : '') + ' 元' : '') + (Number.isFinite(Number(p.stock)) ? '；库存 ' + p.stock : ''),
       source: 'catalog', updatedAt: p.syncedAt || null,
     });
   });
   stats.products += products.length;
 
-  // 4) 店铺知识/政策
-  const kb = (Array.isArray(input.kb) ? input.kb : []).filter(inStore).slice(0, 20);
+  // 4) 说明书（当前商品全部节，不按问题筛）
+  const manual = input.manual;
+  if (manual && Array.isArray(manual.sections)) {
+    manual.sections.filter((s) => domainOk((s.title || '') + (s.content || ''))).forEach((s, i) => {
+      items.push({ id: 'M' + (i + 1), block: 'manual', label: clean(s.title), text: clean(s.content), source: 'manual' });
+    });
+  }
+
+  // 5) 店铺知识/政策
+  const kb = (Array.isArray(input.kb) ? input.kb : []).filter(inStore).filter((k) => domainOk((k.title || '') + (k.answer || ''))).slice(0, 20);
   kb.forEach((k, i) => {
     items.push({ id: 'K' + (i + 1), block: 'policy', label: clean(k.title), text: clean(k.answer), source: 'knowledge', updatedAt: k.updatedAt || null });
   });
