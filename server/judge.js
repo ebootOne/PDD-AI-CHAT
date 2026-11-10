@@ -135,6 +135,7 @@ function ungroundedNumbers(text, factText) {
   let m;
   while ((m = NUM_UNIT.exec(String(text || '')))) {
     const unit = m[3];
+    if (unit === '点') continue; // 时间点允许 16点/下午4点 两种说法
     const vals = [m[1], m[2]].filter(Boolean);
     for (const v of vals) {
       if (!hasNumUnit(factText, v, unit)) {
