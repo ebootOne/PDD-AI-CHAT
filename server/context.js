@@ -101,8 +101,19 @@ function build(input = {}) {
   }
 
   const blocks = registry.manifest({ orders, products, manual, kb, messages: msgs, profile: input.profile, goods });
+  // 初始只给核心事实：当前商品、订单、最近会话、商品目录、档案。
+  // 说明书/政策细节不进初始包，模型按 blocks 目录用 need 要。
+  const core = [];
+  const seen = new Set();
+  const add = (x) => { if (x && !seen.has(x.id) && core.length < 8) { seen.add(x.id); core.push(x); } };
+  items.filter((x) => x.block === 'product' && x.id === 'P0').forEach(add);
+  items.filter((x) => x.block === 'order').forEach(add);
+  items.filter((x) => x.block === 'conversation').slice(-2).forEach(add);
+  items.filter((x) => x.block === 'product' && x.id !== 'P0').forEach(add);
+  items.filter((x) => x.block === 'profile').forEach(add);
   return {
-    items,
+    items: core,
+    allItems: items,
     blocks,
     stats,
     route: { asks: [], mode: 'candidate-pool', blocks: [...new Set(items.map((x) => x.block))] },

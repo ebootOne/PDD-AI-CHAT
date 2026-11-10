@@ -26,7 +26,7 @@ function manifest(input = {}) {
 }
 
 function resolve(packet, need) {
-  const items = (packet && packet.items) || [];
+  const items = (packet && (packet.allItems || packet.items)) || [];
   const selected = [];
   const errors = [];
   for (const req of (Array.isArray(need) ? need : [])) {

@@ -729,9 +729,9 @@ const cfg = store.getConfig();
 
         // 引用校验第一步：模型说它用了哪条，必须真的存在（假引用按无依据处理）
         if (factPack && r && r.ok) {
-          const v = facts.validateUsed(factPack, r.used || []);
+          const v = facts.validateUsed({ ...factPack, items: factPack.allItems || factPack.items }, r.used || []);
           factUsed = {
-            items: factPack.items,
+            items: factPack.allItems || factPack.items,
             used: v.valid,
             invalid: v.invalid,
             asks: factPack.route.asks,
