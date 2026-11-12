@@ -36,8 +36,8 @@ function guard(input = {}) {
   const facts = input.facts || {};
   const used = Array.isArray(facts.used) ? facts.used : [];
   const explicitOrder = /那单|这单|订单|尾号|我买|这单/.test(buyer);
-  const orderAsk = ['shipping_status', 'arrival_time', 'logistics'].includes(ask)
-    || ((ask === 'courier' || /快递/.test(buyer)) && explicitOrder)
+  const orderAsk = ['shipping_status', 'logistics'].includes(ask)
+    || ((ask === 'arrival_time' || ask === 'courier' || /快递/.test(buyer)) && explicitOrder)
     || /那单.*(发货|到哪|物流|退款)|发货了吗|到哪了/.test(buyer);
   const isQuestion = /[？?]/.test(text);
 

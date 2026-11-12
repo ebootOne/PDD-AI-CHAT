@@ -36,6 +36,8 @@ function check(input = {}) {
   const used = Array.isArray(input.used) ? input.used : [];
   const target = input.target && typeof input.target === 'object' ? input.target : null;
   const attrs = attrsOf(input.facts, used);
+  const allItems = (input.facts && (input.facts.allItems || input.facts.items)) || [];
+  const hasExpectedFacts = expected.length && allItems.some((x) => (x.attrs || []).some((a) => expected.includes(a)));
   const targetAttr = target && target.attribute ? String(target.attribute) : '';
   const text = String(input.text || '');
   const issues = [];
@@ -61,7 +63,7 @@ function check(input = {}) {
   if (targetAttr && !attrs.has(targetAttr)) {
     issues.push('target属性没有对应事实');
   }
-  if (expected.length && used.length && !expected.some((a) => attrs.has(a))) {
+  if (hasExpectedFacts && used.length && !expected.some((a) => attrs.has(a))) {
     issues.push('used事实没有覆盖当前问题属性');
   }
 
@@ -75,4 +77,13 @@ function check(input = {}) {
   };
 }
 
-module.exports = { check, ASK_ATTRS, attrsOf };
+function safeText(contract) {
+  const e = (contract && contract.expected) || [];
+  if (e.includes('product_stock')) return '您问的是哪款商品的库存呀？我帮您确认哈。';
+  if (e.includes('product_price')) return '价格以页面显示为准哦，具体规格价格可以在商品页看到。';
+  if (e.includes('product_spec') || e.includes('order_spec')) return '具体规格以商品页标注为准哦。';
+  if (e.includes('order_status') || e.includes('order_courier') || e.includes('order_tracking')) return '您问的是哪一单呀？';
+  return '这个信息以页面显示为准哈。';
+}
+
+module.exports = { check, ASK_ATTRS, attrsOf, safeText };

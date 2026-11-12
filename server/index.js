@@ -1061,6 +1061,17 @@ const cfg = store.getConfig();
         result.knowledgeGap = gapAsk;
       }
 
+      // 契约兜底：重答后仍属性错配，不发错误属性
+      if (result.contract && !result.contract.ok && result.contract.expected && result.contract.expected.length) {
+        const safe = answerContract.safeText(result.contract);
+        result.suggestions = [{ tone: '标准', text: safe }];
+        result.source = 'contract';
+        result.reason = '属性不匹配：' + (result.contract.issues || []).join('、');
+        result.contractFallback = true;
+        result.decision = 'suggest';
+        result.clarify = /[？?]/.test(safe);
+      }
+
       // 最终守卫：judge fallback 也不能把已退款单改成通用页面
       const finalGuard = answerGuard.guard({
         ask: (result.understanding || {}).ask,
