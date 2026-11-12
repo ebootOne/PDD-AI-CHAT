@@ -328,7 +328,7 @@ function decisionText(d) {
 // ---------------------------------------------------------------- 动作
 
 function capKey(cap) {
-  return [cap && cap.url, cap && cap.buyerName, cap && cap.lastBuyerText].join('|');
+  return [cap && cap.url, cap && cap.buyerName, cap && cap.lastBuyerText, (cap && cap.messages ? cap.messages.length : 0)].join('|');
 }
 
 async function generate(isAuto = false, runId = '') {
