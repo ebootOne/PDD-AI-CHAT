@@ -14,7 +14,7 @@ const state = {
   capture: null,
   result: null,
   busy: false,
-  auto: localStorage.getItem('autoReply') === '1',
+  auto: localStorage.getItem('autoReply') !== '0',
   dryRun: localStorage.getItem('dryRun') === '1',
   devMode: localStorage.getItem('devMode') === '1',
   lastFilled: '',
@@ -632,6 +632,14 @@ $('#dryToggle').addEventListener('change', (e) => {
 });
 
 $('#autoToggle').addEventListener('change', (e) => {
+  if (!e.target.checked) {
+    const ok = confirm('关闭自动回复后，新消息只给建议、不会自动发送；3 分钟内没人处理可能被平台考核/罚款。确定关闭？');
+    if (!ok) {
+      e.target.checked = true;
+      state.auto = true;
+      return;
+    }
+  }
   state.auto = e.target.checked;
   if (state.auto) state.autoPrimed = false;
   else state.pendingAuto = null;
