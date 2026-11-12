@@ -757,6 +757,57 @@ const cfg = store.getConfig();
             used: v.valid,
             facts: factPack,
           });
+
+          // 契约错配：带“问题属性对应的事实”重答一次；不是再加场景 guard
+          if (!result.contract.ok && Array.isArray(r.candidates) && r.candidates.length
+              && !(r.ask && r.ask.needed) && result.contract.expected.length) {
+            const expected = new Set(result.contract.expected);
+            const repairItems = (factPack.allItems || factPack.items)
+              .filter((x) => (x.attrs || []).some((a) => expected.has(a)))
+              .slice(0, 8);
+            // 库存/规格题：把订单里的商品名/规格作为线索带上，避免模型说“店铺没这款”
+            if (expected.has('product_stock') || expected.has('product_spec')) {
+              let ci = 1;
+              for (const o of (ctx.orders || [])) {
+                for (const it of (o.items || [])) {
+                  if (!it || !it.title) continue;
+                  repairItems.push({ id: 'CI' + ci++, block: 'product', label: '订单商品线索', text: '买家买过：' + String(it.title).slice(0, 40) + (it.spec ? '；规格' + String(it.spec).slice(0, 30) : ''), entity: 'order:' + (o.orderNo || ''), attrs: [] });
+                }
+              }
+            }
+            const hasExpected = repairItems.some((x) => (x.attrs || []).some((a) => expected.has(a)));
+            if (hasExpected) {
+              const r2 = await backend.reply(cfg, Object.assign({}, basePayload, {
+                facts: Object.assign({}, factPack, { items: repairItems, blocks: factPack.blocks }),
+                phase: 'answer',
+                repair: '上一版没有使用与当前问题属性匹配的事实。只回答以下属性对应内容：' + [...expected].join('/') + '；不要用其他属性替代，缺数据就请买家确认或给页面口径。',
+              }));
+              if (r2 && r2.ok && Array.isArray(r2.candidates) && r2.candidates.length) {
+                const p1 = r.billing && Number(r.billing.points) || 0;
+                const p2 = r2.billing && Number(r2.billing.points) || 0;
+                r2.billing = Object.assign({}, r2.billing, { points: p1 + p2 });
+                r2.ms = Number(r.ms || 0) + Number(r2.ms || 0);
+                r = r2;
+                const v2 = context.validateUsed({ ...factPack, items: factPack.allItems || factPack.items }, r.used || []);
+                factUsed = {
+                  items: factPack.allItems || factPack.items,
+                  used: v2.valid,
+                  invalid: v2.invalid,
+                  asks: factPack.route.asks,
+                  blocks: factPack.route.blocks,
+                };
+                result.facts.used = v2.valid;
+                result.facts.invalidUsed = v2.invalid;
+                result.contract = answerContract.check({
+                  ask: (result.understanding || {}).ask,
+                  target: r.target || null,
+                  used: v2.valid,
+                  facts: factPack,
+                });
+                result.factRepair = { issue: '属性错配', expected: [...expected], facts: repairItems.map((x) => x.id) };
+              }
+            }
+          }
         }
 
         let backendAsk = null;

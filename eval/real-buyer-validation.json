@@ -1,5 +1,5 @@
 {
-  "ts": "2026-11-12T07:25:29.936Z",
+  "ts": "2026-11-12T07:29:59.476Z",
   "buyer": "林**鹿",
   "orders": 3,
   "results": [
@@ -65,7 +65,7 @@
         "O1",
         "C7"
       ],
-      "text": "大蒜单已发货，申通尾号9410，订单页可查物流进度。",
+      "text": "已发货，申通尾号9410，订单页可查物流啦。",
       "error": ""
     },
     {
@@ -120,7 +120,7 @@
         "C7",
         "C8"
       ],
-      "text": "亲，其他品种看页面哈，搜「大蒜」就能看到在售的。",
+      "text": "亲，其他品种看页面哦，店铺搜「大蒜」就能看到在售的。",
       "error": ""
     },
     {
@@ -129,91 +129,93 @@
       "source": "guard",
       "guard": "库存题用了订单状态",
       "contract": {
-        "ok": false,
+        "ok": true,
         "ask": "stock",
         "expected": [
           "product_stock"
         ],
         "target": "",
         "usedAttrs": [
+          "order_status",
+          "order_courier",
+          "order_tracking",
+          "order_spec",
+          "order_items",
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec",
           "conversation"
         ],
-        "issues": [
-          "used事实没有覆盖当前问题属性"
-        ]
+        "issues": []
       },
       "needInfo": null,
       "used": [
+        "O1",
         "C7",
-        "C8"
+        "G1",
+        "G2"
       ],
       "text": "您问的是哪款商品的库存呀？我帮您确认哈。",
       "error": ""
     },
     {
       "q": "我买的大蒜还有货吗",
-      "decision": "suggest",
-      "source": "guard",
-      "guard": "库存题用了订单状态",
+      "decision": "fallback",
+      "source": "policy",
+      "judge": [
+        "未答上"
+      ],
+      "guard": "",
       "contract": {
-        "ok": false,
+        "ok": true,
         "ask": "stock",
         "expected": [
           "product_stock"
         ],
         "target": "",
         "usedAttrs": [
-          "order_status",
-          "order_courier",
-          "order_tracking",
-          "order_spec",
-          "order_items",
-          "conversation"
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec"
         ],
-        "issues": [
-          "used事实没有覆盖当前问题属性"
-        ]
+        "issues": []
       },
       "needInfo": null,
       "used": [
-        "O1",
-        "C7",
-        "C8"
+        "G1",
+        "G2"
       ],
-      "text": "您问的是您买的这款大蒜还有没有货呀？我帮您确认哈。",
+      "text": "亲，库存以商品页显示为准哦。",
       "error": ""
     },
     {
       "q": "这个订单里的蒜还有货吗",
       "decision": "suggest",
-      "source": "guard",
-      "guard": "库存题用了订单状态",
+      "source": "backend",
+      "guard": "",
       "contract": {
-        "ok": false,
+        "ok": true,
         "ask": "stock",
         "expected": [
           "product_stock"
         ],
         "target": "",
         "usedAttrs": [
-          "order_status",
-          "order_courier",
-          "order_tracking",
-          "order_spec",
-          "order_items",
-          "conversation"
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec"
         ],
-        "issues": [
-          "used事实没有覆盖当前问题属性"
-        ]
+        "issues": []
       },
       "needInfo": null,
       "used": [
-        "O1",
-        "C7",
-        "C8"
+        "G1",
+        "G2"
       ],
-      "text": "您问的是您买的这款大蒜还有没有货呀？我帮您确认哈。",
+      "text": "您问的蒜目前不在店铺在售商品里，现有商品以页面显示为准，您可以在店铺搜「大蒜」看看。",
       "error": ""
     },
     {
@@ -237,38 +239,31 @@
       "used": [
         "K1"
       ],
-      "text": "亲，支持开发票，订单页填写开票信息即可。",
+      "text": "亲，支持开发票，提供抬头和税号即可。",
       "error": ""
     },
     {
       "q": "怎么清洗",
-      "decision": "suggest",
-      "source": "backend",
+      "decision": "fallback",
+      "source": "policy",
+      "judge": [
+        "答非所问"
+      ],
       "guard": "",
       "contract": {
-        "ok": false,
+        "ok": true,
         "ask": "usage",
         "expected": [
           "manual_section",
           "policy"
         ],
         "target": "",
-        "usedAttrs": [
-          "product_title",
-          "product_price",
-          "product_stock",
-          "product_spec"
-        ],
-        "issues": [
-          "used事实没有覆盖当前问题属性"
-        ]
+        "usedAttrs": [],
+        "issues": []
       },
       "needInfo": null,
-      "used": [
-        "G1",
-        "G2"
-      ],
-      "text": "清水冲一冲、晾干即可，别久泡，具体以页面说明为准哦。",
+      "used": [],
+      "text": "具体用法可以看商品页的说明哈，写得很清楚。",
       "error": ""
     },
     {
@@ -306,17 +301,15 @@
     },
     {
       "q": "另外两单退款了吗",
-      "decision": "fallback",
-      "source": "policy",
-      "judge": [
-        "售后没出口"
-      ],
+      "decision": "suggest",
+      "source": "backend",
       "guard": "",
       "contract": {
-        "ok": false,
+        "ok": true,
         "ask": "return_policy",
         "expected": [
-          "policy"
+          "policy",
+          "order_status"
         ],
         "target": "",
         "usedAttrs": [
@@ -324,26 +317,21 @@
           "order_spec",
           "order_items"
         ],
-        "issues": [
-          "used事实没有覆盖当前问题属性"
-        ]
+        "issues": []
       },
       "needInfo": null,
       "used": [
         "O2",
         "O3"
       ],
-      "text": "亲，退换规则以平台售后页面显示为准哦。",
+      "text": "两单都退款成功了，订单页能看到退款状态。",
       "error": ""
     },
     {
       "q": "花椒木那单发货了吗",
       "decision": "suggest",
-      "source": "guard",
-      "judge": [
-        "劝退"
-      ],
-      "guard": "点名订单已退款但答页面",
+      "source": "backend",
+      "guard": "",
       "contract": {
         "ok": true,
         "ask": "shipping_status",
@@ -356,15 +344,20 @@
         "usedAttrs": [
           "order_status",
           "order_spec",
-          "order_items"
+          "order_items",
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "O2"
+        "O2",
+        "G1"
       ],
-      "text": "这单已经退款成功了，您在订单页能查到退款进度哦。",
+      "text": "花椒木那单未发货，已退款成功，订单页可查看。",
       "error": ""
     },
     {
@@ -384,22 +377,27 @@
         "usedAttrs": [
           "order_status",
           "order_spec",
-          "order_items"
+          "order_items",
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "O3"
+        "O3",
+        "G2"
       ],
-      "text": "抽纸那单是未发货、退款成功状态，订单页可看详情。",
+      "text": "抽纸那单是未发货、退款成功，没有物流，订单页可查。",
       "error": ""
     },
     {
       "q": "我买的大蒜是什么规格",
       "decision": "suggest",
-      "source": "backend",
-      "guard": "",
+      "source": "guard",
+      "guard": "规格题用了订单状态",
       "contract": {
         "ok": true,
         "ask": "spec",
@@ -413,15 +411,17 @@
           "order_courier",
           "order_tracking",
           "order_spec",
-          "order_items"
+          "order_items",
+          "conversation"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "O1"
+        "O1",
+        "C8"
       ],
-      "text": "您这单是26年头茬干蒜，单果45mm左右，1头净蒜小蒜装。",
+      "text": "具体规格以商品页标注为准哦，您可以在页面选到对应尺寸。",
       "error": ""
     },
     {
@@ -439,14 +439,14 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "阴凉通风、干燥避光放着就行，别装袋闷着。",
+      "text": "放阴凉通风处摊开晾着就行，别用塑料袋捂着。",
       "error": ""
     },
     {
       "q": "蒜头有多大",
       "decision": "suggest",
-      "source": "backend",
-      "guard": "",
+      "source": "guard",
+      "guard": "规格题用了订单状态",
       "contract": {
         "ok": true,
         "ask": "spec",
@@ -468,15 +468,15 @@
       "used": [
         "O1"
       ],
-      "text": "您这单是单果45mm左右的26年头茬干蒜，1头小蒜装。",
+      "text": "具体规格以商品页标注为准哦，您可以在页面选到对应尺寸。",
       "error": ""
     },
     {
       "q": "能便宜点吗",
-      "decision": "fallback",
-      "source": "policy",
+      "decision": "suggest",
+      "source": "backend",
       "judge": [
-        "答非所问"
+        "承诺不可执行"
       ],
       "guard": "",
       "contract": {
@@ -497,7 +497,7 @@
         "G1",
         "G2"
       ],
-      "text": "优惠以下单页显示为准哈，能用的券会自动抵扣。",
+      "text": "亲，价格都是页面标价，暂时没有额外优惠。",
       "error": ""
     },
     {
@@ -519,8 +519,7 @@
           "order_tracking",
           "order_spec",
           "order_items",
-          "conversation",
-          "profile"
+          "conversation"
         ],
         "issues": []
       },
@@ -528,7 +527,7 @@
       "used": [
         "O1",
         "C7",
-        "S1"
+        "C8"
       ],
       "text": "快递公司以页面可选为准哦，您下单时能看到可选快递，您下单时选一下地址就能看到可选快递哈。",
       "error": ""
@@ -549,7 +548,7 @@
       "decision": "suggest",
       "source": "backend",
       "judge": [
-        "引导下一步"
+        "承诺不可执行"
       ],
       "guard": "",
       "contract": {
@@ -558,15 +557,17 @@
         "expected": [],
         "target": "",
         "usedAttrs": [
+          "conversation",
           "profile"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "S1"
+        "S1",
+        "C8"
       ],
-      "text": "在的，您说，我这边帮您看。",
+      "text": "在的，您请说，有什么可以帮您？客服在线到晚上11点。",
       "error": ""
     }
   ]
