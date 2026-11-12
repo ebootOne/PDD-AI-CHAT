@@ -1,5 +1,7 @@
 'use strict';
 
+const productIndex = require('./product-index');
+
 /**
  * block-registry.js —— 事实块能力目录
  *
@@ -40,7 +42,15 @@ function resolve(packet, need) {
     } else if (block === 'policy') {
       hit = items.filter((i) => i.block === 'policy' && (!sel.topic || String(i.label || '').includes(String(sel.topic))));
     } else if (block === 'product') {
-      hit = items.filter((i) => i.block === 'product' && (!sel.goodsId || i.goodsId === sel.goodsId));
+      if (sel.query) {
+        hit = productIndex.search(packet.catalog || [], sel.query, 5).map((p, i) => ({
+          id: 'GQ' + (i + 1), block: 'product', label: '商品' + (i + 1), entity: 'product:' + (p.goodsId || p.title || i + 1),
+          text: String(p.title || '') + (p.price != null ? '；价格 ' + p.price + ' 元' : '') + (Number.isFinite(Number(p.stock)) ? '；库存 ' + p.stock : ''),
+          goodsId: p.goodsId || '', attrs: ['product_title', ...(p.price != null ? ['product_price'] : []), ...(Number.isFinite(Number(p.stock)) ? ['product_stock'] : [])],
+        }));
+      } else {
+        hit = items.filter((i) => i.block === 'product' && (!sel.goodsId || i.goodsId === sel.goodsId));
+      }
     } else if (block === 'profile') {
       hit = items.filter((i) => i.block === 'profile');
     } else if (block === 'conversation') {

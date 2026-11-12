@@ -8,6 +8,8 @@
  */
 
 const registry = require('./block-registry');
+const productIndex = require('./product-index');
+const referenceResolver = require('./reference');
 
 function clean(text) {
   return String(text || '')
@@ -67,8 +69,16 @@ function build(input = {}) {
   });
   stats.orders = orders.length;
 
-  // 3) 商品目录候选（不按问题筛）
-  const products = (Array.isArray(input.products) ? input.products : []).filter(inStore).slice(0, 8);
+  // 3) 商品检索候选：只给当前商品/订单/会话/问题相关 top-K，不传全店
+  const allProducts = (Array.isArray(input.products) ? input.products : []).filter(inStore);
+  const queryText = [
+    input.buyerText || '',
+    goods.title || '',
+    ...orders.flatMap((o) => (o.items || []).map((x) => x.title || '')),
+    ...(Array.isArray(input.messages) ? input.messages.slice(-4).map((m) => m.text || '') : []),
+  ].join(' ');
+  const pickedProducts = productIndex.search(allProducts, queryText, 5);
+  const products = pickedProducts;
   products.forEach((p, i) => {
     items.push({
       id: 'G' + (i + 1), block: 'product', label: '商品' + (i + 1),
@@ -108,7 +118,11 @@ function build(input = {}) {
     items.push({ id: 'S1', block: 'profile', label: '客服在线', text: input.profile.hours.start + '到' + input.profile.hours.end, source: 'profile', entity: 'profile', attrs: ['profile'] });
   }
 
-  const blocks = registry.manifest({ orders, products, manual, kb, messages: msgs, profile: input.profile, goods });
+  const reference = referenceResolver.resolve({ buyerText: input.buyerText || '', messages: input.messages || [], goods, orders, products: allProducts });
+  if (reference.ref) {
+    items.push({ id: 'T1', block: 'topic', label: '当前话题', text: '买家在问：' + reference.ref.title + '（' + reference.source + '）', source: 'reference', entity: reference.ref.kind + ':' + reference.ref.title, attrs: ['topic'] });
+  }
+  const blocks = registry.manifest({ orders, products: allProducts, manual, kb, messages: msgs, profile: input.profile, goods });
   // 初始只给核心事实：当前商品、订单、最近会话、商品目录、档案。
   // 说明书/政策细节不进初始包，模型按 blocks 目录用 need 要。
   const core = [];
@@ -119,9 +133,12 @@ function build(input = {}) {
   items.filter((x) => x.block === 'conversation').slice(-2).forEach(add);
   items.filter((x) => x.block === 'product' && x.id !== 'P0').forEach(add);
   items.filter((x) => x.block === 'profile').forEach(add);
+  items.filter((x) => x.block === 'topic').forEach(add);
   return {
     items: core,
     allItems: items,
+    catalog: allProducts,
+    reference,
     blocks,
     stats,
     route: { asks: [], mode: 'candidate-pool', blocks: [...new Set(items.map((x) => x.block))] },

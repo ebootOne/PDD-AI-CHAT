@@ -147,6 +147,14 @@ function check(input = {}) {
       return false;
     });
     if (targetText && orderTitles.length && !relevant) issues.push('target商品与买家订单商品不一致');
+    if (!specific && expected.includes('product_stock') && orderTitles.length > 1) {
+      const uniq = [...new Set(orderTitles)];
+      const covered = uniq.every((t) => {
+        const core = String(t || '').replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水/)[0];
+        return core && (targetText.includes(core) || (() => { for (let i = 0; i + 2 <= core.length; i++) if (targetText.includes(core.slice(i, i + 2))) return true; return false; })());
+      });
+      if (!covered) issues.push('库存题只覆盖了部分订单商品');
+    }
   }
   if (hasExpectedFacts && concreteEntity && usedEntities.length && !usedEntities.includes(targetEntity)) {
     issues.push('target实体与used事实不一致');
@@ -165,8 +173,18 @@ function check(input = {}) {
   };
 }
 
-function safeText(contract) {
+function safeText(contract, reference) {
   const e = (contract && contract.expected) || [];
+  const ref = reference && reference.ref;
+  if (ref && ref.title && e.includes('product_stock')) {
+    return '您问的是' + ref.title + '的库存呀？这款库存以商品页显示为准哈。';
+  }
+  if (ref && ref.title && e.includes('product_price')) {
+    return '您问的是' + ref.title + '的价格呀？价格以商品页显示为准哈。';
+  }
+  if (ref && ref.title && (e.includes('product_spec') || e.includes('order_spec'))) {
+    return '您问的是' + ref.title + '的规格呀？具体规格以商品页标注为准哈。';
+  }
   const issues = (contract && contract.issues) || [];
   if (issues.some((x) => /已退款/.test(x))) return '这单已经退款成功了，您在订单页能查到退款进度哦。';
   if (e.includes('product_stock')) return '您问的是哪款商品的库存呀？我帮您确认哈。';

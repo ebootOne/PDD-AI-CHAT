@@ -567,6 +567,7 @@ const cfg = store.getConfig();
       const factPack = engineMode === 'pro' && bcfg.url
         ? context.build({
             storeId: ctx.storeId,
+            buyerText: result.buyerText || '',
             goods: ctx.goods,
             orders: ctx.orders || [],
             manual: (() => {
@@ -595,6 +596,7 @@ const cfg = store.getConfig();
           route: factPack.route,
           items: factPack.items,
           missing: factPack.missing,
+          reference: factPack.reference || null,
           budget: factPack.budget,
           tokens: factPack.budget.tokens,
           registry: factPack.route.registry,
@@ -1095,7 +1097,7 @@ const cfg = store.getConfig();
           }
         }
         if (!result.contract.ok && result.contract.expected && result.contract.expected.length) {
-          result.suggestions = [{ tone: '标准', text: answerContract.safeText(finalContract) }];
+          result.suggestions = [{ tone: '标准', text: answerContract.safeText(finalContract, factPack && factPack.reference) }];
           result.source = 'contract';
           result.reason = '最终文本属性不匹配：' + (finalContract.issues || []).join('、');
           result.contractFallback = true;
@@ -1106,7 +1108,7 @@ const cfg = store.getConfig();
 
       // 契约兜底：重答后仍属性错配，不发错误属性
       if (result.contract && !result.contract.ok && result.contract.expected && result.contract.expected.length) {
-        const safe = answerContract.safeText(result.contract);
+        const safe = answerContract.safeText(result.contract, factPack && factPack.reference);
         result.suggestions = [{ tone: '标准', text: safe }];
         result.source = 'contract';
         result.reason = '属性不匹配：' + (result.contract.issues || []).join('、');

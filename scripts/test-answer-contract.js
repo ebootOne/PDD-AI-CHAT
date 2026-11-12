@@ -38,4 +38,5 @@ ok('claim事实不存在 → 拦截', { ask: 'stock', used: ['G1'], facts: claim
 ok('claim属性不一致 → 拦截', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G1', attribute: 'order_status' }] }, false);
 ok('claim合法 → 通过', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G1', attribute: 'product_stock' }] }, true);
 ok('回答用了其他商品 → 拦截', { ask: 'stock', buyerText: '还有货吗', used: ['G1'], facts: { allItems: [{ id: 'G1', block: 'product', entity: 'product:1', attrs: ['product_stock'], text: '天然花椒木站杆4499' }] }, orders: [{ hasOrder: true, orderNo: 'A', status: '已发货', items: [{ title: '金乡大蒜' }] }], text: '花椒木站杆4499' }, false);
-console.log('answer-contract：21 PASS');
+ok('库存题只覆盖部分订单商品 → 拦截', { ask: 'stock', buyerText: '还有货吗', used: ['G1'], target: { entity: 'product:1', attribute: 'product_stock' }, facts: { allItems: [{ id: 'G1', block: 'product', entity: 'product:1', attrs: ['product_stock'], text: '天然花椒木站杆4499' }] }, orders: [{ hasOrder: true, orderNo: 'A', status: '已发货', items: [{ title: '金乡大蒜' }] }, { hasOrder: true, orderNo: 'B', status: '退款成功', items: [{ title: '天然花椒木站杆' }] }], text: '花椒木站杆4499' }, false);
+console.log('answer-contract：22 PASS');
