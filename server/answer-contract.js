@@ -119,4 +119,20 @@ function safeText(contract) {
   return '这个信息以页面显示为准哈。';
 }
 
-module.exports = { check, ASK_ATTRS, attrsOf, safeText };
+function sanitize(text, contract) {
+  const e = (contract && contract.expected) || [];
+  if (!e.length) return String(text || '');
+  const order = /(已发货|未发货|待发货|物流|运单|订单页|签收|退款成功|申通|中通|圆通|顺丰|韵达|邮政|极兔)/;
+  const product = /(元|价格|标价|优惠|库存|有货|缺货|规格|mm|毫米|厘米|尺寸|单果)/;
+  const clauses = String(text || '').split(/(?<=[，,；;。])/).filter(Boolean);
+  const keep = clauses.filter((cl) => {
+    if (e.some((a) => ['order_status', 'order_courier', 'order_tracking'].includes(a)) && product.test(cl) && !order.test(cl)) return false;
+    if (e.some((a) => ['product_stock', 'product_price', 'product_spec', 'order_spec'].includes(a))
+        && order.test(cl) && !product.test(cl)) return false;
+    return true;
+  });
+  const out = keep.join('').trim();
+  return out || String(text || '');
+}
+
+module.exports = { check, ASK_ATTRS, attrsOf, safeText, sanitize };

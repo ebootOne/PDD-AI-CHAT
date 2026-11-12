@@ -29,4 +29,5 @@ const orderFacts = { allItems: [
 ok('多订单只答一单 → 拦截', { ask: 'shipping_status', used: ['O1'], facts: orderFacts, orders: [{ hasOrder: true, orderNo: 'A2115', status: '已发货' }, { hasOrder: true, orderNo: 'B2115', status: '退款成功' }], text: '已发货' }, false);
 ok('尾号重复默认第一单 → 拦截', { ask: 'shipping_status', used: ['O1'], facts: orderFacts, orders: [{ hasOrder: true, orderNo: 'A2115', status: '已发货' }, { hasOrder: true, orderNo: 'B2115', status: '退款成功' }], buyerText: '尾号2115那单', text: '已发货' }, false);
 ok('已退款单没说明 → 拦截', { ask: 'shipping_status', used: ['O2'], facts: orderFacts, orders: [{ hasOrder: true, orderNo: 'B2115', status: '退款成功' }], text: '看订单页' }, false);
-console.log('answer-contract：14 PASS');
+ok('规格答案夹订单状态 → 清理', { ask: 'spec', used: ['O1'], facts: { allItems: [{ id: 'O1', attrs: ['order_spec', 'order_status'], orderNo: 'A' }] }, text: '单果45mm，已发货，申通尾号9410。' }, true);
+console.log('answer-contract：15 PASS');

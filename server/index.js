@@ -1078,7 +1078,18 @@ const cfg = store.getConfig();
           buyerText: result.buyerText,
         });
         result.contract = finalContract;
-        if (!finalContract.ok && finalContract.expected.length) {
+        if (finalContract.ok && finalContract.expected.length) {
+          const cleaned = answerContract.sanitize(result.suggestions[0].text || '', finalContract);
+          if (cleaned && cleaned !== result.suggestions[0].text) {
+            result.suggestions[0].text = cleaned;
+            result.contract = answerContract.check({
+              ask: (result.understanding || {}).ask, target: null,
+              used: (result.facts && result.facts.used) || [], facts: factPack,
+              text: cleaned, orders: ctx.orders || [], buyerText: result.buyerText,
+            });
+          }
+        }
+        if (!result.contract.ok && result.contract.expected && result.contract.expected.length) {
           result.suggestions = [{ tone: '标准', text: answerContract.safeText(finalContract) }];
           result.source = 'contract';
           result.reason = '最终文本属性不匹配：' + (finalContract.issues || []).join('、');
