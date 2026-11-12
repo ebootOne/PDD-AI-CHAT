@@ -88,10 +88,10 @@ function check(input = {}) {
     issues.push('回答文本是订单状态，不是规格');
   }
 
-  if (targetAttr && expected.length && !expected.includes(targetAttr)) {
+  if (hasExpectedFacts && targetAttr && expected.length && !expected.includes(targetAttr)) {
     issues.push('target属性与当前问题不一致');
   }
-  if (targetAttr && !attrs.has(targetAttr)) {
+  if (hasExpectedFacts && targetAttr && !attrs.has(targetAttr)) {
     issues.push('target属性没有对应事实');
   }
   if (hasExpectedFacts && used.length && !expected.some((a) => attrs.has(a))) {

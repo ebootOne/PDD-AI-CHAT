@@ -792,6 +792,7 @@ const cfg = store.getConfig();
                 r2.billing = Object.assign({}, r2.billing, { points: p1 + p2 });
                 r2.ms = Number(r.ms || 0) + Number(r2.ms || 0);
                 r = r2;
+                if (r.target) result.target = r.target;
                 const v2 = context.validateUsed({ ...factPack, items: factPack.allItems || factPack.items }, r.used || []);
                 factUsed = {
                   items: factPack.allItems || factPack.items,
@@ -1070,7 +1071,7 @@ const cfg = store.getConfig();
       if (factPack && result.suggestions && result.suggestions[0]) {
         const finalContract = answerContract.check({
           ask: (result.understanding || {}).ask,
-          target: null,
+          target: result.target || null,
           used: (result.facts && result.facts.used) || [],
           facts: factPack,
           text: result.suggestions[0].text || '',
