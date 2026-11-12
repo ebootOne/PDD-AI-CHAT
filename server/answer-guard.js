@@ -35,7 +35,6 @@ function guard(input = {}) {
   const orders = (Array.isArray(input.orders) ? input.orders : []).filter((o) => o && o.hasOrder);
   const facts = input.facts || {};
   const used = Array.isArray(facts.used) ? facts.used : [];
-  const productAsk = ['stock', 'product', 'price', 'spec'].includes(ask) || /还有货|有货|库存|其他.*品种|别的大蒜/.test(buyer);
   const explicitOrder = /那单|这单|订单|尾号|我买|这单/.test(buyer);
   const orderAsk = ['shipping_status', 'arrival_time', 'logistics'].includes(ask)
     || ((ask === 'courier' || /快递/.test(buyer)) && explicitOrder)
@@ -46,23 +45,6 @@ function guard(input = {}) {
   if (/(顺丰|快递|配送|发货)/.test(buyer) && /发不了|不能发|不支持|不配送|不到|不能到|无法发/.test(text)
       && !/可选/.test(text)) {
     return { text: '快递公司以页面可选为准哦，您下单时能看到可选快递，您下单时选一下地址就能看到可选快递哈。', reason: '无依据否定配送能力' };
-  }
-
-  // 1) 库存/品种题出现订单状态
-  if (productAsk && /已发货|未发货|物流|订单页|运单|签收|退款成功/.test(text)) {
-    if (/其他.*品种|别的大蒜|还有别的/.test(buyer)) {
-      return { text: '您问的是其他品种的大蒜呀？店铺在售品种以页面为准，您搜「大蒜」看看哈。', reason: '库存/品种题用了订单事实' };
-    }
-    if (ask === 'price' || /多少钱|价格|便宜/.test(buyer)) {
-      return { text: '价格以页面显示为准哦，具体规格价格可以在商品页看到。', reason: '价格题用了订单状态' };
-    }
-    if (ask === 'spec' || /规格|多大|尺寸|多粗/.test(buyer)) {
-      return { text: '具体规格以商品页标注为准哦，您可以在页面选到对应尺寸。', reason: '规格题用了订单状态' };
-    }
-    if (/我买|这个订单|这单/.test(buyer)) {
-      return { text: '您问的是您买的这款大蒜还有没有货呀？我帮您确认哈。', reason: '库存题用了订单状态' };
-    }
-    return { text: '您问的是哪款商品的库存呀？我帮您确认哈。', reason: '库存题用了订单状态' };
   }
 
   // 2) 多订单 + 只答一单

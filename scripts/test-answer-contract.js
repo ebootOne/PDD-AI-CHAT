@@ -18,6 +18,8 @@ ok('物流 + 订单事实 → 通过', { ask: 'shipping_status', used: ['O1'], t
 ok('物流 + 商品价格 → 拦截', { ask: 'shipping_status', used: ['G1'], target: { attribute: 'product_price' }, facts }, false);
 ok('库存 + used商品但文本订单 → 拦截', { ask: 'stock', used: ['O1', 'G1'], target: null, facts, text: '已发货，申通尾号9410；其他品种看页面库存' }, false);
 ok('库存 + used商品且文本库存 → 通过', { ask: 'stock', used: ['G1'], target: null, facts, text: '有货，库存2件' }, true);
+ok('价格 + 文本订单状态 → 拦截', { ask: 'price', used: ['G1'], target: null, facts, text: '已发货，申通尾号9410' }, false);
+ok('规格 + 文本订单状态 → 拦截', { ask: 'spec', used: ['O1'], target: null, facts, text: '已发货，申通尾号9410' }, false);
 ok('说明书 + 说明书事实 → 通过', { ask: 'usage', used: ['M1'], target: { attribute: 'manual_section' }, facts }, true);
 ok('退款状态 + 订单事实 → 通过', { ask: 'return_policy', used: ['O1'], target: { attribute: 'order_status' }, facts }, true);
-console.log('answer-contract：9 PASS');
+console.log('answer-contract：11 PASS');

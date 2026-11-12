@@ -8,6 +8,7 @@
 const ASK_ATTRS = {
   stock: ['product_stock'],
   price: ['product_price'],
+  nego: ['product_price'],
   spec: ['product_spec', 'order_spec'],
   courier: ['order_courier', 'policy'],
   shipping_status: ['order_status', 'order_tracking', 'order_courier'],
@@ -45,6 +46,13 @@ function check(input = {}) {
   }
   if (expected.includes('order_status') && /(元|价格|库存|有货)/.test(text) && !orderTalk) {
     issues.push('回答文本是商品属性，不是订单状态');
+  }
+  if (expected.includes('product_price') && orderTalk && !/(元|价格|标价|优惠|活动)/.test(text)) {
+    issues.push('回答文本是订单状态，不是价格');
+  }
+  if ((expected.includes('product_spec') || expected.includes('order_spec'))
+      && orderTalk && !/(mm|毫米|厘米|规格|尺寸|大小|多大|单果)/.test(text)) {
+    issues.push('回答文本是订单状态，不是规格');
   }
 
   if (targetAttr && expected.length && !expected.includes(targetAttr)) {
