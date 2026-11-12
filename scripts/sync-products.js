@@ -8,6 +8,7 @@
  */
 
 const API = process.env.API_URL || 'http://127.0.0.1:8787';
+const STORE_ID = process.env.STORE_ID || 'real';
 const PORT = Number(process.env.CDP_PORT || 9335);
 const CHAT_URL = 'https://mms.pinduoduo.com/chat-merchant/index.html#/';
 const GOODS_URL = 'https://mms.pinduoduo.com/goods/goods_list';
@@ -70,12 +71,22 @@ async function connect() {
 
   console.log('抓到 ' + rows.length + ' 个商品');
   if (!rows.length) {
+    const emptyText = await c.ev("document.body.innerText || ''");
+    if (/没有查询到符合要求|暂无商品|暂无数据/.test(emptyText)) {
+      const clear = await fetch(API + '/api/products/sync', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeId: STORE_ID, items: [], confirmEmpty: true }),
+      }).then((r) => r.json());
+      console.log('页面确认无商品，已清空本店商品：' + JSON.stringify(clear));
+      await c.send('Page.navigate', { url: CHAT_URL });
+      process.exit(0);
+    }
     console.log('没有抓到商品，未改动本地数据');
     await c.send('Page.navigate', { url: CHAT_URL });
     process.exit(1);
   }
 
-  const STORE = process.env.STORE_ID || 'real';
+  const STORE = STORE_ID;
   const all = (await (await fetch(API + '/api/products?all=1')).json()).items || [];
   const mine = all.filter((p) => p.storeId === STORE);
 

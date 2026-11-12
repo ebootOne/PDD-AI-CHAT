@@ -1441,7 +1441,15 @@ const cfg = store.getConfig();
       const body = await readBody(req);
       const storeId = String(body.storeId || 'real');
       const rows = Array.isArray(body.items) ? body.items : [];
-      if (!rows.length) return send(res, 200, { ok: true, skipped: 'empty', count: 0 });
+      if (!rows.length) {
+        if (body.confirmEmpty === true) {
+          const all = productStore.load();
+          const kept = all.filter((x) => x.storeId !== storeId);
+          productStore.save(kept);
+          return send(res, 200, { ok: true, cleared: true, storeId, removed: all.length - kept.length, syncedAt: new Date().toISOString() });
+        }
+        return send(res, 200, { ok: true, skipped: 'empty', count: 0 });
+      }
 
       const all = productStore.load();
       const mine = all.filter((x) => x.storeId === storeId);

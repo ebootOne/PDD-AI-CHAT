@@ -7,7 +7,7 @@
 
 const assert = require('assert');
 const API = process.env.API_URL || 'http://127.0.0.1:8787';
-const STORE = process.env.STORE_ID || 'smw8rjgmx';
+const STORE = process.env.STORE_ID || 'real';
 const GOODS = '天然花椒木站杆鸟类通用虎皮小太阳和尚玄凤八哥文鸟牡丹鹩哥金刚';
 const RUN = 'gate-' + Date.now().toString(36);
 

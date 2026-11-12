@@ -70,7 +70,8 @@ function build(input = {}) {
   stats.orders = orders.length;
 
   // 3) 商品检索候选：只给当前商品/订单/会话/问题相关 top-K，不传全店
-  const allProducts = (Array.isArray(input.products) ? input.products : []).filter(inStore);
+  const allProducts = (Array.isArray(input.products) ? input.products : []).filter(inStore)
+    .filter((p) => p.enabled !== false && p.status !== 'off_shelf');
   const queryText = [
     input.buyerText || '',
     goods.title || '',
