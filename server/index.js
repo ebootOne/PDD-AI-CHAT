@@ -33,6 +33,7 @@ const policy = require('./policy');
 const context = require('./context');
 const blockRegistry = require('./block-registry');
 const answerGuard = require('./answer-guard');
+const answerContract = require('./answer-contract');
 const factRegistry = require('./fact-registry');
 const metrics = require('./metrics');
 
@@ -750,6 +751,12 @@ const cfg = store.getConfig();
           };
           result.facts.used = v.valid;
           result.facts.invalidUsed = v.invalid;
+          result.contract = answerContract.check({
+            ask: (result.understanding || {}).ask,
+            target: r.target || null,
+            used: v.valid,
+            facts: factPack,
+          });
         }
 
         let backendAsk = null;

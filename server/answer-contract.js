@@ -1,0 +1,61 @@
+'use strict';
+
+/**
+ * answer-contract.js —— 实体/属性/答案一致性校验。
+ * 事实带 attrs；模型声明 target.attribute；本地只校验属性是否匹配，不决定业务答案。
+ */
+
+const ASK_ATTRS = {
+  stock: ['product_stock'],
+  price: ['product_price'],
+  spec: ['product_spec', 'order_spec'],
+  courier: ['order_courier', 'policy'],
+  shipping_status: ['order_status', 'order_tracking', 'order_courier'],
+  logistics: ['order_status', 'order_tracking', 'order_courier'],
+  arrival_time: ['order_status', 'order_tracking'],
+  invoice: ['policy'],
+  freight: ['policy'],
+  usage: ['manual_section', 'policy'],
+  after_sale: ['policy', 'manual_section', 'order_status'],
+  return_policy: ['policy', 'order_status'],
+  product: ['product_title', 'product_stock', 'product_price', 'product_spec'],
+};
+
+function attrsOf(pack, used) {
+  const items = (pack && (pack.allItems || pack.items)) || [];
+  const ids = new Set((used || []).map(String));
+  const set = new Set();
+  for (const x of items) if (ids.has(String(x.id))) (x.attrs || []).forEach((a) => set.add(a));
+  return set;
+}
+
+function check(input = {}) {
+  const ask = String(input.ask || '');
+  const expected = ASK_ATTRS[ask] || [];
+  const used = Array.isArray(input.used) ? input.used : [];
+  const target = input.target && typeof input.target === 'object' ? input.target : null;
+  const attrs = attrsOf(input.facts, used);
+  const targetAttr = target && target.attribute ? String(target.attribute) : '';
+  const issues = [];
+
+  if (targetAttr && expected.length && !expected.includes(targetAttr)) {
+    issues.push('target属性与当前问题不一致');
+  }
+  if (targetAttr && !attrs.has(targetAttr)) {
+    issues.push('target属性没有对应事实');
+  }
+  if (expected.length && used.length && !expected.some((a) => attrs.has(a))) {
+    issues.push('used事实没有覆盖当前问题属性');
+  }
+
+  return {
+    ok: issues.length === 0,
+    ask,
+    expected,
+    target: targetAttr,
+    usedAttrs: [...attrs],
+    issues,
+  };
+}
+
+module.exports = { check, ASK_ATTRS, attrsOf };

@@ -69,6 +69,8 @@ const QUESTIONS = [
       decision: r.decision,
       source: r.source,
       judge: r.judge,
+      guard: r.guard || '',
+      contract: r.contract || null,
       needInfo: r.needInfo || null,
       used: (r.facts && r.facts.used) || [],
       text: ((r.suggestions || [])[0] || {}).text || '',

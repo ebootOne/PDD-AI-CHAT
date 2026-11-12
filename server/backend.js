@@ -48,6 +48,7 @@ function maskFacts(facts) {
       goodsId: String(f.goodsId || '').slice(0, 30),
       section: String(f.section || '').slice(0, 30),
       topic: String(f.topic || '').slice(0, 30),
+      attrs: (f.attrs || []).slice(0, 8).map((x) => String(x).slice(0, 24)),
     })).filter((f) => f.id && f.text),
     blocks: (facts.blocks || []).slice(0, 8).map((b) => ({
       type: String(b.type || '').slice(0, 20),

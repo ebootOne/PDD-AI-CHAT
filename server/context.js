@@ -50,7 +50,7 @@ function build(input = {}) {
     items.push({
       id: 'P0', block: 'product', label: '当前商品',
       text: clean(goods.title) + (goods.spec ? '；规格：' + clean(goods.spec) : ''),
-      source: 'goods', goodsId: goods.goodsId || '',
+      source: 'goods', goodsId: goods.goodsId || '', entity: 'product:current', attrs: ['product_title', ...(goods.spec ? ['product_spec'] : [])],
     });
     stats.products++;
   }
@@ -59,7 +59,11 @@ function build(input = {}) {
   const orders = (Array.isArray(input.orders) ? input.orders : (input.order ? [input.order] : []))
     .filter((o) => o && o.hasOrder && inStore(o)).slice(0, 5);
   orders.forEach((o, i) => {
-    items.push({ id: 'O' + (i + 1), block: 'order', label: '订单' + (i + 1), text: clean(orderText(o)), source: 'order', orderNo: o.orderNo || '' });
+    items.push({
+      id: 'O' + (i + 1), block: 'order', label: '订单' + (i + 1), text: clean(orderText(o)), source: 'order', orderNo: o.orderNo || '',
+      entity: 'order:' + (o.orderNo || i + 1),
+      attrs: ['order_status', ...((o.packages || []).length ? ['order_courier', 'order_tracking'] : []), ...((o.items || []).some((x) => x.spec) ? ['order_spec'] : []), ...((o.items || []).length ? ['order_items'] : [])],
+    });
   });
   stats.orders = orders.length;
 
@@ -70,6 +74,8 @@ function build(input = {}) {
       id: 'G' + (i + 1), block: 'product', label: '商品' + (i + 1),
       text: shortTitle(p.title) + (p.price != null ? '；价格 ' + p.price + (Number(p.priceMax) > Number(p.price) ? '~' + p.priceMax : '') + ' 元' : '') + (Number.isFinite(Number(p.stock)) ? '；库存 ' + p.stock : ''),
       source: 'catalog', updatedAt: p.syncedAt || null, goodsId: p.goodsId || '',
+      entity: 'product:' + (p.goodsId || p.title || i + 1),
+      attrs: ['product_title', ...(p.price != null ? ['product_price'] : []), ...(Number.isFinite(Number(p.stock)) ? ['product_stock'] : []), ...(p.spec ? ['product_spec'] : [])],
     });
   });
   stats.products += products.length;
@@ -78,14 +84,14 @@ function build(input = {}) {
   const manual = input.manual;
   if (manual && Array.isArray(manual.sections)) {
     manual.sections.filter((s) => domainOk((s.title || '') + (s.content || ''))).forEach((s, i) => {
-      items.push({ id: 'M' + (i + 1), block: 'manual', label: clean(s.title), text: clean(s.content), source: 'manual', section: s.title });
+      items.push({ id: 'M' + (i + 1), block: 'manual', label: clean(s.title), text: clean(s.content), source: 'manual', section: s.title, entity: 'manual:current', attrs: ['manual_section'] });
     });
   }
 
   // 5) 店铺知识/政策
   const kb = (Array.isArray(input.kb) ? input.kb : []).filter(inStore).filter((k) => domainOk((k.title || '') + (k.answer || ''))).slice(0, 20);
   kb.forEach((k, i) => {
-    items.push({ id: 'K' + (i + 1), block: 'policy', label: clean(k.title), text: clean(k.answer), source: 'knowledge', updatedAt: k.updatedAt || null, topic: k.title });
+    items.push({ id: 'K' + (i + 1), block: 'policy', label: clean(k.title), text: clean(k.answer), source: 'knowledge', updatedAt: k.updatedAt || null, topic: k.title, entity: 'policy', attrs: ['policy'] });
   });
   stats.policies = kb.length;
 
@@ -93,13 +99,13 @@ function build(input = {}) {
   const msgs = (Array.isArray(input.messages) ? input.messages : []).slice(-8);
   msgs.forEach((m, i) => {
     if (!m || !m.text) return;
-    items.push({ id: 'C' + (i + 1), block: 'conversation', label: m.role === 'buyer' ? '买家' : '客服', text: clean(m.text), source: 'conversation' });
+    items.push({ id: 'C' + (i + 1), block: 'conversation', label: m.role === 'buyer' ? '买家' : '客服', text: clean(m.text), source: 'conversation', entity: 'conversation', attrs: ['conversation'] });
   });
   stats.conversation = msgs.length;
 
   // 6) 店铺档案
   if (input.profile && input.profile.hours && input.profile.hours.start) {
-    items.push({ id: 'S1', block: 'profile', label: '客服在线', text: input.profile.hours.start + '到' + input.profile.hours.end, source: 'profile' });
+    items.push({ id: 'S1', block: 'profile', label: '客服在线', text: input.profile.hours.start + '到' + input.profile.hours.end, source: 'profile', entity: 'profile', attrs: ['profile'] });
   }
 
   const blocks = registry.manifest({ orders, products, manual, kb, messages: msgs, profile: input.profile, goods });
