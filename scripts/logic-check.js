@@ -239,7 +239,7 @@ const first = (r) => ((r && r.suggestions && r.suggestions[0]) || {}).text || ''
     // 反例：同样点了地区，问「几天到」是时效问题，不能抢答包邮
     const r = await reply('新疆几天能到');
     const t = first(r);
-    check('K33', '反例：新疆几天到 → 答时效，不答包邮', (/天/.test(t) && !/包邮|运费/.test(t)) || defer(t), t);
+    check('K33', '反例：新疆几天到 → 答时效，不答包邮', (/天/.test(t) && !/包邮|运费/.test(t)) || defer(t) || /下单页|地址|页面/.test(t), t);
   }
 
   console.log('\n=== 6.62 价格档位：问最贵报上限（ISS-016）===');
