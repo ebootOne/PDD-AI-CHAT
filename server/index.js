@@ -764,6 +764,8 @@ const cfg = store.getConfig();
             orders: ctx.orders || [],
             buyerText: result.buyerText,
             claims: r.claims || [],
+
+            reference: factPack.reference || null,
           });
 
           // 契约错配：带“问题属性对应的事实”重答一次；不是再加场景 guard
@@ -816,6 +818,8 @@ const cfg = store.getConfig();
                   orders: ctx.orders || [],
                   buyerText: result.buyerText,
                   claims: r.claims || [],
+
+                  reference: factPack.reference || null,
                 });
                 result.factRepair = { issue: '属性错配', expected: [...expected], facts: repairItems.map((x) => x.id) };
               }
@@ -1078,6 +1082,7 @@ const cfg = store.getConfig();
           ask: (result.understanding || {}).ask,
           target: result.target || null,
           claims: result.claims || [],
+          reference: factPack.reference || null,
           used: (result.facts && result.facts.used) || [],
           facts: factPack,
           text: result.suggestions[0].text || '',

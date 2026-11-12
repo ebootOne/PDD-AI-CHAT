@@ -123,6 +123,16 @@ function build(input = {}) {
   if (reference.ref) {
     items.push({ id: 'T1', block: 'topic', label: '当前话题', text: '买家在问：' + reference.ref.title + '（' + reference.source + '）', source: 'reference', entity: reference.ref.kind + ':' + reference.ref.title, attrs: ['topic'] });
   }
+  const hasStockFact = items.some((x) => x.block === 'product' && (x.attrs || []).includes('product_stock'));
+  const productAsk = /有货|库存|规格|价格|便宜|多少钱|品种|哪款|这款|商品|蒜/.test(input.buyerText || '');
+  const orderAsk = /那单|这单|发货|到哪|物流|退款|订单/.test(input.buyerText || '');
+  if (reference.ref && !hasStockFact && productAsk && !(orderAsk && !/有货|库存|规格|价格|便宜|多少钱|品种|哪款/.test(input.buyerText || ''))) {
+    items.push({
+      id: 'N1', block: 'product', label: '商品状态',
+      text: reference.ref.title + '目前不在本店在售商品里；本店当前没有该商品的可售库存，且全店暂无在售商品。',
+      source: 'reference', entity: 'product:unavailable', attrs: ['product_availability'],
+    });
+  }
   const blocks = registry.manifest({ orders, products: allProducts, manual, kb, messages: msgs, profile: input.profile, goods });
   // 初始只给核心事实：当前商品、订单、最近会话、商品目录、档案。
   // 说明书/政策细节不进初始包，模型按 blocks 目录用 need 要。
@@ -135,6 +145,7 @@ function build(input = {}) {
   items.filter((x) => x.block === 'product' && x.id !== 'P0').forEach(add);
   items.filter((x) => x.block === 'profile').forEach(add);
   items.filter((x) => x.block === 'topic').forEach(add);
+  items.filter((x) => x.block === 'product' && x.id === 'N1').forEach(add);
   return {
     items: core,
     allItems: items,

@@ -6,10 +6,10 @@
  */
 
 const ASK_ATTRS = {
-  stock: ['product_stock'],
-  price: ['product_price'],
-  nego: ['product_price'],
-  spec: ['product_spec', 'order_spec'],
+  stock: ['product_stock', 'product_availability'],
+  price: ['product_price', 'product_availability'],
+  nego: ['product_price', 'product_availability'],
+  spec: ['product_spec', 'order_spec', 'product_availability'],
   courier: ['order_courier', 'policy'],
   shipping_status: ['order_status', 'order_tracking', 'order_courier'],
   logistics: ['order_status', 'order_tracking', 'order_courier'],
@@ -19,7 +19,7 @@ const ASK_ATTRS = {
   usage: ['manual_section', 'policy'],
   after_sale: ['policy', 'manual_section', 'order_status'],
   return_policy: ['policy', 'order_status'],
-  product: ['product_title', 'product_stock', 'product_price', 'product_spec'],
+  product: ['product_title', 'product_stock', 'product_price', 'product_spec', 'product_availability'],
 };
 
 function attrsOf(pack, used) {
@@ -60,7 +60,7 @@ function check(input = {}) {
     for (let i = 0; i + 2 <= core.length; i++) if (buyerText.includes(core.slice(i, i + 2))) return true;
     return false;
   };
-  const specific = /那单|这单|订单号|尾号/.test(buyerText) || orders.some((o) => (o.items || []).some((it) => titleHit(it.title)));
+  const specific = (input.reference && input.reference.ref) || /那单|这单|订单号|尾号/.test(buyerText) || orders.some((o) => (o.items || []).some((it) => titleHit(it.title)));
   const usedOrderNos = (input.used || []).map((id) => {
     const x = ((input.facts && (input.facts.allItems || input.facts.items)) || []).find((i) => i.id === id);
     return x && x.orderNo ? String(x.orderNo) : '';
@@ -124,12 +124,26 @@ function check(input = {}) {
   };
   const orderTitles = orders.flatMap((o) => (o.items || []).map((it) => String(it.title || ''))).filter(Boolean);
   const catalogTitles = allItems
-    .filter((x) => x.block === 'product' && String(x.entity || '').startsWith('product:') && !String(x.entity).includes('current'))
+    .filter((x) => x.block === 'product' && String(x.id) !== 'N1' && String(x.entity || '').startsWith('product:') && !String(x.entity).includes('current'))
     .map((x) => String(x.text || ''));
   if (['stock', 'product', 'price', 'spec', 'nego'].includes(ask) && orderTitles.length) {
     const mentionsOrder = orderTitles.some(textHasTitle);
     const mentionsCatalog = catalogTitles.some((t) => textHasTitle(t));
     if (mentionsCatalog && !mentionsOrder) issues.push('回答用了其他商品，不是买家订单商品');
+  }
+
+  const availability = allItems.some((x) => (x.attrs || []).includes('product_availability'));
+  if (availability && !allItems.some((x) => (x.attrs || []).includes('product_stock'))) {
+    if (/(\d+)\s*(件|个|份|包|库存)/.test(text) && !/不在|没有|下架|无货|未在售|售罄/.test(text)) {
+      issues.push('无可售库存却报库存数字');
+    }
+    if (!/不在|没有|下架|无货|未在售|售罄/.test(text)) {
+      issues.push('无商品状态没有说明不可售');
+    }
+    const hasAnyProduct = allItems.some((x) => x.block === 'product' && String(x.id) !== 'N1' && (x.attrs || []).includes('product_title'));
+    if (!hasAnyProduct && /其他在售|其他款式|其他商品|店里其他|店铺页面.*看看/.test(text)) {
+      issues.push('全店无在售却引导其他商品');
+    }
   }
 
   const concreteEntity = targetEntity && !/^(商品|订单|订单商品|商品库)$/.test(targetEntity);
