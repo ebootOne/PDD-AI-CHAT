@@ -39,6 +39,11 @@ function check(input = {}) {
   const allItems = (input.facts && (input.facts.allItems || input.facts.items)) || [];
   const hasExpectedFacts = expected.length && allItems.some((x) => (x.attrs || []).some((a) => expected.includes(a)));
   const targetAttr = target && target.attribute ? String(target.attribute) : '';
+  const targetEntity = target && target.entity ? String(target.entity) : '';
+  const usedEntities = [];
+  for (const x of ((input.facts && (input.facts.allItems || input.facts.items)) || [])) {
+    if ((input.used || []).map(String).includes(String(x.id)) && x.entity) usedEntities.push(String(x.entity));
+  }
   const text = String(input.text || '');
   const orders = Array.isArray(input.orders) ? input.orders.filter((o) => o && o.hasOrder) : [];
   const buyerText = String(input.buyerText || '');
@@ -93,6 +98,25 @@ function check(input = {}) {
   }
   if (hasExpectedFacts && targetAttr && !attrs.has(targetAttr)) {
     issues.push('target属性没有对应事实');
+  }
+  const concreteEntity = targetEntity && !/^(商品|订单|订单商品|商品库)$/.test(targetEntity);
+  // 商品题 target 是具体商品时，必须和买家订单里的商品是同一款
+  if (['stock', 'product', 'price', 'spec', 'nego'].includes(ask) && targetEntity.startsWith('product:')) {
+    const targetItems = allItems.filter((x) => String(x.entity || '') === targetEntity);
+    const targetText = targetItems.map((x) => String(x.text || '')).join(' ');
+    const orderTitles = orders.flatMap((o) => (o.items || []).map((it) => String(it.title || ''))).filter(Boolean);
+    const core = (t) => String(t || '').replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水/)[0];
+    const relevant = orderTitles.some((t) => {
+      const c0 = core(t);
+      if (!c0) return false;
+      if (targetText.includes(c0)) return true;
+      for (let i = 0; i + 2 <= c0.length; i++) if (targetText.includes(c0.slice(i, i + 2))) return true;
+      return false;
+    });
+    if (targetText && orderTitles.length && !relevant) issues.push('target商品与买家订单商品不一致');
+  }
+  if (hasExpectedFacts && concreteEntity && usedEntities.length && !usedEntities.includes(targetEntity)) {
+    issues.push('target实体与used事实不一致');
   }
   if (hasExpectedFacts && used.length && !expected.some((a) => attrs.has(a))) {
     issues.push('used事实没有覆盖当前问题属性');
