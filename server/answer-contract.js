@@ -31,10 +31,16 @@ function attrsOf(pack, used) {
 }
 
 function check(input = {}) {
+  const c0 = require('./concerns').detect(String(input.buyerText || ''));
+  if (c0 && ['evidence', 'region'].includes(c0.key)) {
+    return { ok: true, ask: String(input.ask || ''), expected: [], target: '', usedAttrs: [], issues: [], skipped: c0.key };
+  }
   const ask = String(input.ask || '');
   const expected = ASK_ATTRS[ask] || [];
   const used = Array.isArray(input.used) ? input.used : [];
   const target = input.target && typeof input.target === 'object' ? input.target : null;
+  const claims = Array.isArray(input.claims) ? input.claims : [];
+  const usedSet = new Set((input.used || []).map(String));
   const attrs = attrsOf(input.facts, used);
   const allItems = (input.facts && (input.facts.allItems || input.facts.items)) || [];
   const hasExpectedFacts = expected.length && allItems.some((x) => (x.attrs || []).some((a) => expected.includes(a)));
@@ -99,6 +105,16 @@ function check(input = {}) {
   if (hasExpectedFacts && targetAttr && !attrs.has(targetAttr)) {
     issues.push('target属性没有对应事实');
   }
+  for (const claim of claims) {
+    const fid = String(claim && claim.factId || '');
+    const ca = String(claim && claim.attribute || '');
+    const item = ((input.facts && (input.facts.allItems || input.facts.items)) || []).find((x) => String(x.id) === fid);
+    if (!item) { issues.push('claim引用了不存在的事实'); continue; }
+    if (!(item.attrs || []).includes(ca)) issues.push('claim属性与事实不一致');
+    if (expected.length && ca && !expected.includes(ca)) issues.push('claim属性与当前问题不一致');
+    if (usedSet.size && !usedSet.has(fid)) issues.push('claim事实不在used里');
+  }
+
   const concreteEntity = targetEntity && !/^(商品|订单|订单商品|商品库)$/.test(targetEntity);
   // 商品题 target 是具体商品时，必须和买家订单里的商品是同一款
   if (['stock', 'product', 'price', 'spec', 'nego'].includes(ask) && targetEntity.startsWith('product:')) {

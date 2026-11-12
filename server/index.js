@@ -728,6 +728,7 @@ const cfg = store.getConfig();
         }
         if (needInfo) result.needInfo = needInfo;
         if (r && r.target) result.target = r.target;
+        if (r && Array.isArray(r.claims)) result.claims = r.claims;
 
         // 兼容模型把块名当 ID：POLICY/PRODUCT/ORDER 映射到该块第一条，不当作假引用
         if (factPack && r && r.ok && Array.isArray(r.used)) {
@@ -760,6 +761,7 @@ const cfg = store.getConfig();
             text: (r.candidates && r.candidates[0] && r.candidates[0].text) || '',
             orders: ctx.orders || [],
             buyerText: result.buyerText,
+            claims: r.claims || [],
           });
 
           // 契约错配：带“问题属性对应的事实”重答一次；不是再加场景 guard
@@ -811,6 +813,7 @@ const cfg = store.getConfig();
                   text: (r.candidates && r.candidates[0] && r.candidates[0].text) || '',
                   orders: ctx.orders || [],
                   buyerText: result.buyerText,
+                  claims: r.claims || [],
                 });
                 result.factRepair = { issue: '属性错配', expected: [...expected], facts: repairItems.map((x) => x.id) };
               }
@@ -1072,6 +1075,7 @@ const cfg = store.getConfig();
         const finalContract = answerContract.check({
           ask: (result.understanding || {}).ask,
           target: result.target || null,
+          claims: result.claims || [],
           used: (result.facts && result.facts.used) || [],
           facts: factPack,
           text: result.suggestions[0].text || '',

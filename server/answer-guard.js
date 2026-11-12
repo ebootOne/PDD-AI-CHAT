@@ -40,6 +40,7 @@ function guard(input = {}) {
     || ((ask === 'arrival_time' || ask === 'courier' || /快递/.test(buyer)) && explicitOrder)
     || /那单.*(发货|到哪|物流|退款)|发货了吗|到哪了/.test(buyer);
   const isQuestion = /[？?]/.test(text);
+  const regionAsk = /新疆|西藏|港澳|台湾|香港|澳门|海外/.test(buyer) && !explicitOrder;
 
   // 0) 快递/配送能力被绝对否定，没有事实依据 → 页面可选口径
   if (/(顺丰|快递|配送|发货)/.test(buyer) && /发不了|不能发|不支持|不配送|不到|不能到|无法发/.test(text)

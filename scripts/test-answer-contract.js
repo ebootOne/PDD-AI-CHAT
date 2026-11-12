@@ -33,4 +33,8 @@ ok('规格答案夹订单状态 → 清理', { ask: 'spec', used: ['O1'], facts:
 const entityFacts = { allItems: [{ id: 'G1', attrs: ['product_stock'], entity: 'product:1', text: '大蒜库存2' }] };
 ok('target实体与used不一致 → 拦截', { ask: 'stock', used: ['G1'], target: { entity: 'product:2', attribute: 'product_stock' }, facts: entityFacts, text: '有货' }, false);
 ok('target实体与used一致 → 通过', { ask: 'stock', used: ['G1'], target: { entity: 'product:1', attribute: 'product_stock' }, facts: entityFacts, text: '有货' }, true);
-console.log('answer-contract：17 PASS');
+const claimFacts = { allItems: [{ id: 'G1', attrs: ['product_stock'], entity: 'product:1', text: '大蒜库存2' }] };
+ok('claim事实不存在 → 拦截', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G9', attribute: 'product_stock' }] }, false);
+ok('claim属性不一致 → 拦截', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G1', attribute: 'order_status' }] }, false);
+ok('claim合法 → 通过', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G1', attribute: 'product_stock' }] }, true);
+console.log('answer-contract：20 PASS');
