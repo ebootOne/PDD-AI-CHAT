@@ -47,46 +47,6 @@ function guard(input = {}) {
     return { text: '快递公司以页面可选为准哦，您下单时能看到可选快递，您下单时选一下地址就能看到可选快递哈。', reason: '无依据否定配送能力' };
   }
 
-  // 2) 多订单 + 只答一单
-  if (orderAsk && orders.length > 1 && !isQuestion
-      && !/那单|这单|订单号|尾号/.test(buyer)
-      && !/两单|都发|全部都|全部|退款/.test(text)
-      && !/另外|其他两单/.test(buyer)) {
-    const names = orderSummary(orders);
-    return { text: '您有多单：' + names + '，您问的是哪一单呀？', reason: '多订单只覆盖一部分' };
-  }
-
-  // 3) 尾号重复 + 默认第一单
-  const tail = (buyer.match(/\b(\d{4})\b/) || [])[1];
-  if (tail && orders.length > 1) {
-    const same = orders.filter((o) => String(o.orderNo || '').endsWith(tail));
-    if (same.length > 1 && !isQuestion) {
-      return { text: '这几单尾号都是' + tail + '，您问的是' + orderSummary(same) + '哪一单呀？', reason: '尾号重复不能默认第一单' };
-    }
-  }
-
-  // 4) 点名商品对应到已退款单
-  if (orderAsk && !/退款/.test(text)) {
-    const named = orders.find((o) => (o.items || []).some((it) => titleHit(it.title, buyer)));
-    if (named && /退款/.test(String(named.status || ''))) {
-      return { text: '这单已经退款成功了，您在订单页能查到退款进度哦。', reason: '点名订单已退款但答页面' };
-    }
-  }
-
-  // 5) 已退款单答成“看页面”
-  if (orderAsk) {
-    const usedOrderNos = used.map((id) => {
-      const x = (facts.allItems || facts.items || []).find((i) => i.id === id);
-      return x && x.orderNo ? String(x.orderNo) : '';
-    }).filter(Boolean);
-    if (usedOrderNos.length === 1) {
-      const o = orders.find((x) => String(x.orderNo || '') === usedOrderNos[0]);
-      if (o && /退款/.test(String(o.status || '')) && !/退款/.test(text)) {
-        return { text: '这单已经退款成功了，您在订单页能查到退款进度哦。', reason: '已退款单没有说明退款' };
-      }
-    }
-  }
-
   return null;
 }
 

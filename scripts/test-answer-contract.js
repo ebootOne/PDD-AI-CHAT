@@ -22,4 +22,11 @@ ok('价格 + 文本订单状态 → 拦截', { ask: 'price', used: ['G1'], targe
 ok('规格 + 文本订单状态 → 拦截', { ask: 'spec', used: ['O1'], target: null, facts, text: '已发货，申通尾号9410' }, false);
 ok('说明书 + 说明书事实 → 通过', { ask: 'usage', used: ['M1'], target: { attribute: 'manual_section' }, facts }, true);
 ok('退款状态 + 订单事实 → 通过', { ask: 'return_policy', used: ['O1'], target: { attribute: 'order_status' }, facts }, true);
-console.log('answer-contract：11 PASS');
+const orderFacts = { allItems: [
+  { id: 'O1', attrs: ['order_status'], orderNo: 'A2115' },
+  { id: 'O2', attrs: ['order_status'], orderNo: 'B2115' },
+] };
+ok('多订单只答一单 → 拦截', { ask: 'shipping_status', used: ['O1'], facts: orderFacts, orders: [{ hasOrder: true, orderNo: 'A2115', status: '已发货' }, { hasOrder: true, orderNo: 'B2115', status: '退款成功' }], text: '已发货' }, false);
+ok('尾号重复默认第一单 → 拦截', { ask: 'shipping_status', used: ['O1'], facts: orderFacts, orders: [{ hasOrder: true, orderNo: 'A2115', status: '已发货' }, { hasOrder: true, orderNo: 'B2115', status: '退款成功' }], buyerText: '尾号2115那单', text: '已发货' }, false);
+ok('已退款单没说明 → 拦截', { ask: 'shipping_status', used: ['O2'], facts: orderFacts, orders: [{ hasOrder: true, orderNo: 'B2115', status: '退款成功' }], text: '看订单页' }, false);
+console.log('answer-contract：14 PASS');

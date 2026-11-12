@@ -727,6 +727,7 @@ const cfg = store.getConfig();
           }
         }
         if (needInfo) result.needInfo = needInfo;
+        if (r && r.target) result.target = r.target;
 
         // 兼容模型把块名当 ID：POLICY/PRODUCT/ORDER 映射到该块第一条，不当作假引用
         if (factPack && r && r.ok && Array.isArray(r.used)) {
@@ -757,6 +758,8 @@ const cfg = store.getConfig();
             used: v.valid,
             facts: factPack,
             text: (r.candidates && r.candidates[0] && r.candidates[0].text) || '',
+            orders: ctx.orders || [],
+            buyerText: result.buyerText,
           });
 
           // 契约错配：带“问题属性对应的事实”重答一次；不是再加场景 guard
@@ -805,6 +808,8 @@ const cfg = store.getConfig();
                   used: v2.valid,
                   facts: factPack,
                   text: (r.candidates && r.candidates[0] && r.candidates[0].text) || '',
+                  orders: ctx.orders || [],
+                  buyerText: result.buyerText,
                 });
                 result.factRepair = { issue: '属性错配', expected: [...expected], facts: repairItems.map((x) => x.id) };
               }
@@ -1059,6 +1064,28 @@ const cfg = store.getConfig();
       if (isGap) {
         store.addGap(gapAsk, result.buyerText).catch(() => {});
         result.knowledgeGap = gapAsk;
+      }
+
+      // 最终契约复核：judge/guard 之后文本可能被替换，必须按最终文本再验一次
+      if (factPack && result.suggestions && result.suggestions[0]) {
+        const finalContract = answerContract.check({
+          ask: (result.understanding || {}).ask,
+          target: null,
+          used: (result.facts && result.facts.used) || [],
+          facts: factPack,
+          text: result.suggestions[0].text || '',
+          orders: ctx.orders || [],
+          buyerText: result.buyerText,
+        });
+        result.contract = finalContract;
+        if (!finalContract.ok && finalContract.expected.length) {
+          result.suggestions = [{ tone: '标准', text: answerContract.safeText(finalContract) }];
+          result.source = 'contract';
+          result.reason = '最终文本属性不匹配：' + (finalContract.issues || []).join('、');
+          result.contractFallback = true;
+          result.decision = 'suggest';
+          result.clarify = /[？?]/.test(result.suggestions[0].text);
+        }
       }
 
       // 契约兜底：重答后仍属性错配，不发错误属性

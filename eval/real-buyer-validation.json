@@ -1,15 +1,15 @@
 {
-  "ts": "2026-11-12T07:41:00.838Z",
+  "ts": "2026-11-12T07:46:32.645Z",
   "buyer": "林**鹿",
   "orders": 3,
   "results": [
     {
       "q": "发货了吗",
       "decision": "suggest",
-      "source": "guard",
-      "guard": "多订单只覆盖一部分",
+      "source": "contract",
+      "guard": "",
       "contract": {
-        "ok": true,
+        "ok": false,
         "ask": "shipping_status",
         "expected": [
           "order_status",
@@ -22,17 +22,17 @@
           "order_courier",
           "order_tracking",
           "order_spec",
-          "order_items",
-          "conversation"
+          "order_items"
         ],
-        "issues": []
+        "issues": [
+          "多订单没有覆盖全部订单"
+        ]
       },
       "needInfo": null,
       "used": [
-        "O1",
-        "C7"
+        "O1"
       ],
-      "text": "您有多单：金乡大蒜（已发货，待签收）、天然花椒木站杆鸟类通（未发货，退款成功）、抽纸（未发货，退款成功），您问的是哪一单呀？",
+      "text": "您问的是哪一单呀？",
       "error": ""
     },
     {
@@ -62,8 +62,7 @@
       "needInfo": null,
       "used": [
         "O1",
-        "C7",
-        "C8"
+        "C7"
       ],
       "text": "已发货，申通尾号9410，订单页可查物流啦。",
       "error": ""
@@ -71,10 +70,10 @@
     {
       "q": "尾号2115那单到哪了",
       "decision": "suggest",
-      "source": "guard",
-      "guard": "尾号重复不能默认第一单",
+      "source": "contract",
+      "guard": "",
       "contract": {
-        "ok": true,
+        "ok": false,
         "ask": "shipping_status",
         "expected": [
           "order_status",
@@ -87,17 +86,17 @@
           "order_courier",
           "order_tracking",
           "order_spec",
-          "order_items",
-          "conversation"
+          "order_items"
         ],
-        "issues": []
+        "issues": [
+          "尾号重复默认第一单"
+        ]
       },
       "needInfo": null,
       "used": [
-        "O1",
-        "C8"
+        "O1"
       ],
-      "text": "这几单尾号都是2115，您问的是金乡大蒜（已发货，待签收）、天然花椒木站杆鸟类通（未发货，退款成功）、抽纸（未发货，退款成功）哪一单呀？",
+      "text": "您问的是哪一单呀？",
       "error": ""
     },
     {
@@ -125,7 +124,7 @@
         "G2",
         "C7"
       ],
-      "text": "亲，其他品种看页面库存，搜「大蒜」就能找到在售的。",
+      "text": "亲，其他品种看页面库存，搜「大蒜」就能看到在售的。",
       "error": ""
     },
     {
@@ -153,32 +152,37 @@
         "G1",
         "G2"
       ],
-      "text": "亲，这两款都还有货，您看中的规格页面会显示库存呢。",
+      "text": "亲，这两款页面都显示有货，您直接拍就行呢。",
       "error": ""
     },
     {
       "q": "我买的大蒜还有货吗",
-      "decision": "suggest",
-      "source": "contract",
+      "decision": "fallback",
+      "source": "policy",
       "judge": [
         "引用不存在"
       ],
       "guard": "",
       "contract": {
-        "ok": false,
+        "ok": true,
         "ask": "stock",
         "expected": [
           "product_stock"
         ],
         "target": "",
-        "usedAttrs": [],
-        "issues": [
-          "回答文本是订单状态，不是库存"
-        ]
+        "usedAttrs": [
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec"
+        ],
+        "issues": []
       },
       "needInfo": null,
-      "used": [],
-      "text": "您问的是哪款商品的库存呀？我帮您确认哈。",
+      "used": [
+        "G1"
+      ],
+      "text": "亲，库存以商品页显示为准哦。",
       "error": ""
     },
     {
@@ -256,16 +260,16 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "亲，清洗方式以商品说明书为准，您可以在订单页或商品详情页查看说明。",
+      "text": "亲，清洗方式以商品说明书为准哈，您可以在订单页或商品详情页查看说明。",
       "error": ""
     },
     {
       "q": "什么时候能到",
       "decision": "suggest",
-      "source": "guard",
-      "guard": "多订单只覆盖一部分",
+      "source": "contract",
+      "guard": "",
       "contract": {
-        "ok": true,
+        "ok": false,
         "ask": "arrival_time",
         "expected": [
           "order_status",
@@ -277,17 +281,17 @@
           "order_courier",
           "order_tracking",
           "order_spec",
-          "order_items",
-          "profile"
+          "order_items"
         ],
-        "issues": []
+        "issues": [
+          "多订单没有覆盖全部订单"
+        ]
       },
       "needInfo": null,
       "used": [
-        "O1",
-        "S1"
+        "O1"
       ],
-      "text": "您有多单：金乡大蒜（已发货，待签收）、天然花椒木站杆鸟类通（未发货，退款成功）、抽纸（未发货，退款成功），您问的是哪一单呀？",
+      "text": "您问的是哪一单呀？",
       "error": ""
     },
     {
@@ -315,7 +319,7 @@
         "O2",
         "O3"
       ],
-      "text": "都退好了，花椒木站杆和抽纸两单均显示退款成功，订单页可查。",
+      "text": "两单都退款成功了，花椒木站杆和抽纸，订单页可查。",
       "error": ""
     },
     {
@@ -343,7 +347,7 @@
       "used": [
         "O2"
       ],
-      "text": "花椒木那单未发货，退款已成功，订单页可查。",
+      "text": "花椒木那单未发货，已退款成功，订单页可查退款进度。",
       "error": ""
     },
     {
@@ -364,16 +368,19 @@
           "order_status",
           "order_spec",
           "order_items",
-          "conversation"
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
         "O3",
-        "C8"
+        "G2"
       ],
-      "text": "抽纸那单是未发货、退款成功，没有物流，订单页可查。",
+      "text": "抽纸那单已退款成功、未发货，订单页可看状态。",
       "error": ""
     },
     {
@@ -402,7 +409,7 @@
       "used": [
         "O1"
       ],
-      "text": "26年头茬干蒜，单果45mm左右，1头净蒜装。",
+      "text": "您这单是26年头茬干蒜，单果45mm左右，1头净蒜小蒜装，已发货，申通尾号9410。",
       "error": ""
     },
     {
@@ -420,7 +427,7 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "阴凉通风处摊开晾放，别密封闷着，这样存得久。",
+      "text": "阴凉通风处挂着，别受潮别暴晒，网兜装着就挺好。",
       "error": ""
     },
     {
@@ -449,7 +456,7 @@
       "used": [
         "O1"
       ],
-      "text": "单果45mm左右，1头净蒜小蒜装，已发货，申通尾号9410。",
+      "text": "单果45mm左右，26年头茬干蒜，已发货，申通尾号9410。",
       "error": ""
     },
     {
@@ -468,18 +475,16 @@
           "product_title",
           "product_price",
           "product_stock",
-          "product_spec",
-          "conversation"
+          "product_spec"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
         "G1",
-        "G2",
-        "C7"
+        "G2"
       ],
-      "text": "亲，价格按页面显示来，暂时没有优惠哦。",
+      "text": "亲，价格以页面为准，下单时能看到实际优惠哦。",
       "error": ""
     },
     {
@@ -519,7 +524,17 @@
       "decision": "suggest",
       "source": "rule",
       "guard": "",
-      "contract": null,
+      "contract": {
+        "ok": true,
+        "ask": "return_policy",
+        "expected": [
+          "policy",
+          "order_status"
+        ],
+        "target": "",
+        "usedAttrs": [],
+        "issues": []
+      },
       "needInfo": null,
       "used": [],
       "text": "亲，实在不好意思没能让您满意。您可以在订单页点「申请售后」，按平台规则提交。",
@@ -529,9 +544,6 @@
       "q": "还有人吗",
       "decision": "suggest",
       "source": "backend",
-      "judge": [
-        "承诺不可执行"
-      ],
       "guard": "",
       "contract": {
         "ok": true,
@@ -539,15 +551,17 @@
         "expected": [],
         "target": "",
         "usedAttrs": [
+          "conversation",
           "profile"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "S1"
+        "S1",
+        "C8"
       ],
-      "text": "在的，您请说。客服在线时间是早上8点到晚上11点，随时为您处理。",
+      "text": "在的，您说，需要什么帮您看。",
       "error": ""
     }
   ]
