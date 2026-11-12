@@ -402,7 +402,28 @@ async function generate(isAuto = false, runId = '') {
         await sleep(600 + Math.random() * 1200);
         const ok = await doSend(cand.text, true, runId);
         if (ok) markAutoSent(runId);
-        else await sendHolding(runId);
+        else {
+          // 发送失败先确认是否其实已发出，避免把正确答案降级成 holding
+          await sleep(700);
+          let confirmed = false;
+          try {
+            const cap2 = await B.page.capture();
+            const lastSeller = [...((cap2 && cap2.messages) || [])].reverse().find((m) => m.role === 'seller');
+            const norm = (x) => String(x || '').replace(/[\s，。！？!?、；;：:]/g, '');
+            confirmed = !!(lastSeller && norm(lastSeller.text) === norm(cand.text));
+          } catch (_) {}
+          if (confirmed) {
+            logAuto('send_confirm', { runId, text: cand.text });
+            state.lastAutoSent = { text: cand.text, ts: Date.now() };
+            markAutoSent(runId);
+          } else {
+            try { await B.page.clear(); } catch (_) {}
+            await sleep(400);
+            const retry = await doSend(cand.text, true, runId);
+            if (retry) markAutoSent(runId);
+            else await sendHolding(runId);
+          }
+        }
       } else {
         logAuto('hold', { runId, decision: result.decision, reason: result.reason || '' });
         await sleep(500);
