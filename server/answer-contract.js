@@ -115,6 +115,23 @@ function check(input = {}) {
     if (usedSet.size && !usedSet.has(fid)) issues.push('claim事实不在used里');
   }
 
+  const textHasTitle = (title) => {
+    const core = String(title || '').replace(/^\d{2,4}年/, '').replace(/^加量\d+[张包]/, '').replace(/^大包/, '').split(/精品|正宗|加量|大包|大号|可湿水/)[0];
+    if (!core) return false;
+    if (text.includes(core)) return true;
+    for (let i = 0; i + 2 <= core.length; i++) if (text.includes(core.slice(i, i + 2))) return true;
+    return false;
+  };
+  const orderTitles = orders.flatMap((o) => (o.items || []).map((it) => String(it.title || ''))).filter(Boolean);
+  const catalogTitles = allItems
+    .filter((x) => x.block === 'product' && String(x.entity || '').startsWith('product:') && !String(x.entity).includes('current'))
+    .map((x) => String(x.text || ''));
+  if (['stock', 'product', 'price', 'spec', 'nego'].includes(ask) && orderTitles.length) {
+    const mentionsOrder = orderTitles.some(textHasTitle);
+    const mentionsCatalog = catalogTitles.some((t) => textHasTitle(t));
+    if (mentionsCatalog && !mentionsOrder) issues.push('回答用了其他商品，不是买家订单商品');
+  }
+
   const concreteEntity = targetEntity && !/^(商品|订单|订单商品|商品库)$/.test(targetEntity);
   // 商品题 target 是具体商品时，必须和买家订单里的商品是同一款
   if (['stock', 'product', 'price', 'spec', 'nego'].includes(ask) && targetEntity.startsWith('product:')) {

@@ -37,4 +37,5 @@ const claimFacts = { allItems: [{ id: 'G1', attrs: ['product_stock'], entity: 'p
 ok('claim事实不存在 → 拦截', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G9', attribute: 'product_stock' }] }, false);
 ok('claim属性不一致 → 拦截', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G1', attribute: 'order_status' }] }, false);
 ok('claim合法 → 通过', { ask: 'stock', used: ['G1'], facts: claimFacts, text: '有货', claims: [{ factId: 'G1', attribute: 'product_stock' }] }, true);
-console.log('answer-contract：20 PASS');
+ok('回答用了其他商品 → 拦截', { ask: 'stock', buyerText: '还有货吗', used: ['G1'], facts: { allItems: [{ id: 'G1', block: 'product', entity: 'product:1', attrs: ['product_stock'], text: '天然花椒木站杆4499' }] }, orders: [{ hasOrder: true, orderNo: 'A', status: '已发货', items: [{ title: '金乡大蒜' }] }], text: '花椒木站杆4499' }, false);
+console.log('answer-contract：21 PASS');

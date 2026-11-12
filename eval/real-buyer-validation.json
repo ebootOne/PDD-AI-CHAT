@@ -1,5 +1,5 @@
 {
-  "ts": "2026-11-12T07:57:30.498Z",
+  "ts": "2026-11-12T08:06:37.355Z",
   "buyer": "林**鹿",
   "orders": 3,
   "results": [
@@ -62,9 +62,9 @@
       "needInfo": null,
       "used": [
         "O1",
-        "C8"
+        "C7"
       ],
-      "text": "大蒜那单已发货，待签收，申通尾号9410，订单页能看物流啦。",
+      "text": "大蒜这单已发货，申通尾号9410，待签收，物流在订单页可查。",
       "error": ""
     },
     {
@@ -92,27 +92,7 @@
           "尾号重复默认第一单"
         ]
       },
-      "needInfo": {
-        "requested": [
-          {
-            "block": "order",
-            "selector": {
-              "orderId": "261110-579967424052115",
-              "section": "",
-              "topic": "",
-              "goodsId": ""
-            }
-          }
-        ],
-        "resolved": [
-          "O1"
-        ],
-        "answerFacts": [
-          "O1",
-          "C8"
-        ],
-        "errors": []
-      },
+      "needInfo": null,
       "used": [
         "O1"
       ],
@@ -153,14 +133,16 @@
         "answerFacts": [
           "G1",
           "G2",
+          "C7",
           "C8"
         ],
         "errors": []
       },
       "used": [
+        "C7",
         "C8"
       ],
-      "text": "其他大蒜品种以页面显示为准，搜「大蒜」就能看到在售款式哈。",
+      "text": "其他品种以页面显示为准，店铺搜「大蒜」就能看到哈。",
       "error": ""
     },
     {
@@ -210,7 +192,7 @@
         "G1",
         "G2"
       ],
-      "text": "两款都有货：站杆4499件，抽纸300件，您看要哪款。",
+      "text": "花椒木站杆还有4499件，抽纸还有300件，您看要哪款呢？",
       "error": ""
     },
     {
@@ -230,26 +212,11 @@
         "target": "product_stock",
         "usedAttrs": [],
         "issues": [
-          "target属性没有对应事实"
+          "target属性没有对应事实",
+          "claim属性与当前问题不一致"
         ]
       },
-      "needInfo": {
-        "requested": [
-          {
-            "block": "product",
-            "selector": {
-              "orderId": "",
-              "section": "",
-              "topic": "",
-              "goodsId": "大蒜"
-            }
-          }
-        ],
-        "resolved": [],
-        "errors": [
-          "没有可用事实：product / {\"orderId\":\"\",\"section\":\"\",\"topic\":\"\",\"goodsId\":\"大蒜\"}"
-        ]
-      },
+      "needInfo": null,
       "used": [],
       "text": "您问的是哪款商品的库存呀？我帮您确认哈。",
       "error": ""
@@ -271,33 +238,11 @@
         "target": "product_stock",
         "usedAttrs": [],
         "issues": [
-          "target属性没有对应事实"
+          "target属性没有对应事实",
+          "claim属性与当前问题不一致"
         ]
       },
-      "needInfo": {
-        "requested": [
-          {
-            "block": "product",
-            "selector": {
-              "goodsId": "",
-              "section": "",
-              "topic": "大蒜库存",
-              "orderId": ""
-            }
-          }
-        ],
-        "resolved": [
-          "G1",
-          "G2"
-        ],
-        "answerFacts": [
-          "O1",
-          "G1",
-          "G2",
-          "C7"
-        ],
-        "errors": []
-      },
+      "needInfo": null,
       "used": [],
       "text": "您问的是哪款商品的库存呀？我帮您确认哈。",
       "error": ""
@@ -315,8 +260,7 @@
         ],
         "target": "policy",
         "usedAttrs": [
-          "policy",
-          "conversation"
+          "policy"
         ],
         "issues": []
       },
@@ -342,16 +286,18 @@
         "errors": []
       },
       "used": [
-        "K2",
-        "C8"
+        "K2"
       ],
-      "text": "可以开电子普票，下单后在订单里填抬头和税号就行，当天开出后发到订单邮箱。",
+      "text": "可以开电子普票，订单里填好抬头和税号就行，当天开出后发到订单邮箱。",
       "error": ""
     },
     {
       "q": "怎么清洗",
       "decision": "suggest",
       "source": "contract",
+      "judge": [
+        "答非所问"
+      ],
       "guard": "",
       "contract": {
         "ok": false,
@@ -363,10 +309,27 @@
         "target": "manual_section",
         "usedAttrs": [],
         "issues": [
-          "target属性没有对应事实"
+          "target属性没有对应事实",
+          "claim属性与当前问题不一致"
         ]
       },
-      "needInfo": null,
+      "needInfo": {
+        "requested": [
+          {
+            "block": "manual",
+            "selector": {
+              "orderId": "",
+              "section": "清洗",
+              "topic": "",
+              "goodsId": "1026898979008"
+            }
+          }
+        ],
+        "resolved": [],
+        "errors": [
+          "没有可用事实：manual / {\"orderId\":\"\",\"section\":\"清洗\",\"topic\":\"\",\"goodsId\":\"1026898979008\"}"
+        ]
+      },
       "used": [],
       "text": "这个信息以页面显示为准哈。",
       "error": ""
@@ -381,7 +344,8 @@
         "ask": "arrival_time",
         "expected": [
           "order_status",
-          "order_tracking"
+          "order_tracking",
+          "policy"
         ],
         "target": "order_status",
         "usedAttrs": [
@@ -389,7 +353,8 @@
           "order_courier",
           "order_tracking",
           "order_spec",
-          "order_items"
+          "order_items",
+          "policy"
         ],
         "issues": [
           "多订单没有覆盖全部订单"
@@ -417,7 +382,8 @@
         "errors": []
       },
       "used": [
-        "O1"
+        "O1",
+        "K4"
       ],
       "text": "您问的是哪一单呀？",
       "error": ""
@@ -467,15 +433,17 @@
         "usedAttrs": [
           "order_status",
           "order_spec",
-          "order_items"
+          "order_items",
+          "conversation"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "O2"
+        "O2",
+        "C8"
       ],
-      "text": "花椒木那单未发货，退款已成功，订单页能看到记录。",
+      "text": "花椒木那单是未发货、退款成功，订单页能看到记录。",
       "error": ""
     },
     {
@@ -503,7 +471,7 @@
       "used": [
         "O3"
       ],
-      "text": "抽纸那单显示未发货、退款成功，物流以订单页为准哦。",
+      "text": "抽纸那单是未发货、退款成功，物流没走，订单页可查退款进度。",
       "error": ""
     },
     {
@@ -532,7 +500,7 @@
       "used": [
         "O1"
       ],
-      "text": "26年头茬干蒜，单果45mm左右，1头净蒜小蒜装。",
+      "text": "您拍的是26年头茬干蒜，单果45mm左右，1头净蒜小蒜装。",
       "error": ""
     },
     {
@@ -550,7 +518,7 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "阴凉通风处挂着或摊开，别闷袋、别放冰箱就好。",
+      "text": "通风阴凉处挂着就行，别受潮；剥好的蒜瓣放冰箱冷藏。",
       "error": ""
     },
     {
@@ -579,7 +547,7 @@
       "used": [
         "O1"
       ],
-      "text": "您拍的是26年头茬干蒜，单果45mm左右，1头净蒜装。",
+      "text": "您这单是26年头茬干蒜，单果45mm左右，1头净蒜装。",
       "error": ""
     },
     {
@@ -607,7 +575,7 @@
         "G1",
         "G2"
       ],
-      "text": "价格以页面显示为准哈，有活动或优惠券的话下单会自动抵扣。",
+      "text": "这款1.85元起，具体看规格，优惠以页面显示为准哈。",
       "error": ""
     },
     {
@@ -636,7 +604,8 @@
       "needInfo": null,
       "used": [
         "O1",
-        "C7"
+        "C7",
+        "C8"
       ],
       "text": "快递公司以页面可选为准哦，您下单时能看到可选快递，您下单时选一下地址就能看到可选快递哈。",
       "error": ""
@@ -666,9 +635,6 @@
       "q": "还有人吗",
       "decision": "suggest",
       "source": "backend",
-      "judge": [
-        "承诺不可执行"
-      ],
       "guard": "",
       "contract": {
         "ok": true,
@@ -684,7 +650,7 @@
       "used": [
         "S1"
       ],
-      "text": "在的，您说。客服在线时间是早上8点到晚上11点，有问题随时问。",
+      "text": "在的，您说。早上8点到晚上11点都有人值班。",
       "error": ""
     }
   ]
