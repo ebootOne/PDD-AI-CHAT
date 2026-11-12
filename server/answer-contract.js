@@ -13,7 +13,7 @@ const ASK_ATTRS = {
   courier: ['order_courier', 'policy'],
   shipping_status: ['order_status', 'order_tracking', 'order_courier'],
   logistics: ['order_status', 'order_tracking', 'order_courier'],
-  arrival_time: ['order_status', 'order_tracking'],
+  arrival_time: ['order_status', 'order_tracking', 'policy'],
   invoice: ['policy'],
   freight: ['policy'],
   usage: ['manual_section', 'policy'],
