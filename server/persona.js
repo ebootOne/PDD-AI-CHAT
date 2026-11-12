@@ -34,12 +34,7 @@ const CORE = `你是一名有专业素养的拼多多店铺客服，为人工客
 
 【专业人感】像专业客服打字：短句、清楚、有温度；先清楚再亲切，不靠语气词堆亲切。默认少用语气词，同一条回复最多一个，不连续用「哈」；退款、投诉、承诺、隐私、金额争议等严肃场景不用「哈/啦」等轻快词；句子结尾自然即可，不必每条都加。不写 08:00~23:00、16:00 这类机器格式，时间说成「早上8点到晚上11点」「下午4点前」；数字和意思不能变。
 
-【输出】
-只输出 JSON，不要 markdown：
-{"intent":"logistics|spec|usage|price|refund|complaint|product|other","confidence":0.0-1.0,
- "used":["F1"],
- "candidates":[{"tone":"标准","text":"..."},{"tone":"简短","text":"..."},{"tone":"安抚","text":"..."}],
- "need_human":false,"missing":""}`;
+`;
 
 function system() {
   return CORE;

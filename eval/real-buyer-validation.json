@@ -1,5 +1,5 @@
 {
-  "ts": "2026-11-12T07:46:32.645Z",
+  "ts": "2026-11-12T07:51:00.772Z",
   "buyer": "林**鹿",
   "orders": 3,
   "results": [
@@ -62,9 +62,9 @@
       "needInfo": null,
       "used": [
         "O1",
-        "C7"
+        "C8"
       ],
-      "text": "已发货，申通尾号9410，订单页可查物流啦。",
+      "text": "大蒜已发货，待签收，申通尾号9410，订单页可查物流啦。",
       "error": ""
     },
     {
@@ -110,21 +110,38 @@
         "expected": [],
         "target": "",
         "usedAttrs": [
-          "product_title",
-          "product_price",
-          "product_stock",
-          "product_spec",
           "conversation"
         ],
         "issues": []
       },
-      "needInfo": null,
+      "needInfo": {
+        "requested": [
+          {
+            "block": "product",
+            "selector": {
+              "goodsId": "",
+              "section": "",
+              "topic": "大蒜品种"
+            }
+          }
+        ],
+        "resolved": [
+          "G1",
+          "G2"
+        ],
+        "answerFacts": [
+          "G1",
+          "G2",
+          "C7",
+          "C8"
+        ],
+        "errors": []
+      },
       "used": [
-        "G1",
-        "G2",
-        "C7"
+        "C7",
+        "C8"
       ],
-      "text": "亲，其他品种看页面库存，搜「大蒜」就能看到在售的。",
+      "text": "其他品种以页面显示为准，店铺搜「大蒜」就能看到在售的款式。",
       "error": ""
     },
     {
@@ -147,12 +164,34 @@
         ],
         "issues": []
       },
-      "needInfo": null,
+      "needInfo": {
+        "requested": [
+          {
+            "block": "product",
+            "selector": {
+              "goodsId": "",
+              "section": "",
+              "topic": "大蒜其他品种库存"
+            }
+          }
+        ],
+        "resolved": [
+          "G1",
+          "G2"
+        ],
+        "answerFacts": [
+          "G1",
+          "G2",
+          "C7",
+          "C8"
+        ],
+        "errors": []
+      },
       "used": [
         "G1",
         "G2"
       ],
-      "text": "亲，这两款页面都显示有货，您直接拍就行呢。",
+      "text": "这两款都还有货，您看中哪款直接拍就行，库存以页面为准呢。",
       "error": ""
     },
     {
@@ -170,18 +209,34 @@
           "product_stock"
         ],
         "target": "",
-        "usedAttrs": [
-          "product_title",
-          "product_price",
-          "product_stock",
-          "product_spec"
-        ],
+        "usedAttrs": [],
         "issues": []
       },
-      "needInfo": null,
-      "used": [
-        "G1"
-      ],
+      "needInfo": {
+        "requested": [
+          {
+            "block": "product",
+            "selector": {
+              "goodsId": "",
+              "section": "",
+              "topic": "大蒜",
+              "orderId": ""
+            }
+          }
+        ],
+        "resolved": [
+          "G1",
+          "G2"
+        ],
+        "answerFacts": [
+          "O1",
+          "G1",
+          "G2",
+          "C7"
+        ],
+        "errors": []
+      },
+      "used": [],
       "text": "亲，库存以商品页显示为准哦。",
       "error": ""
     },
@@ -200,18 +255,33 @@
           "product_stock"
         ],
         "target": "",
-        "usedAttrs": [
-          "product_title",
-          "product_price",
-          "product_stock",
-          "product_spec"
-        ],
+        "usedAttrs": [],
         "issues": []
       },
-      "needInfo": null,
-      "used": [
-        "G1"
-      ],
+      "needInfo": {
+        "requested": [
+          {
+            "block": "product",
+            "selector": {
+              "goodsId": "",
+              "section": "",
+              "topic": "大蒜"
+            }
+          }
+        ],
+        "resolved": [
+          "G1",
+          "G2"
+        ],
+        "answerFacts": [
+          "O1",
+          "G1",
+          "G2",
+          "C7"
+        ],
+        "errors": []
+      },
+      "used": [],
       "text": "亲，库存以商品页显示为准哦。",
       "error": ""
     },
@@ -232,19 +302,39 @@
         ],
         "issues": []
       },
-      "needInfo": null,
+      "needInfo": {
+        "requested": [
+          {
+            "block": "policy",
+            "selector": {
+              "orderId": "",
+              "section": "",
+              "topic": "能开发票吗",
+              "goodsId": ""
+            }
+          }
+        ],
+        "resolved": [
+          "K2"
+        ],
+        "answerFacts": [
+          "K2",
+          "S1"
+        ],
+        "errors": []
+      },
       "used": [
-        "K1"
+        "K2"
       ],
-      "text": "亲，支持开发票，订单页填写开票信息即可。",
+      "text": "可以开电子普票，订单里填好抬头和税号就行，当天开出后发到订单邮箱。",
       "error": ""
     },
     {
       "q": "怎么清洗",
-      "decision": "suggest",
-      "source": "backend",
+      "decision": "fallback",
+      "source": "policy",
       "judge": [
-        "引导下一步"
+        "答非所问"
       ],
       "guard": "",
       "contract": {
@@ -260,7 +350,7 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "亲，清洗方式以商品说明书为准哈，您可以在订单页或商品详情页查看说明。",
+      "text": "具体用法可以看商品页的说明哈，写得很清楚。",
       "error": ""
     },
     {
@@ -287,7 +377,23 @@
           "多订单没有覆盖全部订单"
         ]
       },
-      "needInfo": null,
+      "needInfo": {
+        "requested": [
+          {
+            "block": "order",
+            "selector": {
+              "orderId": "261110-579****24052115",
+              "section": "",
+              "topic": "",
+              "goodsId": ""
+            }
+          }
+        ],
+        "resolved": [],
+        "errors": [
+          "没有可用事实：order / {\"orderId\":\"261110-579****24052115\",\"section\":\"\",\"topic\":\"\",\"goodsId\":\"\"}"
+        ]
+      },
       "used": [
         "O1"
       ],
@@ -319,7 +425,7 @@
         "O2",
         "O3"
       ],
-      "text": "两单都退款成功了，花椒木站杆和抽纸，订单页可查。",
+      "text": "两单都退款成功了，花椒木站杆和抽纸那两单，订单页能看到退款状态。",
       "error": ""
     },
     {
@@ -347,7 +453,7 @@
       "used": [
         "O2"
       ],
-      "text": "花椒木那单未发货，已退款成功，订单页可查退款进度。",
+      "text": "花椒木那单未发货，已退款成功，详情可在订单页查看。",
       "error": ""
     },
     {
@@ -367,20 +473,15 @@
         "usedAttrs": [
           "order_status",
           "order_spec",
-          "order_items",
-          "product_title",
-          "product_price",
-          "product_stock",
-          "product_spec"
+          "order_items"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "O3",
-        "G2"
+        "O3"
       ],
-      "text": "抽纸那单已退款成功、未发货，订单页可看状态。",
+      "text": "抽纸那单是未发货、退款成功，物流看订单页哦。",
       "error": ""
     },
     {
@@ -409,7 +510,7 @@
       "used": [
         "O1"
       ],
-      "text": "您这单是26年头茬干蒜，单果45mm左右，1头净蒜小蒜装，已发货，申通尾号9410。",
+      "text": "是26年头茬干蒜，单果45mm左右，1头净蒜小蒜装，共1件。",
       "error": ""
     },
     {
@@ -427,13 +528,16 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "阴凉通风处挂着，别受潮别暴晒，网兜装着就挺好。",
+      "text": "阴凉通风处摊开晾放，别装塑料袋闷着，量多就编辫挂起来。",
       "error": ""
     },
     {
       "q": "蒜头有多大",
-      "decision": "suggest",
-      "source": "backend",
+      "decision": "fallback",
+      "source": "policy",
+      "judge": [
+        "引用不存在"
+      ],
       "guard": "",
       "contract": {
         "ok": true,
@@ -456,7 +560,7 @@
       "used": [
         "O1"
       ],
-      "text": "单果45mm左右，26年头茬干蒜，已发货，申通尾号9410。",
+      "text": "亲，规格以商品页标注为准哦。",
       "error": ""
     },
     {
@@ -484,7 +588,7 @@
         "G1",
         "G2"
       ],
-      "text": "亲，价格以页面为准，下单时能看到实际优惠哦。",
+      "text": "价格都在商品页标着呢，花椒木站杆1.85元起，抽纸12.26元起，您按需选规格哈。",
       "error": ""
     },
     {
@@ -551,17 +655,15 @@
         "expected": [],
         "target": "",
         "usedAttrs": [
-          "conversation",
           "profile"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "S1",
-        "C8"
+        "S1"
       ],
-      "text": "在的，您说，需要什么帮您看。",
+      "text": "在的，您说。",
       "error": ""
     }
   ]
