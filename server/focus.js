@@ -10,8 +10,6 @@
  * 宁可多一句「再说一遍」，也不为了显得聪明去猜他问的是哪一截。
  */
 
-const LEAD = ['再帮您确认一下：', '再跟您说一下：'];
-
 function norm(s) {
   return String(s || '').replace(/^(亲|您好|你好)[，,]?\s*/, '').replace(/[\s，。！？!?、；;：:]/g, '');
 }
@@ -36,10 +34,8 @@ function adjust(suggestions, messages, buyerText) {
       list.unshift(alt);
       return { suggestions: list, note: '换候选' };
     }
-    const lead = LEAD[(sellers.length - 1) % LEAD.length];
-    const body = list[0].text.replace(/^亲[，,]\s*/, '');
-    list[0] = Object.assign({}, list[0], { text: lead + body });
-    return { suggestions: list, note: '加引导语' };
+    // 没有别的候选时，直接保留原回答；不加“刚才说过/再说一遍”这类元评论
+    return { suggestions: list, note: '保持原答' };
   }
 
   return { suggestions: list, note: '' };
