@@ -756,6 +756,7 @@ const cfg = store.getConfig();
             target: r.target || null,
             used: v.valid,
             facts: factPack,
+            text: (r.candidates && r.candidates[0] && r.candidates[0].text) || '',
           });
 
           // 契约错配：带“问题属性对应的事实”重答一次；不是再加场景 guard
@@ -803,6 +804,7 @@ const cfg = store.getConfig();
                   target: r.target || null,
                   used: v2.valid,
                   facts: factPack,
+                  text: (r.candidates && r.candidates[0] && r.candidates[0].text) || '',
                 });
                 result.factRepair = { issue: '属性错配', expected: [...expected], facts: repairItems.map((x) => x.id) };
               }

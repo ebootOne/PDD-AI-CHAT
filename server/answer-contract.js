@@ -36,7 +36,16 @@ function check(input = {}) {
   const target = input.target && typeof input.target === 'object' ? input.target : null;
   const attrs = attrsOf(input.facts, used);
   const targetAttr = target && target.attribute ? String(target.attribute) : '';
+  const text = String(input.text || '');
   const issues = [];
+  const stockTalk = /(有货|无货|缺货|库存充足|现货|能拍|拍下)/.test(text);
+  const orderTalk = /(已发货|未发货|物流|订单页|运单|签收|退款成功)/.test(text);
+  if (expected.includes('product_stock') && orderTalk && !stockTalk) {
+    issues.push('回答文本是订单状态，不是库存');
+  }
+  if (expected.includes('order_status') && /(元|价格|库存|有货)/.test(text) && !orderTalk) {
+    issues.push('回答文本是商品属性，不是订单状态');
+  }
 
   if (targetAttr && expected.length && !expected.includes(targetAttr)) {
     issues.push('target属性与当前问题不一致');
