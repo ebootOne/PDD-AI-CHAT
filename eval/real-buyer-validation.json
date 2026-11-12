@@ -1,5 +1,5 @@
 {
-  "ts": "2026-11-12T07:35:56.471Z",
+  "ts": "2026-11-12T07:38:41.091Z",
   "buyer": "林**鹿",
   "orders": 3,
   "results": [
@@ -147,7 +147,7 @@
         "G1",
         "G2"
       ],
-      "text": "亲，这两款都有货，页面显示可拍即可下单。",
+      "text": "亲，这两款都有货，页面库存可拍。",
       "error": ""
     },
     {
@@ -191,25 +191,30 @@
       ],
       "guard": "",
       "contract": {
-        "ok": false,
+        "ok": true,
         "ask": "stock",
         "expected": [
           "product_stock"
         ],
         "target": "",
-        "usedAttrs": [],
-        "issues": [
-          "回答文本是订单状态，不是库存"
-        ]
+        "usedAttrs": [
+          "product_title",
+          "product_price",
+          "product_stock",
+          "product_spec"
+        ],
+        "issues": []
       },
       "needInfo": null,
-      "used": [],
+      "used": [
+        "G1"
+      ],
       "text": "亲，库存以商品页显示为准哦。",
       "error": ""
     },
     {
       "q": "能开发票吗",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -252,7 +257,7 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "亲，清洗方式以商品说明书为准，您可以在订单页或商品详情页查看说明。",
+      "text": "亲，清洗方式以商品说明书为准哈，您可以在订单页或商品详情页查看说明。",
       "error": ""
     },
     {
@@ -274,7 +279,6 @@
           "order_tracking",
           "order_spec",
           "order_items",
-          "conversation",
           "profile"
         ],
         "issues": []
@@ -282,7 +286,6 @@
       "needInfo": null,
       "used": [
         "O1",
-        "C7",
         "S1"
       ],
       "text": "您有多单：金乡大蒜（已发货，待签收）、天然花椒木站杆鸟类通（未发货，退款成功）、抽纸（未发货，退款成功），您问的是哪一单呀？",
@@ -290,7 +293,7 @@
     },
     {
       "q": "另外两单退款了吗",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -313,12 +316,12 @@
         "O2",
         "O3"
       ],
-      "text": "两单都退款成功了，订单页能看到退款状态。",
+      "text": "两单都退款成功了，花椒木站杆和抽纸，订单页可查。",
       "error": ""
     },
     {
       "q": "花椒木那单发货了吗",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -341,12 +344,12 @@
       "used": [
         "O2"
       ],
-      "text": "花椒木那单未发货，退款已成功，订单页可查。",
+      "text": "花椒木那单未发货，已退款成功，可在订单页查看详情。",
       "error": ""
     },
     {
       "q": "抽纸那单到哪了",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -361,22 +364,20 @@
         "usedAttrs": [
           "order_status",
           "order_spec",
-          "order_items",
-          "conversation"
+          "order_items"
         ],
         "issues": []
       },
       "needInfo": null,
       "used": [
-        "O3",
-        "C8"
+        "O3"
       ],
-      "text": "抽纸那单已退款成功，未发货，订单页可查详情。",
+      "text": "抽纸那单是未发货、退款成功，没有物流，订单页可查。",
       "error": ""
     },
     {
       "q": "我买的大蒜是什么规格",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -400,12 +401,12 @@
       "used": [
         "O1"
       ],
-      "text": "26年头茬干蒜，单果45mm左右，1头净蒜小蒜装，已发货，申通尾号9410。",
+      "text": "26年头茬干蒜，单果45mm左右，1头净蒜小蒜装，已发货呢。",
       "error": ""
     },
     {
       "q": "大蒜怎么保存",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -418,12 +419,12 @@
       },
       "needInfo": null,
       "used": [],
-      "text": "阴凉通风处摊开晾放，别密封，能放较长时间。",
+      "text": "放阴凉通风干燥处，别密封别受潮，量多挂起来通风保存即可。",
       "error": ""
     },
     {
       "q": "蒜头有多大",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -447,7 +448,7 @@
       "used": [
         "O1"
       ],
-      "text": "单果45mm左右，26年头茬干蒜，已发货，申通尾号9410。",
+      "text": "单果45mm左右，1头净蒜装，已发货，申通尾号9410。",
       "error": ""
     },
     {
@@ -478,7 +479,7 @@
         "G1",
         "G2"
       ],
-      "text": "亲，价格都是页面标价，暂时没有额外优惠。",
+      "text": "亲，价格都是页面标价，暂时没有额外优惠哦。",
       "error": ""
     },
     {
@@ -528,7 +529,7 @@
     },
     {
       "q": "还有人吗",
-      "decision": "suggest",
+      "decision": "auto_send",
       "source": "backend",
       "guard": "",
       "contract": {
@@ -547,7 +548,7 @@
         "S1",
         "C8"
       ],
-      "text": "在的，您说，需要什么帮助？",
+      "text": "在的，您说，需要什么帮您看。",
       "error": ""
     }
   ]
