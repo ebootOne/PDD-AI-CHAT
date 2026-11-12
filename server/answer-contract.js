@@ -177,13 +177,13 @@ function safeText(contract, reference) {
   const e = (contract && contract.expected) || [];
   const ref = reference && reference.ref;
   if (ref && ref.title && e.includes('product_stock')) {
-    return '您问的是' + ref.title + '的库存呀？这款库存以商品页显示为准哈。';
+    return '您问的' + ref.title + '目前不在本店在售商品里，具体库存/补货以页面为准。';
   }
   if (ref && ref.title && e.includes('product_price')) {
-    return '您问的是' + ref.title + '的价格呀？价格以商品页显示为准哈。';
+    return '您问的' + ref.title + '目前不在本店在售商品里，价格以页面为准。';
   }
   if (ref && ref.title && (e.includes('product_spec') || e.includes('order_spec'))) {
-    return '您问的是' + ref.title + '的规格呀？具体规格以商品页标注为准哈。';
+    return '您问的' + ref.title + '目前不在本店在售商品里，具体规格以页面为准。';
   }
   const issues = (contract && contract.issues) || [];
   if (issues.some((x) => /已退款/.test(x))) return '这单已经退款成功了，您在订单页能查到退款进度哦。';
