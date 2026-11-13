@@ -30,9 +30,15 @@ function receivedFromText(text) {
 
 function reasonFromText(text) {
   const t = String(text || '');
-  if (/质量|破损|坏了|裂|少发|漏发|错发|发错|空包/.test(t)) return '质量问题';
-  if (/不想要|不需要|买错|多买|拍错/.test(t)) return '不想要了';
+  if (/空包/.test(t)) return '空包裹';
+  if (/少发|漏发|少件|少配件/.test(t)) return '收到商品少件（含少配件）';
+  if (/破损|污渍|坏了|裂/.test(t)) return '商品破损或污渍';
+  if (/错发|发错|拍错|买错/.test(t)) return '卖家发错货';
+  if (/质量/.test(t)) return '质量问题';
+  if (/不喜欢|效果不好|不满意/.test(t)) return '不喜欢、效果不好';
+  if (/不想要|不需要|多买/.test(t)) return '不想要了';
   if (/缺货|没货/.test(t)) return '缺货';
+  if (/发货慢|太慢/.test(t)) return '发货慢';
   return '';
 }
 

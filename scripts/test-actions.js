@@ -33,5 +33,7 @@ assert.strictEqual(receivedFromText('看到啦 已经到了'), true);
 assert.strictEqual(receivedFromText('还没收到'), false);
 assert.strictEqual(receivedFromText('什么时候发货'), null);
 assert.strictEqual(reasonFromText('不想要了'), '不想要了');
-assert.strictEqual(reasonFromText('破损了'), '质量问题');
+assert.strictEqual(reasonFromText('破损了'), '商品破损或污渍');
+assert.strictEqual(reasonFromText('少发了'), '收到商品少件（含少配件）');
+assert.strictEqual(reasonFromText('发错货'), '卖家发错货');
 console.log('actions：收货状态/退款理由识别 PASS');
