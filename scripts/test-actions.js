@@ -27,3 +27,11 @@ const noSku = { goodsId: 'g2', title: '抽纸' };
 assert.strictEqual(invitePlan({ product: noSku }).mode, 'no_sku');
 
 console.log('actions：退款分类/匹配/确认单 PASS');
+
+const { receivedFromText, reasonFromText } = require('../server/actions');
+assert.strictEqual(receivedFromText('看到啦 已经到了'), true);
+assert.strictEqual(receivedFromText('还没收到'), false);
+assert.strictEqual(receivedFromText('什么时候发货'), null);
+assert.strictEqual(reasonFromText('不想要了'), '不想要了');
+assert.strictEqual(reasonFromText('破损了'), '质量问题');
+console.log('actions：收货状态/退款理由识别 PASS');

@@ -21,13 +21,30 @@ function inferReceived(order) {
   return null;
 }
 
+function receivedFromText(text) {
+  const t = String(text || '');
+  if (/没收到|未收到|还没到|没到货|拒收|退回/.test(t)) return false;
+  if (/已经到|已到|收到货|收到了|已经收到|签收|取了|拿到了/.test(t)) return true;
+  return null;
+}
+
+function reasonFromText(text) {
+  const t = String(text || '');
+  if (/质量|破损|坏了|裂|少发|漏发|错发|发错|空包/.test(t)) return '质量问题';
+  if (/不想要|不需要|买错|多买|拍错/.test(t)) return '不想要了';
+  if (/缺货|没货/.test(t)) return '缺货';
+  return '';
+}
+
 function refundPlan(input = {}) {
+  const buyerReceived = input.buyerReceived != null ? input.buyerReceived : receivedFromText(input.buyerText);
+  const buyerReason = input.reason || reasonFromText(input.buyerText);
   const order = input.order || null;
   const status = String((order && order.status) || '');
-  const received = input.received === true || input.received === false ? input.received : inferReceived(order);
+  const received = input.received === true || input.received === false ? input.received : (buyerReceived != null ? buyerReceived : inferReceived(order));
   const amount = Number(input.amount != null ? input.amount : (order && order.paid) || (order && order.amount) || 0);
   const type = input.type || (received === false ? 'refund_only' : received === true ? 'return_refund' : null);
-  const reason = String(input.reason || '').trim();
+  const reason = String(buyerReason || '').trim();
   const missing = [];
   if (!order || !order.hasOrder) missing.push('order');
   if (received === null) missing.push('received');
@@ -92,4 +109,4 @@ function invitePlan(input = {}) {
   };
 }
 
-module.exports = { refundPlan, invitePlan, matchSku, inferReceived, REFUND_TYPES };
+module.exports = { refundPlan, invitePlan, matchSku, inferReceived, receivedFromText, reasonFromText, REFUND_TYPES };
