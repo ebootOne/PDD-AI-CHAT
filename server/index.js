@@ -32,6 +32,8 @@ const session = require('./session');
 const policy = require('./policy');
 const context = require('./context');
 const actionRouter = require('./action-router');
+const actionTemplates = require('./action-templates');
+const { refundPlan } = require('./actions');
 const blockRegistry = require('./block-registry');
 const answerGuard = require('./answer-guard');
 const answerContract = require('./answer-contract');
@@ -679,10 +681,11 @@ const cfg = store.getConfig();
 
       const willReplace = Boolean((result.understanding || {}).threat);
       // 上下文选择架构：Pro 默认把候选池交给模型，本地不再决定事实取舍
+      const refundBuffer = !!(result.buffer && result.buffer.kind === 'refund');
       const contextFirst = engineMode === 'pro' && bcfg.url
         && factPack
         && ((factPack.stats && factPack.stats.orders > 0) || ((ctx.messages || []).length > 1))
-        && !result.buffer && !highRisk && !willReplace
+        && (!result.buffer || (engineMode === 'pro' && refundBuffer)) && !highRisk && !willReplace
         && result.decision !== 'handoff'
         && askKey0 !== 'greeting' && askKey0 !== 'privacy';
       const callModel = contextFirst || (lowLocal && !result.orderClarify && !result.buffer && !highRisk && !authoritative && !willReplace && !(noGround && askKey0 === 'privacy') && result.decision !== 'handoff');
@@ -708,6 +711,7 @@ const cfg = store.getConfig();
             : undefined,
         };
         let r = await backend.reply(cfg, basePayload);
+        if (r && r.action) result.modelAction = r.action;
         let needInfo = null;
         if (r && r.ok && !(r.ask && r.ask.needed) && factPack && Array.isArray(r.need) && r.need.length) {
           const resolved = blockRegistry.resolve(factPack, r.need);
@@ -732,6 +736,7 @@ const cfg = store.getConfig();
         }
         if (needInfo) result.needInfo = needInfo;
         if (r && r.target) result.target = r.target;
+        if (r && r.action) result.modelAction = r.action;
         if (r && Array.isArray(r.claims)) result.claims = r.claims;
 
         // 兼容模型把块名当 ID：POLICY/PRODUCT/ORDER 映射到该块第一条，不当作假引用
@@ -1158,17 +1163,31 @@ const cfg = store.getConfig();
         result.suggestions = result.suggestions.map((x) => ({ ...x, text: professionalTone(x.text) }));
       }
 
-      // 明确动作请求：只生成计划，不在这里执行页面操作
+      // 模型决定下一步动作；本地只校验/补计划。正则仅在后端不可用时兜底
       try {
-        const product = (result.products && result.products[0]) || null;
-        const plan = actionRouter.plan({
-          buyerText: result.buyerText,
-          messages: ctx.messages || [],
-          order: ctx.order || (ctx.orders && ctx.orders[0]) || null,
-          orders: ctx.orders || [],
-          product,
-          spec: (ctx.order && ctx.order.items && ctx.order.items[0] && ctx.order.items[0].spec) || '',
-        });
+        const ma = result.modelAction;
+        let plan = null;
+        if (ma && ma.kind === 'refund') {
+          const p = actionTemplates.refund.fromModel(ma, {
+            orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText,
+          });
+          plan = { kind: 'refund', plan: p, needs: p.needs, canAuto: p.canAuto, reason: '模型选择退款模板' };
+        } else if (ma && ma.kind === 'invite') {
+          const product = (result.products && result.products[0]) || (ctx.goods && ctx.goods.title ? { title: ctx.goods.title, goodsId: ctx.goods.goodsId } : null);
+          const p = actionTemplates.invite.fromModel({ ...ma, product }, { product, spec: ma.spec });
+          plan = { kind: 'invite', product: p.product, spec: p.spec, needs: p.needs, canAuto: false, reason: '模型选择邀请模板' };
+        } else if (ma && ma.kind === 'ask' && ma.ask) {
+          result.suggestions = [{ tone: '标准', text: ma.ask }];
+          result.source = 'action';
+          result.reason = '模型先追问动作所需信息';
+          result.decision = 'suggest';
+        } else if (!ma && result.source !== 'backend') {
+          plan = actionRouter.plan({
+            buyerText: result.buyerText, messages: ctx.messages || [], order: ctx.order || (ctx.orders && ctx.orders[0]) || null,
+            orders: ctx.orders || [], product: (result.products && result.products[0]) || null,
+            spec: (ctx.order && ctx.order.items && ctx.order.items[0] && ctx.order.items[0].spec) || '',
+          });
+        }
         if (plan) {
           result.action = plan;
           if (plan.kind === 'refund' && result.suggestions && result.suggestions[0]) {

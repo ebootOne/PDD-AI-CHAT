@@ -561,8 +561,9 @@ async function refundFill(input = {}) {
   const typeMap = { refund_only: '退款', return_refund: '退货退款', resend: '补寄' };
   const typeText = typeMap[input.type] || input.type || '退款';
   if (!clickRadio(typeText)) return { ok: false, error: '没找到申请类型：' + typeText };
-  if (input.received === false && !clickRadio('未收到货')) return { ok: false, error: '没找到未收到货' };
-  if (input.received === true && !clickRadio('已收到货')) return { ok: false, error: '没找到已收到货' };
+  const hasReceiveGroup = [...document.querySelectorAll('.el-radio')].some((x) => isVisible(x) && /^(未收到货|已收到货)$/.test(textOf(x)));
+  if (input.received === false && hasReceiveGroup && !clickRadio('未收到货')) return { ok: false, error: '没找到未收到货' };
+  if (input.received === true && hasReceiveGroup && !clickRadio('已收到货')) return { ok: false, error: '没找到已收到货' };
   await sleep(200);
   const reasonInput = [...document.querySelectorAll('.el-dialog input')].find((x) => x.placeholder === '请选择退款原因');
   if (!reasonInput) return { ok: false, error: '没找到退款原因' };
@@ -587,8 +588,14 @@ async function refundSubmit() {
   const b = [...dialog.querySelectorAll('button')].find((x) => /^提交$/.test(textOf(x)) && isVisible(x));
   if (!b) return { ok: false, error: '没找到提交按钮' };
   b.click();
-  await sleep(800);
-  return { ok: true, submitted: true };
+  for (let i = 0; i < 15; i++) {
+    await sleep(200);
+    const still = [...document.querySelectorAll('.el-dialog')].find((x) => x.offsetParent !== null && /帮消费者申请售后/.test(x.innerText || ''));
+    if (!still) return { ok: true, submitted: true };
+    const err = [...still.querySelectorAll('.el-form-item__error,.el-message')].find((x) => isVisible(x));
+    if (err) return { ok: false, error: textOf(err) || '表单校验失败' };
+  }
+  return { ok: false, error: '提交后弹窗未关闭，可能校验失败' };
 }
 
 async function openInvitePicker() {
