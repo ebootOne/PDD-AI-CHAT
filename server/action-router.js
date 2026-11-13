@@ -11,6 +11,10 @@ const REFUND_INFO = /怎么退|如何退|能退吗|可以退吗|退款多久|退
 const INVITE_ACTION = /邀请下单|发我.*(商品|链接|卡片)|我要买|拍这个|下单这个|发个商品/;
 const INVITE_INFO = /怎么下单|如何下单|怎么买/;
 
+function specFromText(text) {
+  return (String(text || '').match(/\d+mm(?:左右)?|\d+条装[^，,。\s]*|\d+头[^，,。\s]*/g) || []).join(' ').trim();
+}
+
 function plan(input = {}) {
   const text = String(input.buyerText || '');
   if (!text) return null;
@@ -34,7 +38,7 @@ function plan(input = {}) {
 
   if (!INVITE_INFO.test(text) && INVITE_ACTION.test(text)) {
     const product = input.product || null;
-    const spec = String(input.spec || '').trim();
+    const spec = String(input.spec || '').trim() || specFromText(text);
     return {
       kind: 'invite',
       product: product ? { goodsId: product.goodsId, title: product.title } : null,
@@ -48,4 +52,4 @@ function plan(input = {}) {
   return null;
 }
 
-module.exports = { plan, REFUND_ACTION, INVITE_ACTION };
+module.exports = { plan, specFromText, REFUND_ACTION, INVITE_ACTION };
