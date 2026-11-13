@@ -161,6 +161,38 @@ function isPddChat() {
   return /mms\.pinduoduo\.com$/.test(location.hostname) && !!document.querySelector('#replyTextarea, ul.msg-list');
 }
 
+function parseActionCards(rows) {
+  const out = [];
+  for (const row of rows) {
+    const txt = (row.innerText || '').replace(/\s+/g, ' ').trim();
+    if (/商家想帮您申请快捷退款|等待消费者确认/.test(txt)) {
+      const card = row.querySelector('.stateful-double-column-card') || row;
+      const goodsTitle = (card.querySelector('.good-content p') || {}).innerText || '';
+      const amount = (card.querySelector('.good-content span') || {}).innerText || '';
+      const rowsMap = {};
+      for (const r of card.querySelectorAll('.col-row')) {
+        const k = (r.querySelector('.row-name') || {}).innerText || '';
+        const v = (r.querySelector('.row-content') || {}).innerText || '';
+        if (k.trim()) rowsMap[k.trim()] = v.trim();
+      }
+      out.push({ kind: 'refund', goodsTitle: goodsTitle.trim(), amount: amount.trim(), type: rowsMap['申请类型'] || '', reason: rowsMap['申请原因'] || '', note: rowsMap['申请说明'] || '', status: /等待消费者确认/.test(txt) ? 'waiting_buyer' : '', text: txt.slice(0, 300) });
+    }
+    if (/发起拼单/.test(txt) && row.querySelector('[class*="substitude_order"]')) {
+      const q = (sel) => { const el = row.querySelector(sel); return el ? (el.innerText || '').trim() : ''; };
+      out.push({
+        kind: 'invite',
+        goodsTitle: q('[class*="goods_name"]'),
+        spec: q('[class*="spec___"]'),
+        price: q('[class*="sku_price"]'),
+        qty: q('[class*="goods_number"]'),
+        total: q('[class*="total"]'),
+        text: txt.slice(0, 300),
+      });
+    }
+  }
+  return out.slice(-6);
+}
+
 function pddCapture() {
   const list = document.querySelector('ul.msg-list');
   if (!list) return null;
@@ -207,6 +239,7 @@ function pddCapture() {
     buyerName: nameEl ? nameEl.innerText.trim() : '',
     order: firstOrder,
     orders: orderList.length ? orderList : (firstOrder && firstOrder.hasOrder ? [firstOrder] : []),
+    actionCards: parseActionCards(rows),
     url: location.href,
   };
 }
