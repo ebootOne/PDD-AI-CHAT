@@ -474,6 +474,9 @@ ipcMain.handle('cs:fill', (_e, text) => callPage('fill', { text }));
 ipcMain.handle('cs:send', () => callPage('send'));
 ipcMain.handle('cs:clear', () => callPage('clear'));
 ipcMain.handle('cs:sendProduct', (_e, goodsId) => callPage('sendProduct', { goodsId }, 12000));
+ipcMain.handle('cs:inviteCatalog', () => callPage('inviteCatalog', {}, 15000));
+ipcMain.handle('cs:inviteDraft', (_e, payload) => callPage('inviteDraft', payload || {}, 20000));
+ipcMain.handle('cs:sendInvite', () => callPage('sendInvite', {}, 12000));
 
 ipcMain.handle('api:request', async (_e, { path: p, method = 'GET', body }) => {
   try {

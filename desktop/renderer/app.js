@@ -644,6 +644,32 @@ B.on('store:active', (s) => {
   renderAssistant();
 });
 
+$('#btnInvite').addEventListener('click', async () => {
+  const cap = await B.page.capture().catch(() => null);
+  const item = cap && cap.orders && cap.orders[0] && cap.orders[0].items && cap.orders[0].items[0];
+  const title = (item && item.title) || (cap && cap.goodsTitle) || '';
+  const spec = (item && item.spec) || '';
+  if (!title) return toast('没有识别到商品');
+  const btn = $('#btnInvite');
+  btn.disabled = true; btn.textContent = '加入中…';
+  const r = await B.page.inviteDraft(title, spec).catch((e) => ({ ok: false, error: String(e) }));
+  btn.disabled = false; btn.textContent = '邀请下单：加入清单';
+  if (!r || !r.ok) return toast('加入清单失败：' + ((r && r.error) || '未知'));
+  state.inviteDraft = r;
+  const send = $('#btnSendInvite');
+  if (send) send.style.display = 'block';
+  toast('已加入清单：' + (r.chosen || []).map((x) => x.value).join(' / ') + '，确认后点发送');
+});
+$('#btnSendInvite').addEventListener('click', async () => {
+  if (!state.inviteDraft) return toast('先加入清单');
+  if (!window.confirm('真实发送邀请下单？')) return;
+  const r = await B.page.sendInvite().catch((e) => ({ ok: false, error: String(e) }));
+  if (!r || !r.ok) return toast('发送失败：' + ((r && r.error) || '未知'));
+  toast('邀请下单已发送');
+  state.inviteDraft = null;
+  $('#btnSendInvite').style.display = 'none';
+});
+
 $('#btnGen').addEventListener('click', () => generate(false));
 const clearBtn = $('#btnClearDraft');
 if (clearBtn) {

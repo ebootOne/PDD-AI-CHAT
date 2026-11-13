@@ -557,7 +557,7 @@ async function inviteDraft(title, spec) {
     const name = ((g.querySelector('.sku-type-name') || {}).innerText || '').replace(/[:：]/g, '').trim();
     const opts = [...g.querySelectorAll('.sku-item')].filter(isVisible);
     if (!opts.length) continue;
-    let pick = opts.find((o) => textOf(o).includes(String(spec || '')));
+    let pick = opts.find((o) => { const t = textOf(o); const q = String(spec || ''); return t && (q.includes(t) || t.includes(q)); });
     if (!pick && opts.length === 1) pick = opts[0];
     if (!pick) return { ok: false, error: '规格不唯一，需要买家确认：' + name, options: opts.map(textOf) };
     pick.click();
@@ -634,6 +634,9 @@ ipcRenderer.on('cs:do', async (_e, msg) => {
     else if (msg.action === 'send') data = await send();
     else if (msg.action === 'clear') data = clearInput();
     else if (msg.action === 'sendProduct') data = await sendProductCard(msg.payload && msg.payload.goodsId);
+    else if (msg.action === 'inviteCatalog') data = await inviteCatalog();
+    else if (msg.action === 'inviteDraft') data = await inviteDraft(msg.payload && msg.payload.title, msg.payload && msg.payload.spec);
+    else if (msg.action === 'sendInvite') data = await sendInvite();
     else data = { ok: false, error: '未知动作' };
     ipcRenderer.send('cs:result', { rid: msg.rid, data });
   } catch (err) {

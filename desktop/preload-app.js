@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('bridge', {
     send: () => ipcRenderer.invoke('cs:send'),
     clear: () => ipcRenderer.invoke('cs:clear'),
     sendProduct: (goodsId) => ipcRenderer.invoke('cs:sendProduct', goodsId),
+    inviteCatalog: () => ipcRenderer.invoke('cs:inviteCatalog'),
+    inviteDraft: (title, spec) => ipcRenderer.invoke('cs:inviteDraft', { title, spec }),
+    sendInvite: () => ipcRenderer.invoke('cs:sendInvite'),
   },
   api: (path, method = 'GET', body) => ipcRenderer.invoke('api:request', { path, method, body }),
   auth: {
