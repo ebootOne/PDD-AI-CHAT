@@ -32,6 +32,7 @@ const session = require('./session');
 const policy = require('./policy');
 const context = require('./context');
 const actionRouter = require('./action-router');
+const actionValidator = require('./action-validator');
 const actionTemplates = require('./action-templates');
 const { refundPlan } = require('./actions');
 const blockRegistry = require('./block-registry');
@@ -1166,140 +1167,55 @@ const cfg = store.getConfig();
         result.suggestions = result.suggestions.map((x) => ({ ...x, text: professionalTone(x.text) }));
       }
 
-      // 模型决定下一步动作；本地只校验/补计划。正则仅在后端不可用时兜底
+      // 动作决策：模型给 action；本地只做证据/槽位校验；证据不足统一澄清
       try {
-        const ma0 = result.modelAction;
-        const explicitOrder = (ctx.orders || []).find((o) => o && o.orderNo && String(result.buyerText || '').includes(String(o.orderNo)));
-        const ma = ma0 && explicitOrder ? { ...ma0, orderNo: explicitOrder.orderNo } : ma0;
-        const refundInfo = /退款|退货|售后|退钱/.test(result.buyerText) && /怎么|如何|能退吗|可以退吗|退款流程|退款多久|退货规则|怎么申请/.test(result.buyerText);
+        const ma = result.modelAction && result.modelAction.kind !== 'none' ? result.modelAction : null;
         const localMatch = actionTemplates.matchLocal(result.buyerText);
-        const ctxPlan = actionRouter.plan({
-          buyerText: result.buyerText, messages: ctx.messages || [], orders: ctx.orders || [], order: ctx.order || null,
-          product: (result.products && result.products[0]) || null,
-        });
-        let plan = null;
+        let action = ma;
+        if (!action && localMatch && localMatch.template === 'refund') action = { kind: 'refund' };
+        if (!action && localMatch && localMatch.template === 'invite') action = { kind: 'invite' };
+        if (!action) {
+          const fallback = actionRouter.plan({
+            buyerText: result.buyerText, messages: ctx.messages || [], orders: ctx.orders || [],
+            order: ctx.order || null, product: (result.products && result.products[0]) || null,
+          });
+          if (fallback) action = fallback.kind === 'refund'
+            ? { kind: 'refund', orderNo: fallback.plan && fallback.plan.orderNo, refundType: fallback.plan && fallback.plan.type, received: fallback.plan && fallback.plan.received, reason: fallback.plan && fallback.plan.reason, amount: fallback.plan && fallback.plan.amount }
+            : { kind: 'invite', product: fallback.product, spec: fallback.spec };
+        }
+        const refundInfo = /退款|退货|售后|退钱/.test(result.buyerText || '')
+          && /怎么|如何|能退吗|可以退吗|退款流程|退款多久|退货规则|怎么申请/.test(result.buyerText || '');
         if (refundInfo) {
           result.suggestions = [{ tone: '标准', text: '在订单页找到这笔订单，点「申请退款」，按提示选择退款类型和原因提交即可。' }];
           result.source = 'policy';
           result.reason = '退款咨询，不触发退款动作';
           result.decision = 'suggest';
-        } else if (ctxPlan && /上一轮问哪一单/.test(ctxPlan.reason || '')) {
-          plan = ctxPlan;
-        } else if (localMatch && localMatch.template === 'invite') {
-          const p = actionTemplates.invite.fromModel({}, { product: (result.products && result.products[0]) || null });
-          plan = { kind: 'invite', product: p.product, spec: p.spec, needs: p.needs, canAuto: false, reason: '本地邀请模板命中' };
-        } else if (localMatch && localMatch.template === 'refund') {
-          const p = actionTemplates.refund.fromModel({}, { orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText });
-          plan = { kind: 'refund', plan: p, needs: p.needs, canAuto: p.canAuto, reason: '本地退款模板命中' };
-        } else if (ma && ma.kind === 'refund') {
-          const p = actionTemplates.refund.fromModel(ma, {
-            orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText,
+        } else {
+          const v = actionValidator.validate(action, {
+            orders: ctx.orders || [], order: ctx.order || null, buyerText: result.buyerText,
+            messages: ctx.messages || [], product: (result.products && result.products[0]) || null,
           });
-          plan = { kind: 'refund', plan: p, needs: p.needs, canAuto: p.canAuto, reason: '模型选择退款模板' };
-        } else if (ma && ma.kind === 'invite') {
-          const product = (result.products && result.products[0]) || (ctx.goods && ctx.goods.title ? { title: ctx.goods.title, goodsId: ctx.goods.goodsId } : null);
-          const p = actionTemplates.invite.fromModel({ ...ma, product }, { product, spec: ma.spec });
-          plan = { kind: 'invite', product: p.product, spec: p.spec, needs: p.needs, canAuto: p.canAuto, reason: '模型选择邀请模板' };
-        } else if (ma && ma.kind === 'ask' && ma.ask) {
-          result.suggestions = [{ tone: '标准', text: ma.ask }];
-          result.source = 'action';
-          result.reason = '模型先追问动作所需信息';
-          result.decision = 'suggest';
-        } else if ((!ma || ma.kind === 'none') && result.source !== 'backend') {
-          plan = actionRouter.plan({
-            buyerText: result.buyerText, messages: ctx.messages || [], order: ctx.order || (ctx.orders && ctx.orders[0]) || null,
-            orders: ctx.orders || [], product: (result.products && result.products[0]) || null,
-            spec: (ctx.order && ctx.order.items && ctx.order.items[0] && ctx.order.items[0].spec) || '',
-          });
-        }
-        if (plan) {
-          result.action = plan;
-          if (plan.kind === 'invite') {
-            const needs = plan.needs || [];
-            if (needs.length) {
-              result.suggestions = [{ tone: '标准', text: '您要哪款商品、什么规格呢？我帮您加到邀请清单。' }];
-              result.source = 'action';
-              result.reason = '邀请前补齐商品/规格';
-              result.decision = 'suggest';
-            }
-          }
-          if (plan.kind === 'refund' && result.suggestions && result.suggestions[0]) {
-            if (plan.canAuto) {
-              result.suggestions = [{ tone: '标准', text: '这边帮您申请' + (plan.plan.typeName || '退款') + '，请在下方卡片里确认一下。' }];
-              result.reason = '买家明确退款，已生成申请';
-            } else if ((plan.plan.missing || []).includes('order') && (ctx.orders || []).length > 1) {
-              result.suggestions = [{ tone: '标准', text: '您问的是哪一单呀？我帮您核对订单后申请退款。' }];
-              result.reason = '退款前确认订单';
-            } else if ((plan.plan.missing || []).includes('reason')) {
-              result.suggestions = [{ tone: '标准', text: '您是遇到什么问题了吗？我帮您申请退款。' }];
-              result.reason = '退款前确认原因';
-            } else if ((plan.plan.missing || []).includes('received')) {
-              result.suggestions = [{ tone: '标准', text: '您收到货了吗？确认后我帮您申请退款。' }];
-              result.reason = '退款前确认收货状态';
-            }
+          if (v.kind === 'clarify') {
+            result.suggestions = [{ tone: '标准', text: v.ask }];
             result.source = 'action';
-            result.decision = 'suggest';
-          }
-        }
-      } catch (_) {}
-
-      // 未支付订单：不能退款，直接告知取消订单，不生成退款动作
-      const orderText = String(result.buyerText || '');
-      const orderList = (ctx.orders || []).filter((o) => o && o.hasOrder);
-      const titleHit2 = (title) => {
-        const c = String(title || '').replace(/^\d{2,4}年/, '').replace(/\s+/g, '');
-        if (!c) return false;
-        if (orderText.includes(c.slice(0, 4))) return true;
-        for (let i = 0; i + 2 <= c.length; i++) if (orderText.includes(c.slice(i, i + 2))) return true;
-        return false;
-      };
-      const hitOrders = orderList.filter((o) => {
-        if (o.orderNo && orderText.includes(String(o.orderNo))) return true;
-        const tail = (orderText.match(/(\d{4})/) || [])[1];
-        if (tail && String(o.orderNo || '').endsWith(tail)) return true;
-        return (o.items || []).some((it) => titleHit2(it.title));
-      });
-      const orderForUnpaid = hitOrders.length === 1 ? hitOrders[0] : (orderList.length === 1 ? orderList[0] : null);
-      if (orderForUnpaid && /待支付/.test(String(orderForUnpaid.status || ''))
-          && /退款|退下款|退个款|不想要|买错/.test(orderText)) {
-        result.suggestions = [{ tone: '标准', text: '这单还未支付，不需要退款，您可以直接取消订单。' }];
-        result.source = 'policy';
-        result.reason = '未支付订单无需退款';
-        result.decision = 'suggest';
-        result.action = null;
-      }
-
-      // 多订单退款：买家没点名订单时，先让买家确认，不能信模型默认选单
-      try {
-        const list = (ctx.orders || []).filter((o) => o && o.hasOrder);
-        const asksRefund = /退款|退下款|退个款|退钱|不想要|买错/.test(result.buyerText || '')
-          && !(/怎么|如何|能退吗|可以退吗|退款流程|退款多久/.test(result.buyerText || ''));
-        if (asksRefund && list.length > 1) {
-          const text = String(result.buyerText || '');
-          const norm = (x) => String(x || '').replace(/\s+/g, '');
-          const matches = list.filter((o) => {
-            if (o.orderNo && text.includes(String(o.orderNo))) return true;
-            const tail = (text.match(/(\d{4})/) || [])[1];
-            if (tail && String(o.orderNo || '').endsWith(tail)) return true;
-            return (o.items || []).some((it) => {
-              const core = norm(it.title).replace(/^\d{2,4}年/, '');
-              if (!core) return false;
-              if (text.includes(core.slice(0, 4))) return true;
-              for (let i = 0; i + 2 <= core.length; i++) if (text.includes(core.slice(i, i + 2))) return true;
-              return false;
-            });
-          });
-          const exact = list.filter((o) => o.orderNo && text.includes(String(o.orderNo)));
-          if (exact.length !== 1 && matches.length !== 1) {
-            const names = list.slice(0, 5).map((o) => {
-              const it = (o.items && o.items[0]) || {};
-              return (it.title || '商品').slice(0, 10) + '（' + (o.status || '状态未知') + '）';
-            }).join('、');
-            result.suggestions = [{ tone: '标准', text: '您有' + list.length + '笔订单：' + names + '。您要退哪一单呀？' }];
-            result.source = 'action';
-            result.reason = '多订单退款，先确认订单';
+            result.reason = '动作证据/槽位不足，统一澄清';
             result.decision = 'suggest';
             result.action = null;
+          } else if (v.kind === 'refund') {
+            result.action = { kind: 'refund', plan: v.plan, needs: v.plan.needs, canAuto: v.canAuto };
+            if (v.canAuto) {
+              result.suggestions = [{ tone: '标准', text: '这边帮您申请' + v.plan.typeName + '，请在下方卡片里确认一下。' }];
+              result.reason = '买家明确退款，已生成申请';
+            } else {
+              result.suggestions = [{ tone: '标准', text: v.ask || '退款信息还需要确认一下。' }];
+              result.reason = '退款前补充信息';
+            }
+            result.source = 'action';
+            result.decision = 'suggest';
+          } else if (v.kind === 'invite') {
+            result.action = { kind: 'invite', product: v.product, spec: v.spec, needs: v.needs, canAuto: v.canAuto };
+            result.source = 'action';
+            result.decision = 'suggest';
           }
         }
       } catch (_) {}
