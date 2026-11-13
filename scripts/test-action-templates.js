@@ -18,6 +18,7 @@ assert.strictEqual(mapped.reason, '商品破损或污渍');
 const inv = t.invite.fromModel({ spec: '45mm 1头' }, { product: { goodsId: 'g', title: '大蒜' } });
 assert.strictEqual(inv.template, 'invite');
 assert.strictEqual(inv.spec, '45mm 1头');
+assert.strictEqual(inv.canAuto, true);
 const fromOrder = t.refund.fromModel({ orderNo: 'A', refundType: 'return_refund', received: true, reason: '不想要了', amount: 0 }, { order, orders: [order], buyerText: '不想要了' });
 assert.strictEqual(fromOrder.amount, 9.9);
 assert.strictEqual(fromOrder.canAuto, true);

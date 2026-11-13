@@ -1176,7 +1176,7 @@ const cfg = store.getConfig();
         } else if (ma && ma.kind === 'invite') {
           const product = (result.products && result.products[0]) || (ctx.goods && ctx.goods.title ? { title: ctx.goods.title, goodsId: ctx.goods.goodsId } : null);
           const p = actionTemplates.invite.fromModel({ ...ma, product }, { product, spec: ma.spec });
-          plan = { kind: 'invite', product: p.product, spec: p.spec, needs: p.needs, canAuto: false, reason: '模型选择邀请模板' };
+          plan = { kind: 'invite', product: p.product, spec: p.spec, needs: p.needs, canAuto: p.canAuto, reason: '模型选择邀请模板' };
         } else if (ma && ma.kind === 'ask' && ma.ask) {
           result.suggestions = [{ tone: '标准', text: ma.ask }];
           result.source = 'action';

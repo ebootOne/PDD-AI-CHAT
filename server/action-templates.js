@@ -58,7 +58,7 @@ const invite = {
     const product = action.product || context.product || (context.products && context.products[0]) || null;
     const spec = String(action.spec || context.spec || '').trim();
     const needs = [...(product ? [] : ['product']), ...(spec ? [] : ['spec'])];
-    return { template: 'invite', product, spec, needs, canAuto: false };
+    return { template: 'invite', product, spec, needs, canAuto: !!(product && spec) };
   },
 };
 

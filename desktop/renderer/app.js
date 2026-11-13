@@ -480,9 +480,26 @@ async function executeAction(result, cap) {
       const title = (a.product && a.product.title) || (item && item.title) || (cap && cap.goodsTitle) || '';
       const spec = a.spec || (item && item.spec) || '';
       if (!title || !spec) return;
+      const cards = (cap && cap.actionCards) || [];
+      const exists = cards.some((c) => c.kind === 'invite' && String(c.spec || '').includes(String(spec).split(' ')[0]));
+      if (exists) {
+        logAuto('action_skip', { runId: state.autoRunId, kind: 'invite', reason: '同规格邀请卡已存在' });
+        toast('同规格邀请卡已存在，不重复发送');
+        return;
+      }
       const draft = await B.page.inviteDraft(title, spec);
       logAuto('action_invite', { runId: state.autoRunId, title, spec, ok: !!(draft && draft.ok), chosen: draft && draft.chosen });
-      toast(draft && draft.ok ? '邀请清单已加入，等待确认发送' : '邀请匹配失败：' + ((draft && draft.error) || ''));
+      if (!draft || !draft.ok) {
+        toast('邀请匹配失败：' + ((draft && draft.error) || ''));
+        return;
+      }
+      if (a.canAuto) {
+        const sent = await B.page.sendInvite();
+        logAuto('action_invite_send', { runId: state.autoRunId, ok: !!(sent && sent.ok), error: sent && sent.error });
+        toast(sent && sent.ok ? '邀请下单已发送' : '邀请发送失败：' + ((sent && sent.error) || ''));
+      } else {
+        toast('邀请清单已加入，等待确认发送');
+      }
     }
   } catch (e) {
     logAuto('action_error', { runId: state.autoRunId, error: String(e && e.message || e) });
