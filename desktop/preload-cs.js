@@ -563,8 +563,20 @@ async function openRefundForm() {
 async function refundSelectOrder(orderNo) {
   const dialog = [...document.querySelectorAll('.el-dialog')].find((x) => isVisible(x) && /帮消费者申请售后/.test(x.innerText || ''));
   if (!dialog) return { ok: false, error: '退款弹窗未打开' };
-  const card = [...dialog.querySelectorAll('.OrderItem')].find((x) => (x.innerText || '').includes(String(orderNo)));
-  if (!card) return { ok: false, error: '没找到该订单卡片' };
+  const findCard = () => [...dialog.querySelectorAll('.OrderItem')].find((x) => (x.innerText || '').includes(String(orderNo)));
+  let card = findCard();
+  const scroller = dialog.querySelector('.list-content, .c-order-list .list-content, .el-scrollbar__wrap');
+  let scrolls = 0;
+  while (!card && scroller && scrolls < 6) {
+    const before = scroller.scrollTop;
+    scroller.scrollTop = scroller.scrollHeight;
+    scroller.dispatchEvent(new Event('scroll', { bubbles: true }));
+    await sleep(500);
+    card = findCard();
+    scrolls++;
+    if (scroller.scrollTop === before && !card) break;
+  }
+  if (!card) return { ok: false, error: '订单不在售后列表（已向下查找' + scrolls + '次）', code: 'ORDER_NOT_FOUND', scrolls };
   const b = [...card.querySelectorAll('button')].find((x) => /^选择订单$/.test(textOf(x)));
   if (!b) return { ok: false, error: '没找到该订单的选择按钮' };
   b.click();
