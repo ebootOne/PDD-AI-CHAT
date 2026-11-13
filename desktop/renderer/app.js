@@ -644,6 +644,12 @@ B.on('store:active', (s) => {
   renderAssistant();
 });
 
+$('#btnRefund').addEventListener('click', async () => {
+  const r = await B.page.openRefund().catch((e) => ({ ok: false, error: String(e) }));
+  if (!r || !r.ok) return toast('退款入口：' + ((r && r.error) || '未找到'));
+  toast('退款弹窗已打开，请选择订单/类型/理由后提交');
+});
+
 $('#btnInvite').addEventListener('click', async () => {
   const cap = await B.page.capture().catch(() => null);
   const item = cap && cap.orders && cap.orders[0] && cap.orders[0].items && cap.orders[0].items[0];

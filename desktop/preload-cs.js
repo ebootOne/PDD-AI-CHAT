@@ -516,6 +516,81 @@ async function send() {
  * 关键点：搜索框必须锁定在「含商品项的那个弹层」里。
  * 页面左上角还有一个「搜索会话/订单号」的输入框，按 placeholder 找会打错地方。
  */
+async function openRefundForm() {
+  const icon = document.querySelector('.c-help-aftersale') || [...document.querySelectorAll('i,span,div')].find((x) => isVisible(x) && /帮消费者申请售后/.test(x.getAttribute('title') || ''));
+  if (!icon) return { ok: false, error: '没找到「帮消费者申请售后」图标' };
+  icon.click();
+  await sleep(900);
+  const dialog = [...document.querySelectorAll('.el-dialog')].find((x) => isVisible(x) && /帮消费者申请售后/.test(x.innerText || ''));
+  if (!dialog) return { ok: false, error: '退款弹窗未打开' };
+  const orders = [...dialog.querySelectorAll('button')].filter((b) => /^选择订单$/.test(textOf(b))).map((b) => {
+    let row = b.parentElement;
+    for (let i = 0; i < 5 && row; i++) {
+      if ((row.innerText || '').includes('订单号')) break;
+      row = row.parentElement;
+    }
+    const no = ((row && row.innerText) || '').match(/订单号[:：]\s*([0-9-]+)/);
+    return { orderNo: no ? no[1] : '', text: (row && row.innerText || '').replace(/\s+/g, ' ').slice(0, 200) };
+  }).filter((x) => x.orderNo);
+  return { ok: true, step: 'orders', orders };
+}
+
+async function refundSelectOrder(orderNo) {
+  const dialog = [...document.querySelectorAll('.el-dialog')].find((x) => isVisible(x) && /帮消费者申请售后/.test(x.innerText || ''));
+  if (!dialog) return { ok: false, error: '退款弹窗未打开' };
+  const b = [...dialog.querySelectorAll('button')].find((x) => /^选择订单$/.test(textOf(x)) && (() => {
+    let row = x.parentElement;
+    for (let i = 0; i < 5 && row; i++) { if ((row.innerText || '').includes(String(orderNo))) return true; row = row.parentElement; }
+    return false;
+  })());
+  if (!b) return { ok: false, error: '没找到该订单的选择按钮' };
+  b.click();
+  await sleep(800);
+  return { ok: true, step: 'form' };
+}
+
+function clickRadio(text) {
+  const label = [...document.querySelectorAll('.el-radio')].find((x) => isVisible(x) && textOf(x) === text);
+  if (!label) return false;
+  const input = label.querySelector('input') || label;
+  input.click();
+  return true;
+}
+
+async function refundFill(input = {}) {
+  const typeMap = { refund_only: '退款', return_refund: '退货退款', resend: '补寄' };
+  const typeText = typeMap[input.type] || input.type || '退款';
+  if (!clickRadio(typeText)) return { ok: false, error: '没找到申请类型：' + typeText };
+  if (input.received === false && !clickRadio('未收到货')) return { ok: false, error: '没找到未收到货' };
+  if (input.received === true && !clickRadio('已收到货')) return { ok: false, error: '没找到已收到货' };
+  await sleep(200);
+  const reasonInput = [...document.querySelectorAll('.el-dialog input')].find((x) => x.placeholder === '请选择退款原因');
+  if (!reasonInput) return { ok: false, error: '没找到退款原因' };
+  reasonInput.click();
+  await sleep(300);
+  const opt = [...document.querySelectorAll('.el-select-dropdown__item, .el-select-dropdown li')].find((x) => isVisible(x) && textOf(x) === String(input.reason || '不想要了'));
+  if (!opt) return { ok: false, error: '没找到退款原因选项' };
+  opt.click();
+  await sleep(200);
+  const amount = [...document.querySelectorAll('.el-dialog input[type=number]')].find((x) => x.offsetParent !== null);
+  if (amount && input.amount != null) {
+    setNativeValue(amount, String(input.amount));
+  }
+  const note = [...document.querySelectorAll('.el-dialog textarea')].find((x) => x.offsetParent !== null);
+  if (note && input.note) setNativeValue(note, String(input.note));
+  return { ok: true, step: 'filled', type: typeText, received: input.received, reason: input.reason, amount: amount ? amount.value : '', note: note ? note.value : '' };
+}
+
+async function refundSubmit() {
+  const dialog = [...document.querySelectorAll('.el-dialog')].find((x) => isVisible(x) && /帮消费者申请售后/.test(x.innerText || ''));
+  if (!dialog) return { ok: false, error: '退款弹窗未打开' };
+  const b = [...dialog.querySelectorAll('button')].find((x) => /^提交$/.test(textOf(x)) && isVisible(x));
+  if (!b) return { ok: false, error: '没找到提交按钮' };
+  b.click();
+  await sleep(800);
+  return { ok: true, submitted: true };
+}
+
 async function openInvitePicker() {
   const tool = [...document.querySelectorAll('span,button,div,a')].find((el) => isVisible(el) && /^邀请下单$/.test(textOf(el)));
   if (!tool) return { ok: false, error: '没找到「邀请下单」' };
@@ -634,6 +709,10 @@ ipcRenderer.on('cs:do', async (_e, msg) => {
     else if (msg.action === 'send') data = await send();
     else if (msg.action === 'clear') data = clearInput();
     else if (msg.action === 'sendProduct') data = await sendProductCard(msg.payload && msg.payload.goodsId);
+    else if (msg.action === 'openRefund') data = await openRefundForm();
+    else if (msg.action === 'refundSelect') data = await refundSelectOrder(msg.payload && msg.payload.orderNo);
+    else if (msg.action === 'refundFill') data = await refundFill(msg.payload || {});
+    else if (msg.action === 'refundSubmit') data = await refundSubmit();
     else if (msg.action === 'inviteCatalog') data = await inviteCatalog();
     else if (msg.action === 'inviteDraft') data = await inviteDraft(msg.payload && msg.payload.title, msg.payload && msg.payload.spec);
     else if (msg.action === 'sendInvite') data = await sendInvite();
