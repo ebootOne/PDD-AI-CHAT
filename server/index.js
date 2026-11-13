@@ -706,6 +706,7 @@ const cfg = store.getConfig();
           style: cfg.style,
           facts: factPack || undefined,
           persona: persona.system(),
+          capabilities: actionTemplates.manifest(),
           profile: (cfg.businessHours && cfg.businessHours.start && cfg.businessHours.end)
             ? { hours: { start: natural.speakTime(cfg.businessHours.start), end: natural.speakTime(cfg.businessHours.end) } }
             : undefined,

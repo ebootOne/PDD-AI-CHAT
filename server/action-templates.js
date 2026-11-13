@@ -66,4 +66,14 @@ const registry = { refund, invite };
 
 function get(id) { return registry[String(id || '')] || null; }
 
-module.exports = { registry, get, refund, invite, REFUND_REASONS, REFUND_TYPES };
+function manifest() {
+  return Object.values(registry).map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    required: t.required || [],
+    enums: t.enums || {},
+  }));
+}
+
+module.exports = { registry, get, manifest, refund, invite, REFUND_REASONS, REFUND_TYPES };
