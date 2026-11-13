@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('bridge', {
     refundSelect: (orderNo) => ipcRenderer.invoke('cs:refundSelect', orderNo),
     refundFill: (payload) => ipcRenderer.invoke('cs:refundFill', payload),
     refundSubmit: () => ipcRenderer.invoke('cs:refundSubmit'),
+    refundState: () => ipcRenderer.invoke('cs:refundState'),
+    refundCancel: () => ipcRenderer.invoke('cs:refundCancel'),
     inviteDraft: (title, spec) => ipcRenderer.invoke('cs:inviteDraft', { title, spec }),
     sendInvite: () => ipcRenderer.invoke('cs:sendInvite'),
   },

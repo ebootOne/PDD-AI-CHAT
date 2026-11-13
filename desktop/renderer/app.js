@@ -448,6 +448,14 @@ async function generate(isAuto = false, runId = '', sessionGapMinutes = state.se
   }
 }
 
+function runIdForAction() { return state.autoRunId; }
+
+async function sendActionFallback(runId, stage) {
+  const text = '这边没有直接提交成功，您在订单页找到这笔订单，点「申请售后」，选择退款或退货退款提交；我这边也帮您登记核对。';
+  logAuto('action_fallback', { runId, stage, text });
+  await doSend(text, true, runId).catch(() => {});
+}
+
 async function executeAction(result, cap) {
   const a = result && result.action;
   if (!a || state.dryRun) return;
@@ -461,15 +469,36 @@ async function executeAction(result, cap) {
         toast('已有退款申请等待买家确认，不重复提交');
         return;
       }
+      const fail = async (stage, error) => {
+        logAuto('action_abort', { runId: state.autoRunId, stage, error: String(error || ''), orderNo: p.orderNo || '' });
+        await B.page.refundCancel().catch(() => {});
+        await sendActionFallback(runIdForAction(), stage);
+      };
+      let st = 'RESOLVED';
       const open = await B.page.openRefund();
-      if (!open || !open.ok) { logAuto('action_fail', { runId: state.autoRunId, kind: 'refund', error: open && open.error }); return; }
-      if (p.orderNo) await B.page.refundSelect(p.orderNo);
+      if (!open || !open.ok) return fail(st, (open && open.error) || '打开售后失败');
+      st = 'FORM_OPEN';
+      if (p.orderNo) {
+        const sel = await B.page.refundSelect(p.orderNo);
+        if (!sel || !sel.ok) return fail(st, (sel && sel.error) || '选择订单失败');
+        st = 'ORDER_SELECTED';
+        const s1 = await B.page.refundState();
+        if (!s1 || !s1.ok) return fail(st, '选择后表单不存在');
+        if (!s1.orderNo || !String(s1.orderNo).includes(String(p.orderNo))) return fail(st, '选中订单与目标不一致');
+      }
       const fill = await B.page.refundFill({ type: p.type, received: p.received, reason: p.reason, amount: p.amount, note: '' });
-      logAuto('action_refund', { runId: state.autoRunId, orderNo: p.orderNo, type: p.type, received: p.received, reason: p.reason, amount: p.amount, fillOk: !!(fill && fill.ok), canAuto: !!a.canAuto });
-      if (a.canAuto && fill && fill.ok) {
+      if (!fill || !fill.ok) return fail(st, (fill && fill.error) || '填单失败');
+      st = 'FILLED';
+      if (p.typeName && fill.type && !String(fill.type).includes(String(p.typeName))) return fail(st, '退款类型与预期不一致：' + fill.type);
+      if (p.reason && fill.reason && !String(fill.reason).includes(String(p.reason))) return fail(st, '退款原因与预期不一致：' + fill.reason);
+      if (p.amount && Number(fill.amount) && Math.abs(Number(fill.amount) - Number(p.amount)) > 0.01) return fail(st, '退款金额与预期不一致：' + fill.amount);
+      logAuto('action_refund', { runId: state.autoRunId, orderNo: p.orderNo, type: p.type, received: p.received, reason: p.reason, amount: p.amount, fillOk: true, canAuto: !!a.canAuto, state: st, verified: { type: fill.type, received: fill.received, reason: fill.reason, amount: fill.amount } });
+      if (a.canAuto) {
         const sub = await B.page.refundSubmit();
-        logAuto('action_refund_submit', { runId: state.autoRunId, ok: !!(sub && sub.ok), error: sub && sub.error });
-        toast(sub && sub.ok ? '退款申请已提交，等待买家确认' : '退款提交失败：' + ((sub && sub.error) || ''));
+        if (!sub || !sub.ok) return fail(st, (sub && sub.error) || '提交失败');
+        st = 'SUBMITTED';
+        logAuto('action_refund_submit', { runId: state.autoRunId, ok: true, state: st, orderNo: p.orderNo });
+        toast('退款申请已提交，等待买家确认');
       } else {
         toast('退款单已填好，缺少：' + ((p.missing || []).join('、') || '确认') + '，请人工确认');
       }

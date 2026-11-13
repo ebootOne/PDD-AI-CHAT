@@ -479,6 +479,8 @@ ipcMain.handle('cs:openRefund', () => callPage('openRefund', {}, 15000));
 ipcMain.handle('cs:refundSelect', (_e, orderNo) => callPage('refundSelect', { orderNo }, 15000));
 ipcMain.handle('cs:refundFill', (_e, payload) => callPage('refundFill', payload || {}, 15000));
 ipcMain.handle('cs:refundSubmit', () => callPage('refundSubmit', {}, 15000));
+ipcMain.handle('cs:refundState', () => callPage('refundState', {}, 10000));
+ipcMain.handle('cs:refundCancel', () => callPage('refundCancel', {}, 10000));
 ipcMain.handle('cs:inviteDraft', (_e, payload) => callPage('inviteDraft', payload || {}, 20000));
 ipcMain.handle('cs:sendInvite', () => callPage('sendInvite', {}, 12000));
 

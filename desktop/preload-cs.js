@@ -607,6 +607,45 @@ async function refundFill(input = {}) {
   return { ok: true, step: 'filled', type: typeText, received: input.received, reason: input.reason, amount: amount ? amount.value : '', note: note ? note.value : '' };
 }
 
+function refundDialog() {
+  return [...document.querySelectorAll('.el-dialog')].find((x) => x.offsetParent !== null && /帮消费者申请售后/.test(x.innerText || '')) || null;
+}
+
+function checkedLabel(root, re) {
+  const hit = [...root.querySelectorAll('.el-radio.is-checked, .el-radio__input.is-checked')]
+    .map((x) => (x.closest('.el-radio') || x.parentElement).innerText.trim())
+    .find((t) => re.test(t));
+  return hit ? hit.replace(/\s+/g, '') : '';
+}
+
+async function refundState() {
+  const d = refundDialog();
+  if (!d) return { ok: false, error: '退款弹窗不存在', state: 'NO_FORM' };
+  const txt = d.innerText || '';
+  const orderNo = (txt.match(/订单号[:：]\s*([0-9-]+)/) || [])[1] || '';
+  const amount = [...d.querySelectorAll('input')].find((x) => x.type === 'number' || /金额/.test(x.getAttribute('placeholder') || ''))?.value || '';
+  const reason = [...d.querySelectorAll('.el-select input, input.el-input__inner')].map((x) => x.value).find((v) => v && v !== amount) || '';
+  return {
+    ok: true,
+    state: 'FORM_READY',
+    orderNo,
+    type: checkedLabel(d, /^仅退款$|^退货退款$|^补寄$/),
+    received: checkedLabel(d, /^(未收到货|已收到货)$/),
+    reason,
+    amount,
+    hasSubmit: [...d.querySelectorAll('button')].some((b) => /^提交$/.test((b.innerText || '').trim())),
+  };
+}
+
+async function refundCancel() {
+  const d = refundDialog();
+  if (!d) return { ok: true, state: 'NO_FORM' };
+  const b = [...d.querySelectorAll('button')].find((x) => /^取消$/.test((x.innerText || '').trim()));
+  if (b) b.click();
+  await sleep(500);
+  return { ok: !refundDialog(), state: refundDialog() ? 'FORM_OPEN' : 'CANCELLED' };
+}
+
 async function refundSubmit() {
   const dialog = [...document.querySelectorAll('.el-dialog')].find((x) => isVisible(x) && /帮消费者申请售后/.test(x.innerText || ''));
   if (!dialog) return { ok: false, error: '退款弹窗未打开' };
@@ -753,6 +792,8 @@ ipcRenderer.on('cs:do', async (_e, msg) => {
     else if (msg.action === 'refundSelect') data = await refundSelectOrder(msg.payload && msg.payload.orderNo);
     else if (msg.action === 'refundFill') data = await refundFill(msg.payload || {});
     else if (msg.action === 'refundSubmit') data = await refundSubmit();
+    else if (msg.action === 'refundState') data = await refundState();
+    else if (msg.action === 'refundCancel') data = await refundCancel();
     else if (msg.action === 'inviteCatalog') data = await inviteCatalog();
     else if (msg.action === 'inviteDraft') data = await inviteDraft(msg.payload && msg.payload.title, msg.payload && msg.payload.spec);
     else if (msg.action === 'sendInvite') data = await sendInvite();
