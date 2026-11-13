@@ -482,9 +482,9 @@ async function executeAction(result, cap) {
         const sel = await B.page.refundSelect(p.orderNo);
         if (!sel || !sel.ok) return fail(st, (sel && sel.error) || '选择订单失败');
         st = 'ORDER_SELECTED';
+        if (sel.orderNo && String(sel.orderNo) !== String(p.orderNo)) return fail(st, '选中订单与目标不一致');
         const s1 = await B.page.refundState();
         if (!s1 || !s1.ok) return fail(st, '选择后表单不存在');
-        if (!s1.orderNo || !String(s1.orderNo).includes(String(p.orderNo))) return fail(st, '选中订单与目标不一致');
       }
       const fill = await B.page.refundFill({ type: p.type, received: p.received, reason: p.reason, amount: p.amount, note: '' });
       if (!fill || !fill.ok) return fail(st, (fill && fill.error) || '填单失败');
@@ -497,7 +497,14 @@ async function executeAction(result, cap) {
         const sub = await B.page.refundSubmit();
         if (!sub || !sub.ok) return fail(st, (sub && sub.error) || '提交失败');
         st = 'SUBMITTED';
-        logAuto('action_refund_submit', { runId: state.autoRunId, ok: true, state: st, orderNo: p.orderNo });
+        const after = await B.page.capture();
+        const beforeTexts = new Set(cards.map((c) => c.text));
+        const amountNum = String(p.amount || '').replace(/[^\d.]/g, '');
+        const newCard = ((after && after.actionCards) || []).find((c) => c.kind === 'refund'
+          && !beforeTexts.has(c.text)
+          && String(c.amount || '').replace(/[^\d.]/g, '') === amountNum);
+        if (!newCard) return fail(st, '提交后未看到新的退款卡');
+        logAuto('action_refund_submit', { runId: state.autoRunId, ok: true, state: st, orderNo: p.orderNo, card: newCard.status });
         toast('退款申请已提交，等待买家确认');
       } else {
         toast('退款单已填好，缺少：' + ((p.missing || []).join('、') || '确认') + '，请人工确认');

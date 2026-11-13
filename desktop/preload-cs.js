@@ -563,15 +563,14 @@ async function openRefundForm() {
 async function refundSelectOrder(orderNo) {
   const dialog = [...document.querySelectorAll('.el-dialog')].find((x) => isVisible(x) && /帮消费者申请售后/.test(x.innerText || ''));
   if (!dialog) return { ok: false, error: '退款弹窗未打开' };
-  const b = [...dialog.querySelectorAll('button')].find((x) => /^选择订单$/.test(textOf(x)) && (() => {
-    let row = x.parentElement;
-    for (let i = 0; i < 5 && row; i++) { if ((row.innerText || '').includes(String(orderNo))) return true; row = row.parentElement; }
-    return false;
-  })());
+  const card = [...dialog.querySelectorAll('.OrderItem')].find((x) => (x.innerText || '').includes(String(orderNo)));
+  if (!card) return { ok: false, error: '没找到该订单卡片' };
+  const b = [...card.querySelectorAll('button')].find((x) => /^选择订单$/.test(textOf(x)));
   if (!b) return { ok: false, error: '没找到该订单的选择按钮' };
   b.click();
   await sleep(800);
-  return { ok: true, step: 'form' };
+  const stillList = [...dialog.querySelectorAll('.OrderItem')].length > 0 && [...dialog.querySelectorAll('button')].some((x) => /^选择订单$/.test(textOf(x)));
+  return stillList ? { ok: false, error: '点击选择订单后未进入表单' } : { ok: true, step: 'form', orderNo: String(orderNo) };
 }
 
 function clickRadio(text) {
@@ -603,7 +602,7 @@ async function refundFill(input = {}) {
     setNativeValue(amount, String(input.amount));
   }
   const note = [...document.querySelectorAll('.el-dialog textarea')].find((x) => x.offsetParent !== null);
-  if (note && input.note) setNativeValue(note, String(input.note));
+  if (note) setNativeValue(note, input.note ? String(input.note) : '');
   return { ok: true, step: 'filled', type: typeText, received: input.received, reason: input.reason, amount: amount ? amount.value : '', note: note ? note.value : '' };
 }
 
@@ -642,6 +641,10 @@ async function refundCancel() {
   if (!d) return { ok: true, state: 'NO_FORM' };
   const b = [...d.querySelectorAll('button')].find((x) => /^取消$/.test((x.innerText || '').trim()));
   if (b) b.click();
+  else {
+    const x = d.querySelector('.el-dialog__headerbtn');
+    if (x) x.click();
+  }
   await sleep(500);
   return { ok: !refundDialog(), state: refundDialog() ? 'FORM_OPEN' : 'CANCELLED' };
 }
