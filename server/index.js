@@ -1167,8 +1167,18 @@ const cfg = store.getConfig();
       // 模型决定下一步动作；本地只校验/补计划。正则仅在后端不可用时兜底
       try {
         const ma = result.modelAction;
+        const refundInfo = /退款|退货|售后|退钱/.test(result.buyerText) && /怎么|如何|能退吗|可以退吗|退款流程|退款多久|退货规则|怎么申请/.test(result.buyerText);
+        const localMatch = actionTemplates.matchLocal(result.buyerText);
         let plan = null;
-        if (ma && ma.kind === 'refund') {
+        if (refundInfo) {
+          result.suggestions = [{ tone: '标准', text: '在订单页找到这笔订单，点「申请退款」，按提示选择退款类型和原因提交即可。' }];
+          result.source = 'policy';
+          result.reason = '退款咨询，不触发退款动作';
+          result.decision = 'suggest';
+        } else if (localMatch && localMatch.template === 'refund') {
+          const p = actionTemplates.refund.fromModel({ orderNo: (ctx.order && ctx.order.orderNo) || '' }, { orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText });
+          plan = { kind: 'refund', plan: p, needs: p.needs, canAuto: p.canAuto, reason: '本地退款模板命中' };
+        } else if (ma && ma.kind === 'refund') {
           const p = actionTemplates.refund.fromModel(ma, {
             orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText,
           });
@@ -1195,12 +1205,12 @@ const cfg = store.getConfig();
             if (plan.canAuto) {
               result.suggestions = [{ tone: '标准', text: '这边帮您申请' + (plan.plan.typeName || '退款') + '，请在下方卡片里确认一下。' }];
               result.reason = '买家明确退款，已生成申请';
-            } else if ((plan.plan.missing || []).includes('received')) {
-              result.suggestions = [{ tone: '标准', text: '您收到货了吗？确认后我帮您申请退款。' }];
-              result.reason = '退款前确认收货状态';
             } else if ((plan.plan.missing || []).includes('reason')) {
               result.suggestions = [{ tone: '标准', text: '您是遇到什么问题了吗？我帮您申请退款。' }];
               result.reason = '退款前确认原因';
+            } else if ((plan.plan.missing || []).includes('received')) {
+              result.suggestions = [{ tone: '标准', text: '您收到货了吗？确认后我帮您申请退款。' }];
+              result.reason = '退款前确认收货状态';
             }
             result.source = 'action';
             result.decision = 'suggest';

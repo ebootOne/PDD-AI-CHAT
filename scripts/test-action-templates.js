@@ -22,4 +22,7 @@ assert.strictEqual(inv.canAuto, true);
 const fromOrder = t.refund.fromModel({ orderNo: 'A', refundType: 'return_refund', received: true, reason: '不想要了', amount: 0 }, { order, orders: [order], buyerText: '不想要了' });
 assert.strictEqual(fromOrder.amount, 9.9);
 assert.strictEqual(fromOrder.canAuto, true);
-console.log('action-templates：退款槽位/默认金额/邀请 PASS');
+assert.strictEqual(t.matchLocal('我要退款').template, 'refund');
+assert.strictEqual(t.matchLocal('怎么申请退款'), null);
+assert.strictEqual(t.matchLocal('帮我退下款').template, 'refund');
+console.log('action-templates：本地完整命令/退款槽位/邀请 PASS');

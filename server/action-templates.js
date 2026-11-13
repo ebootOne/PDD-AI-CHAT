@@ -66,6 +66,15 @@ const registry = { refund, invite };
 
 function get(id) { return registry[String(id || '')] || null; }
 
+function matchLocal(text) {
+  const t = String(text || '').replace(/[\s，。！？!?、；;：:]/g, '');
+  if (/^(我要|我想|帮我|给我|麻烦|申请|办理|直接)*(退款|退货退款|退钱|退下款|退个款)$/.test(t)) {
+    return { template: 'refund', slots: {} };
+  }
+  if (/^邀请下单$/.test(t)) return { template: 'invite', slots: {} };
+  return null;
+}
+
 function manifest() {
   return Object.values(registry).map((t) => ({
     id: t.id,
@@ -76,4 +85,4 @@ function manifest() {
   }));
 }
 
-module.exports = { registry, get, manifest, refund, invite, REFUND_REASONS, REFUND_TYPES };
+module.exports = { registry, get, matchLocal, manifest, refund, invite, REFUND_REASONS, REFUND_TYPES };
