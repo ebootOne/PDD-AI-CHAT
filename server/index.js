@@ -1168,7 +1168,15 @@ const cfg = store.getConfig();
           product,
           spec: (ctx.order && ctx.order.items && ctx.order.items[0] && ctx.order.items[0].spec) || '',
         });
-        if (plan) result.action = plan;
+        if (plan) {
+          result.action = plan;
+          if (plan.kind === 'refund' && plan.canAuto && result.suggestions && result.suggestions[0]) {
+            result.suggestions = [{ tone: '标准', text: '这边帮您申请' + (plan.plan.typeName || '退款') + '，请在下方卡片里确认一下。' }];
+            result.source = 'action';
+            result.decision = 'suggest';
+            result.reason = '买家明确退款，已生成申请';
+          }
+        }
       } catch (_) {}
 
       // 会话状态：记下这一轮聊了什么、答了什么，供下一轮与模型参考
