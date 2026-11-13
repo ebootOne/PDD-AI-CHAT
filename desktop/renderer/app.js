@@ -447,6 +447,40 @@ async function generate(isAuto = false, runId = '', sessionGapMinutes = state.se
   }
 }
 
+async function executeAction(result, cap) {
+  const a = result && result.action;
+  if (!a || state.dryRun) return;
+  try {
+    if (a.kind === 'refund') {
+      const p = a.plan || {};
+      const open = await B.page.openRefund();
+      if (!open || !open.ok) { logAuto('action_fail', { runId: state.autoRunId, kind: 'refund', error: open && open.error }); return; }
+      if (p.orderNo) await B.page.refundSelect(p.orderNo);
+      const fill = await B.page.refundFill({ type: p.type, received: p.received, reason: p.reason, amount: p.amount, note: '帮您申请' + (p.typeName || '退款') + '，请确认' });
+      logAuto('action_refund', { runId: state.autoRunId, orderNo: p.orderNo, type: p.type, received: p.received, reason: p.reason, amount: p.amount, fillOk: !!(fill && fill.ok), canAuto: !!a.canAuto });
+      if (a.canAuto && fill && fill.ok) {
+        const sub = await B.page.refundSubmit();
+        logAuto('action_refund_submit', { runId: state.autoRunId, ok: !!(sub && sub.ok), error: sub && sub.error });
+        toast(sub && sub.ok ? '退款申请已提交，等待买家确认' : '退款提交失败：' + ((sub && sub.error) || ''));
+      } else {
+        toast('退款单已填好，缺少：' + ((p.missing || []).join('、') || '确认') + '，请人工确认');
+      }
+      return;
+    }
+    if (a.kind === 'invite') {
+      const item = cap && cap.orders && cap.orders[0] && cap.orders[0].items && cap.orders[0].items[0];
+      const title = (a.product && a.product.title) || (item && item.title) || (cap && cap.goodsTitle) || '';
+      const spec = a.spec || (item && item.spec) || '';
+      if (!title || !spec) return;
+      const draft = await B.page.inviteDraft(title, spec);
+      logAuto('action_invite', { runId: state.autoRunId, title, spec, ok: !!(draft && draft.ok), chosen: draft && draft.chosen });
+      toast(draft && draft.ok ? '邀请清单已加入，等待确认发送' : '邀请匹配失败：' + ((draft && draft.error) || ''));
+    }
+  } catch (e) {
+    logAuto('action_error', { runId: state.autoRunId, error: String(e && e.message || e) });
+  }
+}
+
 async function doFill(text) {
   const r = await B.page.fill(text);
   if (r && r.ok) {
