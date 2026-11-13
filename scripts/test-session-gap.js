@@ -14,4 +14,6 @@ assert.ok(fresh.reference.ref && /大蒜/.test(fresh.reference.ref.title), '30�
 const stale = context.build({ buyerText: '有货嘛', messages, orders, sessionGapMinutes: 1440, products: [] });
 assert.strictEqual(stale.reference.ref, null, '跨天不继承旧话题');
 assert.ok(stale.items.some((x) => x.id === 'S1'), '注入新会话段事实');
-console.log('session-gap：5分钟继承 / 1440分钟重置 PASS');
+const day = context.build({ buyerText: '有货嘛', messages, orders, sessionGapMinutes: 1440, products: [] });
+assert.ok(day.items.some((x) => x.id === 'S1'), '跨天会话段');
+console.log('session-gap：5分钟继承 / 跨天重置 PASS');

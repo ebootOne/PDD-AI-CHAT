@@ -26,6 +26,7 @@ const state = {
   autoPrimed: false, // 首帧只登记、不自动回，避免一启动就把旧消息发出去
   autoRunId: '',
   lastBuyerAt: Number(localStorage.getItem('lastBuyerAt') || 0),
+  lastBuyerDay: localStorage.getItem('lastBuyerDay') || '',
   sessionGapMinutes: 0,
   pendingAuto: null, // 3 分钟兜底：每条买家新消息必须有一条回复
   lastAutoSent: null, // 自动发送去重：同一句 2 分钟内不重复发
@@ -553,9 +554,14 @@ B.on('cs:changed', (cap) => {
     && (cap.lastBuyerText !== prevBuyer || (cap.messages || []).length !== prevCount));
   if (isNewBuyer) {
     const now = Date.now();
-    state.sessionGapMinutes = state.lastBuyerAt ? Math.max(0, Math.round((now - state.lastBuyerAt) / 60000)) : 0;
+    const today = new Date().toDateString();
+    const dayChanged = !!(state.lastBuyerDay && state.lastBuyerDay !== today);
+    state.sessionGapMinutes = dayChanged ? 1440
+      : (state.lastBuyerAt ? Math.max(0, Math.round((now - state.lastBuyerAt) / 60000)) : 0);
     state.lastBuyerAt = now;
+    state.lastBuyerDay = today;
     localStorage.setItem('lastBuyerAt', String(now));
+    localStorage.setItem('lastBuyerDay', today);
     logAuto('session_gap', { minutes: state.sessionGapMinutes, buyerText: cap.lastBuyerText });
   }
   if (cap && cap.ok && cap.lastBuyerText && cap.lastBuyerText !== prevBuyer) {
