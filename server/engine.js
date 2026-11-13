@@ -335,7 +335,11 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   const howTo = /怎么退|如何退|能退吗|可以退吗|退款流程|怎么申请/.test(queryText);
   const refundDemand = buffer.REFUND_WORDS.test(queryText) && /我要|想|给我|申请|直接|干脆|还是|退了/.test(queryText);
   const prevRefundTalk = buyerMsgs.slice(0, -1).some((m) => buffer.REFUND_WORDS.test(m.text || ''));
-  const refundTalk = !howTo && (refundDemand || prevRefundTalk);
+  const currentAsk = (un && un.ask) || '';
+  const nonRefundAsk = ['shipping_status', 'logistics', 'arrival_time', 'stock', 'price', 'spec', 'invoice', 'freight', 'usage'].includes(currentAsk);
+  const refundFollow = prevRefundTalk && !nonRefundAsk
+    && /^(那|这|怎么办|怎么处理|然后|还有|能|可以|多久|什么时候)/.test(String(queryText || '').trim());
+  const refundTalk = !howTo && (refundDemand || refundFollow);
   if ((refundTalk || howTo) && !risks.some((r) => r === '投诉威胁')) {
     const stage = howTo ? 3 : buffer.stageFor(messages, queryText);
     const text = buffer.replyFor('refund', stage);

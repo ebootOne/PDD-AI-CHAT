@@ -213,6 +213,8 @@ function safeText(contract, reference) {
   if (e.includes('product_price')) return '价格以页面显示为准哦，具体规格价格可以在商品页看到。';
   if (e.includes('product_spec') || e.includes('order_spec')) return '具体规格以商品页标注为准哦。';
   if (e.includes('order_status') || e.includes('order_courier') || e.includes('order_tracking')) {
+    const one = reference && reference.ref && reference.ref.kind === 'order_item' ? reference.ref : null;
+    if (one) return '您这单' + (one.status || '') + '，订单页能查详情哦。';
     const os = (reference && reference.orderCandidates) || [];
     if (os.length === 1) {
       return '您这单' + (os[0].status || '') + '，订单页能查详情哦。';
