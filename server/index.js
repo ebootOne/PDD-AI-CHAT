@@ -578,6 +578,7 @@ const cfg = store.getConfig();
               return manuals.load().find((m) => m && m.title && (title.includes(m.title) || m.title.includes(title))) || null;
             })(),
             order: ctx.order || null,
+            sessionGapMinutes: Number(ctx.sessionGapMinutes) || 0,
             products: productStore.forStore(ctx.storeId || ''),
             kb: kbForStore,
             messages: ctx.messages || [],

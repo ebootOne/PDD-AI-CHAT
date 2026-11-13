@@ -107,7 +107,14 @@ function build(input = {}) {
   stats.policies = kb.length;
 
   // 5) 最近会话（主题/指代）
-  const msgs = (Array.isArray(input.messages) ? input.messages : []).slice(-8);
+  const sessionGapMinutes = Number(input.sessionGapMinutes) || 0;
+  const rawMsgs = Array.isArray(input.messages) ? input.messages : [];
+  // 超过 30 分钟视为新会话段：不继承上一段话题，只保留当前消息
+  const scopedMsgs = sessionGapMinutes > 30 ? rawMsgs.slice(-1) : rawMsgs;
+  const msgs = scopedMsgs.slice(-8);
+  if (sessionGapMinutes > 30) {
+    items.push({ id: 'S1', block: 'conversation', label: '会话段', text: '距上次买家消息 ' + sessionGapMinutes + ' 分钟，按新会话处理，不继承上一段话题', source: 'session', entity: 'session', attrs: ['session'] });
+  }
   msgs.forEach((m, i) => {
     if (!m || !m.text) return;
     items.push({ id: 'C' + (i + 1), block: 'conversation', label: m.role === 'buyer' ? '买家' : '客服', text: clean(m.text), source: 'conversation', entity: 'conversation', attrs: ['conversation'] });
@@ -119,17 +126,18 @@ function build(input = {}) {
     items.push({ id: 'S1', block: 'profile', label: '客服在线', text: input.profile.hours.start + '到' + input.profile.hours.end, source: 'profile', entity: 'profile', attrs: ['profile'] });
   }
 
-  const reference = referenceResolver.resolve({ buyerText: input.buyerText || '', messages: input.messages || [], goods, orders, products: allProducts });
+  const reference = referenceResolver.resolve({ buyerText: input.buyerText || '', messages: scopedMsgs, goods, orders, products: allProducts });
   if (reference.ref) {
     items.push({ id: 'T1', block: 'topic', label: '当前话题', text: '买家在问：' + reference.ref.title + '（' + reference.source + '）', source: 'reference', entity: reference.ref.kind + ':' + reference.ref.title, attrs: ['topic'] });
   }
   const hasStockFact = items.some((x) => x.block === 'product' && (x.attrs || []).includes('product_stock'));
   const productAsk = /有货|库存|规格|价格|便宜|多少钱|品种|哪款|这款|商品|蒜/.test(input.buyerText || '');
+  const emptyStore = allProducts.length === 0;
   const orderAsk = /那单|这单|发货|到哪|物流|退款|订单/.test(input.buyerText || '');
-  if (reference.ref && !hasStockFact && productAsk && !(orderAsk && !/有货|库存|规格|价格|便宜|多少钱|品种|哪款/.test(input.buyerText || ''))) {
+  if ((reference.ref || emptyStore) && !hasStockFact && productAsk && !(orderAsk && !/有货|库存|规格|价格|便宜|多少钱|品种|哪款/.test(input.buyerText || ''))) {
     items.push({
       id: 'N1', block: 'product', label: '商品状态',
-      text: reference.ref.title + '目前不在本店在售商品里；本店当前没有该商品的可售库存，且全店暂无在售商品。',
+      text: (reference.ref ? reference.ref.title + '目前不在本店在售商品里；' : '') + '本店当前没有在售商品，暂无库存数据。',
       source: 'reference', entity: 'product:unavailable', attrs: ['product_availability'],
     });
   }

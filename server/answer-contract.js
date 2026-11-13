@@ -102,7 +102,10 @@ function check(input = {}) {
   if (hasExpectedFacts && targetAttr && expected.length && !expected.includes(targetAttr)) {
     issues.push('target属性与当前问题不一致');
   }
-  if (hasExpectedFacts && targetAttr && !attrs.has(targetAttr)) {
+  const hasStockFact0 = allItems.some((x) => (x.attrs || []).includes('product_stock'));
+  const hasAvailability0 = allItems.some((x) => (x.attrs || []).includes('product_availability'));
+  if (hasExpectedFacts && targetAttr && !attrs.has(targetAttr)
+      && !(hasAvailability0 && !hasStockFact0 && targetAttr === 'product_stock')) {
     issues.push('target属性没有对应事实');
   }
   for (const claim of claims) {
@@ -132,8 +135,8 @@ function check(input = {}) {
     if (mentionsCatalog && !mentionsOrder) issues.push('回答用了其他商品，不是买家订单商品');
   }
 
-  const availability = allItems.some((x) => (x.attrs || []).includes('product_availability'));
-  if (availability && !allItems.some((x) => (x.attrs || []).includes('product_stock'))) {
+  const availability = hasAvailability0;
+  if (availability && !hasStockFact0) {
     if (/(\d+)\s*(件|个|份|包|库存)/.test(text) && !/不在|没有|下架|无货|未在售|售罄/.test(text)) {
       issues.push('无可售库存却报库存数字');
     }
@@ -148,7 +151,7 @@ function check(input = {}) {
 
   const concreteEntity = targetEntity && !/^(商品|订单|订单商品|商品库)$/.test(targetEntity);
   // 商品题 target 是具体商品时，必须和买家订单里的商品是同一款
-  if (['stock', 'product', 'price', 'spec', 'nego'].includes(ask) && targetEntity.startsWith('product:')) {
+  if (['stock', 'product', 'price', 'spec', 'nego'].includes(ask) && targetEntity.startsWith('product:') && targetEntity !== 'product:unavailable') {
     const targetItems = allItems.filter((x) => String(x.entity || '') === targetEntity);
     const targetText = targetItems.map((x) => String(x.text || '')).join(' ');
     const orderTitles = orders.flatMap((o) => (o.items || []).map((it) => String(it.title || ''))).filter(Boolean);
@@ -183,6 +186,7 @@ function check(input = {}) {
     expected,
     target: targetAttr,
     usedAttrs: [...attrs],
+    availability: availability && !hasStockFact0,
     issues: [...new Set(issues)],
   };
 }
@@ -198,6 +202,9 @@ function safeText(contract, reference) {
   }
   if (ref && ref.title && (e.includes('product_spec') || e.includes('order_spec'))) {
     return '您问的' + ref.title + '目前不在本店在售商品里，具体规格以页面为准。';
+  }
+  if (!ref && contract && contract.availability) {
+    return '本店当前没有在售商品，暂无库存数据，具体以页面显示为准。';
   }
   const issues = (contract && contract.issues) || [];
   if (issues.some((x) => /已退款/.test(x))) return '这单已经退款成功了，您在订单页能查到退款进度哦。';

@@ -25,6 +25,8 @@ const state = {
   lastAutoKey: '', // 自动模式：上一次自动生成的「会话+最后一句」，防止同一句反复扣点
   autoPrimed: false, // 首帧只登记、不自动回，避免一启动就把旧消息发出去
   autoRunId: '',
+  lastBuyerAt: Number(localStorage.getItem('lastBuyerAt') || 0),
+  sessionGapMinutes: 0,
   pendingAuto: null, // 3 分钟兜底：每条买家新消息必须有一条回复
   lastAutoSent: null, // 自动发送去重：同一句 2 分钟内不重复发
   logView: 'current', // 回复日志：current=当前店铺 / all=所有店铺
@@ -331,7 +333,7 @@ function capKey(cap) {
   return [cap && cap.url, cap && cap.buyerName, cap && cap.lastBuyerText, (cap && cap.messages ? cap.messages.length : 0)].join('|');
 }
 
-async function generate(isAuto = false, runId = '') {
+async function generate(isAuto = false, runId = '', sessionGapMinutes = state.sessionGapMinutes || 0) {
   if (state.busy) return;
   state.busy = true;
   const btn = $('#btnGen');
@@ -370,6 +372,7 @@ async function generate(isAuto = false, runId = '') {
       mode: state.auto ? 'auto' : 'suggest',
       engine: state.engine,
       requestId: (crypto.randomUUID && crypto.randomUUID()) || 'r' + Date.now(),
+      sessionGapMinutes,
     };
 
     const result = await api('/api/reply', 'POST', ctx);
@@ -544,6 +547,17 @@ B.on('cs:changed', (cap) => {
 
   // 换会话/来新消息时，把自己上一轮填进去的草稿清掉（拼多多会保留草稿）
   const prevBuyer = state.capture && state.capture.lastBuyerText;
+  const prevCount = (state.capture && state.capture.messages && state.capture.messages.length) || 0;
+  const capLast = cap && Array.isArray(cap.messages) ? cap.messages[cap.messages.length - 1] : null;
+  const isNewBuyer = !!(state.capture && cap && cap.ok && cap.lastBuyerText && capLast && capLast.role === 'buyer'
+    && (cap.lastBuyerText !== prevBuyer || (cap.messages || []).length !== prevCount));
+  if (isNewBuyer) {
+    const now = Date.now();
+    state.sessionGapMinutes = state.lastBuyerAt ? Math.max(0, Math.round((now - state.lastBuyerAt) / 60000)) : 0;
+    state.lastBuyerAt = now;
+    localStorage.setItem('lastBuyerAt', String(now));
+    logAuto('session_gap', { minutes: state.sessionGapMinutes, buyerText: cap.lastBuyerText });
+  }
   if (cap && cap.ok && cap.lastBuyerText && cap.lastBuyerText !== prevBuyer) {
     if (state.lastFilled) {
       B.page.clear().catch(() => {});
@@ -573,7 +587,7 @@ B.on('cs:changed', (cap) => {
         order: cap.order ? { hasOrder: !!cap.order.hasOrder, status: cap.order.status || '' } : null,
       });
       state.pendingAuto = { runId, key, at: Date.now(), deadline: Date.now() + 180000, sent: false, sending: false, attempts: 0 };
-      generate(true, runId);
+      generate(true, runId, state.sessionGapMinutes);
     }
   }
 });
