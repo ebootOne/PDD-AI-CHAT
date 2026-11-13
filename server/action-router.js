@@ -20,18 +20,19 @@ function contextRefund(input, text, recent, messages) {
   if (!list.length) return null;
   const lastSeller = [...(messages || [])].reverse().find((m) => m && m.role === 'seller');
   const askedOrder = lastSeller && /哪一单|哪一单呀|哪一单呢/.test(String(lastSeller.text || ''));
-  const refundTalk = /退款|退下款|退个款|不想要|买错/.test(recent);
+  const refundTalk = /退款|退下款|退个款|不想要|买错/.test((messages || []).map((m) => String(m && m.text || '')).join(' '));
   if (!askedOrder || !refundTalk) return null;
   const allText = (messages || []).map((m) => String(m && m.text || '')).join(' ');
   const paidHint = /已经下单|已下单/.test(allText);
   const statusHint = paidHint
     ? (/待发货/.test(allText) ? '待发货' : /待签收|已发货/.test(allText) ? '已发货' : /已签收/.test(allText) ? '已签收' : '')
     : (/待支付/.test(allText) ? '待支付' : /待发货/.test(allText) ? '待发货' : /待签收|已发货/.test(allText) ? '已发货' : /已签收/.test(allText) ? '已签收' : '');
+  const selectionText = text + ' ' + recent;
   const tokenHit = (title) => {
     const c = String(title || '').replace(/^\d{2,4}年/, '').replace(/\s+/g, '');
     if (!c) return false;
-    if (text.includes(c.slice(0, 4))) return true;
-    for (let i = 0; i + 2 <= c.length; i++) if (text.includes(c.slice(i, i + 2))) return true;
+    if (selectionText.includes(c.slice(0, 4))) return true;
+    for (let i = 0; i + 2 <= c.length; i++) if (selectionText.includes(c.slice(i, i + 2))) return true;
     return false;
   };
   let matches = list.filter((o) => (o.items || []).some((it) => tokenHit(it.title)));

@@ -271,13 +271,19 @@ async function pddOrdersCaptureAll() {
   if (!panel) return [];
   const tabs = [...panel.querySelectorAll('li.order-panel-second-bar')].filter(isVisible);
   const collect = () => pddOrdersCapture();
+  const clickAll = async () => {
+    const all = [...panel.querySelectorAll('li.order-panel-third-bar')].find((x) => /^全部/.test((x.innerText || '').trim()));
+    if (all && !all.classList.contains('bar-select')) { all.click(); await sleep(700); }
+  };
   const current = tabs.find((t) => t.classList.contains('bar-select')) || tabs[0];
   const seen = new Map();
+  await clickAll();
   for (const o of collect()) seen.set(o.orderNo || JSON.stringify(o), o);
   for (const tab of tabs) {
     if (tab === current) continue;
     tab.click();
     await sleep(700);
+    await clickAll();
     for (const o of collect()) seen.set(o.orderNo || JSON.stringify(o), o);
   }
   if (current && current.isConnected) { current.click(); await sleep(300); }
