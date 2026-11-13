@@ -1163,6 +1163,7 @@ const cfg = store.getConfig();
         const product = (result.products && result.products[0]) || null;
         const plan = actionRouter.plan({
           buyerText: result.buyerText,
+          messages: ctx.messages || [],
           order: ctx.order || (ctx.orders && ctx.orders[0]) || null,
           orders: ctx.orders || [],
           product,
@@ -1170,11 +1171,19 @@ const cfg = store.getConfig();
         });
         if (plan) {
           result.action = plan;
-          if (plan.kind === 'refund' && plan.canAuto && result.suggestions && result.suggestions[0]) {
-            result.suggestions = [{ tone: '标准', text: '这边帮您申请' + (plan.plan.typeName || '退款') + '，请在下方卡片里确认一下。' }];
+          if (plan.kind === 'refund' && result.suggestions && result.suggestions[0]) {
+            if (plan.canAuto) {
+              result.suggestions = [{ tone: '标准', text: '这边帮您申请' + (plan.plan.typeName || '退款') + '，请在下方卡片里确认一下。' }];
+              result.reason = '买家明确退款，已生成申请';
+            } else if ((plan.plan.missing || []).includes('received')) {
+              result.suggestions = [{ tone: '标准', text: '您收到货了吗？确认后我帮您申请退款。' }];
+              result.reason = '退款前确认收货状态';
+            } else if ((plan.plan.missing || []).includes('reason')) {
+              result.suggestions = [{ tone: '标准', text: '您是遇到什么问题了吗？我帮您申请退款。' }];
+              result.reason = '退款前确认原因';
+            }
             result.source = 'action';
             result.decision = 'suggest';
-            result.reason = '买家明确退款，已生成申请';
           }
         }
       } catch (_) {}
