@@ -1809,7 +1809,13 @@ const cfg = store.getConfig();
       }, {});
       const ruleHits = replyLogs.filter((l) => l.source === 'rule').length;
       const llmCalls = replyLogs.filter((l) => l.source === 'llm').length;
-      const pointsUsed = replyLogs.reduce((n, l) => n + (l.cost || 0), 0);
+      const pointsUsed = Number(replyLogs.reduce((n, l) => n + (l.cost || 0), 0).toFixed(3));
+      // 平均每条用多少点：今日 + 近 7 天（点数现在有小数，保留 2 位）
+      const avgPoints = replyLogs.length ? Number((pointsUsed / replyLogs.length).toFixed(2)) : 0;
+      const since7 = Date.now() - 7 * 24 * 3600 * 1000;
+      const logs7 = logs.filter((l) => l.decision && Date.parse(l.ts || 0) >= since7);
+      const points7 = logs7.reduce((n, l) => n + (l.cost || 0), 0);
+      const avgPoints7d = logs7.length ? Number((points7 / logs7.length).toFixed(2)) : 0;
       return send(res, 200, {
         ok: true,
         today: {
@@ -1817,7 +1823,9 @@ const cfg = store.getConfig();
           sends: todayLogs.filter((l) => l.type === 'send').length,
           byDecision,
           pointsUsed,
+          avgPoints,
           modelCalls: llmCalls,
+          avgPoints7d,
           // 本地命中率 = 毛利率的先行指标
           localHitRate: replyLogs.length ? Number((ruleHits / replyLogs.length).toFixed(3)) : 0,
         },

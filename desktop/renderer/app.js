@@ -2483,6 +2483,13 @@ async function refreshStatus() {
     const s = await api('/api/stats');
     state.stats = s;
     $('#stToday').textContent = '今日回复 ' + s.today.total;
+    const avgEl = $('#stAvg');
+    if (avgEl) {
+      const a = Number(s.today.avgPoints || 0);
+      const a7 = Number(s.today.avgPoints7d || 0);
+      avgEl.textContent = s.today.total ? '平均 ' + fmtPts(a) + ' 点/条' : '平均 — 点/条';
+      avgEl.title = '今日平均 ' + fmtPts(a) + ' 点/条；近 7 天平均 ' + (a7 ? fmtPts(a7) : '—') + ' 点/条';
+    }
     $('#stReview').textContent = '待复核 ' + s.pendingReview;
   } catch (_) {}
 }
