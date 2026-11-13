@@ -203,7 +203,8 @@ function safeText(contract, reference) {
   if (ref && ref.title && (e.includes('product_spec') || e.includes('order_spec'))) {
     return '您问的' + ref.title + '目前不在本店在售商品里，具体规格以页面为准。';
   }
-  if (!ref && contract && contract.availability) {
+  if (!ref && contract && contract.availability
+      && e.some((x) => ['product_stock', 'product_price', 'product_spec'].includes(x))) {
     return '本店当前没有在售商品，暂无库存数据，具体以页面显示为准。';
   }
   const issues = (contract && contract.issues) || [];
@@ -211,7 +212,17 @@ function safeText(contract, reference) {
   if (e.includes('product_stock')) return '您问的是哪款商品的库存呀？我帮您确认哈。';
   if (e.includes('product_price')) return '价格以页面显示为准哦，具体规格价格可以在商品页看到。';
   if (e.includes('product_spec') || e.includes('order_spec')) return '具体规格以商品页标注为准哦。';
-  if (e.includes('order_status') || e.includes('order_courier') || e.includes('order_tracking')) return '您问的是哪一单呀？';
+  if (e.includes('order_status') || e.includes('order_courier') || e.includes('order_tracking')) {
+    const os = (reference && reference.orderCandidates) || [];
+    if (os.length === 1) {
+      return '您这单' + (os[0].status || '') + '，订单页能查详情哦。';
+    }
+    if (os.length > 1) {
+      const names = os.slice(0, 3).map((x) => String(x.title || '').slice(0, 8) + '（' + (x.status || '状态未知') + '）').join('、');
+      return '您有' + os.length + '单：' + names + '。您问的是哪一单呀？';
+    }
+    return '您问的是哪一单呀？';
+  }
   return '这个信息以页面显示为准哈。';
 }
 

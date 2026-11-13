@@ -133,7 +133,7 @@ function build(input = {}) {
   const hasStockFact = items.some((x) => x.block === 'product' && (x.attrs || []).includes('product_stock'));
   const productAsk = /有货|库存|规格|价格|便宜|多少钱|品种|哪款|这款|商品|蒜/.test(input.buyerText || '');
   const emptyStore = allProducts.length === 0;
-  const orderAsk = /那单|这单|发货|到哪|物流|退款|订单/.test(input.buyerText || '');
+  const orderAsk = /那单|这单|发货|到哪|到货|签收|收到|物流|退款|订单|买的/.test(input.buyerText || '');
   if ((reference.ref || emptyStore) && !hasStockFact && productAsk && !(orderAsk && !/有货|库存|规格|价格|便宜|多少钱|品种|哪款/.test(input.buyerText || ''))) {
     items.push({
       id: 'N1', block: 'product', label: '商品状态',
