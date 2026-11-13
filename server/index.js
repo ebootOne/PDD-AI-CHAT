@@ -1235,6 +1235,17 @@ const cfg = store.getConfig();
         }
       } catch (_) {}
 
+      // 未支付订单：不能退款，直接告知取消订单，不生成退款动作
+      const orderForUnpaid = ctx.order || (ctx.orders && ctx.orders[0]) || null;
+      if (orderForUnpaid && /待支付/.test(String(orderForUnpaid.status || ''))
+          && /退款|退下款|退个款|不想要|买错/.test(result.buyerText || '')) {
+        result.suggestions = [{ tone: '标准', text: '这单还未支付，不需要退款，您可以直接取消订单。' }];
+        result.source = 'policy';
+        result.reason = '未支付订单无需退款';
+        result.decision = 'suggest';
+        result.action = null;
+      }
+
       // 会话状态：记下这一轮聊了什么、答了什么，供下一轮与模型参考
       result.sessionSummary = session.summary(ctx.storeId || 'default', conversationId);
       session.update(ctx.storeId || 'default', conversationId, {
