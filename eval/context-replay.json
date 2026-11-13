@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-11-13T11:25:35.808Z",
+  "lastBuyerText": "还有货嘛",
+  "messageCount": 14,
+  "fresh": {
+    "gap": 5,
+    "ref": {
+      "kind": "topic",
+      "title": "抽纸"
+    },
+    "text": "您问的抽纸目前不在本店在售商品里，具体库存/补货以页面为准。"
+  },
+  "stale": {
+    "gap": 1440,
+    "ref": null,
+    "text": "本店当前没有在售商品，暂无库存数据，具体以页面显示为准。"
+  },
+  "sent": false
+}
