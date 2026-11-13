@@ -464,7 +464,7 @@ async function executeAction(result, cap) {
       const open = await B.page.openRefund();
       if (!open || !open.ok) { logAuto('action_fail', { runId: state.autoRunId, kind: 'refund', error: open && open.error }); return; }
       if (p.orderNo) await B.page.refundSelect(p.orderNo);
-      const fill = await B.page.refundFill({ type: p.type, received: p.received, reason: p.reason, amount: p.amount, note: '帮您申请' + (p.typeName || '退款') + '，请确认' });
+      const fill = await B.page.refundFill({ type: p.type, received: p.received, reason: p.reason, amount: p.amount, note: '' });
       logAuto('action_refund', { runId: state.autoRunId, orderNo: p.orderNo, type: p.type, received: p.received, reason: p.reason, amount: p.amount, fillOk: !!(fill && fill.ok), canAuto: !!a.canAuto });
       if (a.canAuto && fill && fill.ok) {
         const sub = await B.page.refundSubmit();
