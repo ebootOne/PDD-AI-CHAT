@@ -1077,6 +1077,18 @@ const cfg = store.getConfig();
         result.knowledgeGap = gapAsk;
       }
 
+      // 商品域边界：非种子商品不得输出种子/种植口径
+      const gtitle = String((ctx.goods && ctx.goods.title) || '');
+      const nonSeedGoods = gtitle && !/种子|籽|种苗|育苗|菜种|花种|萝卜|番茄|生菜|辣椒|黄瓜|南瓜|玉米/.test(gtitle);
+      const hasDomainFact = !!(factPack && (factPack.allItems || factPack.items || []).some((x) => x.id === 'D1'));
+      if (result.suggestions && result.suggestions[0] && (nonSeedGoods || hasDomainFact)
+          && /浸种|催芽|露白|播种|土壤|育苗|泡种/.test(result.suggestions[0].text || '')) {
+        result.suggestions = [{ tone: '标准', text: '这款是用品，不是种子，催芽/种植方法不适用；具体使用方式以商品页说明为准。' }];
+        result.source = 'domain';
+        result.reason = '非种子商品不使用种子口径';
+        result.decision = 'suggest';
+      }
+
       // 最终契约复核：judge/guard 之后文本可能被替换，必须按最终文本再验一次
       if (factPack && result.suggestions && result.suggestions[0]) {
         const finalContract = answerContract.check({

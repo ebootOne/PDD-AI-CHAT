@@ -57,6 +57,12 @@ function build(input = {}) {
     stats.products++;
   }
 
+  // 商品域：非种子商品，不允许用种子/种植口径回答
+  const seedGoods = /种子|籽|种苗|育苗|菜种|花种|萝卜|番茄|生菜|辣椒|黄瓜|南瓜|玉米/.test(goodsTitle);
+  if (goodsTitle && !seedGoods) {
+    items.push({ id: 'D1', block: 'profile', label: '商品域', text: '当前商品是用品，不是种子；不要使用浸种、催芽、播种、土壤、育苗等种子种植口径。', source: 'domain', entity: 'domain:goods', attrs: ['domain'] });
+  }
+
   // 2) 当前买家订单（全部，不按问题筛）
   const orders = (Array.isArray(input.orders) ? input.orders : (input.order ? [input.order] : []))
     .filter((o) => o && o.hasOrder && inStore(o)).slice(0, 5);
@@ -152,6 +158,7 @@ function build(input = {}) {
   items.filter((x) => x.block === 'conversation').slice(-2).forEach(add);
   items.filter((x) => x.block === 'product' && x.id !== 'P0').forEach(add);
   items.filter((x) => x.block === 'profile').forEach(add);
+  items.filter((x) => x.id === 'D1').forEach(add);
   items.filter((x) => x.block === 'topic').forEach(add);
   items.filter((x) => x.block === 'product' && x.id === 'N1').forEach(add);
   return {
