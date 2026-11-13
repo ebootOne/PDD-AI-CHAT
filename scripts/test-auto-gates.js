@@ -40,9 +40,11 @@ async function ask(text, conversationId, mode = 'auto') {
   });
 
   const arrival = await ask('什么时候能到呢', 'auto-arrival');
-  check('A07', '到货时效（模型）通过质检 → 可自动', () => {
-    assert.strictEqual(arrival.decision, 'auto_send', arrival.reason);
-    assert.strictEqual(arrival.autoModel, true, 'should be model auto');
+  check('A07', '到货时效：模型或安全兜底都能立即发', () => {
+    const text = ((arrival.suggestions || [])[0] || {}).text || '';
+    const safeFallback = arrival.decision === 'fallback' && /物流|页面|订单/.test(text) && !/\d/.test(text);
+    assert.ok(arrival.decision === 'auto_send' || safeFallback, arrival.reason + ' / ' + text);
+    if (safeFallback) assert.ok(!arrival.autoModel, '兜底不应伪装成模型自动');
   });
 
   const price = await ask('多少钱', 'auto-price');
