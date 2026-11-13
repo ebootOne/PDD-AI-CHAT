@@ -433,6 +433,7 @@ async function generate(isAuto = false, runId = '', sessionGapMinutes = state.se
         await sleep(500);
         await sendHolding(runId);
       }
+      if (result.action) await executeAction(result, cap);
     }
   } catch (e) {
     if (isAuto) {
