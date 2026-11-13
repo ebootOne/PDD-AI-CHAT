@@ -175,7 +175,7 @@ function parseActionCards(rows) {
         const v = (r.querySelector('.row-content') || {}).innerText || '';
         if (k.trim()) rowsMap[k.trim()] = v.trim();
       }
-      out.push({ kind: 'refund', goodsTitle: goodsTitle.trim(), amount: amount.trim(), type: rowsMap['申请类型'] || '', reason: rowsMap['申请原因'] || '', note: rowsMap['申请说明'] || '', status: /等待消费者确认/.test(txt) ? 'waiting_buyer' : '', text: txt.slice(0, 300) });
+      out.push({ kind: 'refund', goodsTitle: goodsTitle.trim(), amount: amount.trim(), type: rowsMap['申请类型'] || '', reason: rowsMap['申请原因'] || '', note: rowsMap['申请说明'] || '', status: /等待消费者确认/.test(txt) ? 'waiting_buyer' : /消费者已拒绝|已拒绝/.test(txt) ? 'refused' : /退款成功|已完成/.test(txt) ? 'done' : '', text: txt.slice(0, 300) });
     }
     if (/发起拼单/.test(txt) && row.querySelector('[class*="substitude_order"]')) {
       const q = (sel) => { const el = row.querySelector(sel); return el ? (el.innerText || '').trim() : ''; };
