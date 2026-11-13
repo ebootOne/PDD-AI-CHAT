@@ -1176,7 +1176,7 @@ const cfg = store.getConfig();
           result.reason = '退款咨询，不触发退款动作';
           result.decision = 'suggest';
         } else if (localMatch && localMatch.template === 'refund') {
-          const p = actionTemplates.refund.fromModel({ orderNo: (ctx.order && ctx.order.orderNo) || '' }, { orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText });
+          const p = actionTemplates.refund.fromModel({}, { orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText });
           plan = { kind: 'refund', plan: p, needs: p.needs, canAuto: p.canAuto, reason: '本地退款模板命中' };
         } else if (ma && ma.kind === 'refund') {
           const p = actionTemplates.refund.fromModel(ma, {
@@ -1205,6 +1205,9 @@ const cfg = store.getConfig();
             if (plan.canAuto) {
               result.suggestions = [{ tone: '标准', text: '这边帮您申请' + (plan.plan.typeName || '退款') + '，请在下方卡片里确认一下。' }];
               result.reason = '买家明确退款，已生成申请';
+            } else if ((plan.plan.missing || []).includes('order') && (ctx.orders || []).length > 1) {
+              result.suggestions = [{ tone: '标准', text: '您问的是哪一单呀？我帮您核对订单后申请退款。' }];
+              result.reason = '退款前确认订单';
             } else if ((plan.plan.missing || []).includes('reason')) {
               result.suggestions = [{ tone: '标准', text: '您是遇到什么问题了吗？我帮您申请退款。' }];
               result.reason = '退款前确认原因';

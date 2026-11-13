@@ -22,8 +22,10 @@ const refund = {
   required: ['orderNo', 'refundType', 'received', 'reason', 'amount'],
   enums: { refundType: Object.keys(REFUND_TYPES), reason: REFUND_REASONS },
   fromModel(action = {}, context = {}) {
-    const order = (context.orders || []).find((o) => String(o.orderNo) === String(action.orderNo))
-      || context.order || (context.orders && context.orders[0]) || null;
+    const orders = Array.isArray(context.orders) ? context.orders.filter((o) => o && o.hasOrder) : [];
+    const order = action.orderNo
+      ? (orders.find((o) => String(o.orderNo) === String(action.orderNo)) || context.order || null)
+      : (orders.length === 1 ? orders[0] : (orders.length === 0 ? context.order : null));
     const received = action.received === true || action.received === false ? action.received
       : (context.buyerReceived != null ? context.buyerReceived : inferReceived(order));
     const reason = REFUND_REASONS.includes(String(action.reason || ''))

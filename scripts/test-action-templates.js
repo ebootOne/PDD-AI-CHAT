@@ -25,4 +25,7 @@ assert.strictEqual(fromOrder.canAuto, true);
 assert.strictEqual(t.matchLocal('我要退款').template, 'refund');
 assert.strictEqual(t.matchLocal('怎么申请退款'), null);
 assert.strictEqual(t.matchLocal('帮我退下款').template, 'refund');
-console.log('action-templates：本地完整命令/退款槽位/邀请 PASS');
+const multi = t.refund.fromModel({}, { orders: [order, { ...order, orderNo: 'B' }], buyerText: '我要退款' });
+assert.ok(multi.needs.includes('order'));
+assert.strictEqual(multi.canAuto, false);
+console.log('action-templates：多订单先问单/本地命令/退款槽位/邀请 PASS');
