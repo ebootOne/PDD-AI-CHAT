@@ -1123,7 +1123,7 @@ const cfg = store.getConfig();
             });
           }
         }
-        if (!result.contract.ok && result.contract.expected && result.contract.expected.length) {
+        if (!result.contract.ok && result.contract.expected && result.contract.expected.length && !result.action) {
           result.suggestions = [{ tone: '标准', text: answerContract.safeText(finalContract, factPack && factPack.reference) }];
           result.source = 'contract';
           result.reason = '最终文本属性不匹配：' + (finalContract.issues || []).join('、');
@@ -1134,7 +1134,7 @@ const cfg = store.getConfig();
       }
 
       // 契约兜底：重答后仍属性错配，不发错误属性
-      if (result.contract && !result.contract.ok && result.contract.expected && result.contract.expected.length) {
+      if (result.contract && !result.contract.ok && result.contract.expected && result.contract.expected.length && !result.action) {
         const safe = answerContract.safeText(result.contract, factPack && factPack.reference);
         result.suggestions = [{ tone: '标准', text: safe }];
         result.source = 'contract';
@@ -1168,7 +1168,9 @@ const cfg = store.getConfig();
 
       // 模型决定下一步动作；本地只校验/补计划。正则仅在后端不可用时兜底
       try {
-        const ma = result.modelAction;
+        const ma0 = result.modelAction;
+        const explicitOrder = (ctx.orders || []).find((o) => o && o.orderNo && String(result.buyerText || '').includes(String(o.orderNo)));
+        const ma = ma0 && explicitOrder ? { ...ma0, orderNo: explicitOrder.orderNo } : ma0;
         const refundInfo = /退款|退货|售后|退钱/.test(result.buyerText) && /怎么|如何|能退吗|可以退吗|退款流程|退款多久|退货规则|怎么申请/.test(result.buyerText);
         const localMatch = actionTemplates.matchLocal(result.buyerText);
         let plan = null;
@@ -1236,15 +1238,65 @@ const cfg = store.getConfig();
       } catch (_) {}
 
       // 未支付订单：不能退款，直接告知取消订单，不生成退款动作
-      const orderForUnpaid = ctx.order || (ctx.orders && ctx.orders[0]) || null;
+      const orderText = String(result.buyerText || '');
+      const orderList = (ctx.orders || []).filter((o) => o && o.hasOrder);
+      const titleHit2 = (title) => {
+        const c = String(title || '').replace(/^\d{2,4}年/, '').replace(/\s+/g, '');
+        if (!c) return false;
+        if (orderText.includes(c.slice(0, 4))) return true;
+        for (let i = 0; i + 2 <= c.length; i++) if (orderText.includes(c.slice(i, i + 2))) return true;
+        return false;
+      };
+      const hitOrders = orderList.filter((o) => {
+        if (o.orderNo && orderText.includes(String(o.orderNo))) return true;
+        const tail = (orderText.match(/(\d{4})/) || [])[1];
+        if (tail && String(o.orderNo || '').endsWith(tail)) return true;
+        return (o.items || []).some((it) => titleHit2(it.title));
+      });
+      const orderForUnpaid = hitOrders.length === 1 ? hitOrders[0] : (orderList.length === 1 ? orderList[0] : null);
       if (orderForUnpaid && /待支付/.test(String(orderForUnpaid.status || ''))
-          && /退款|退下款|退个款|不想要|买错/.test(result.buyerText || '')) {
+          && /退款|退下款|退个款|不想要|买错/.test(orderText)) {
         result.suggestions = [{ tone: '标准', text: '这单还未支付，不需要退款，您可以直接取消订单。' }];
         result.source = 'policy';
         result.reason = '未支付订单无需退款';
         result.decision = 'suggest';
         result.action = null;
       }
+
+      // 多订单退款：买家没点名订单时，先让买家确认，不能信模型默认选单
+      try {
+        const list = (ctx.orders || []).filter((o) => o && o.hasOrder);
+        const asksRefund = /退款|退下款|退个款|退钱|不想要|买错/.test(result.buyerText || '')
+          && !(/怎么|如何|能退吗|可以退吗|退款流程|退款多久/.test(result.buyerText || ''));
+        if (asksRefund && list.length > 1) {
+          const text = String(result.buyerText || '');
+          const norm = (x) => String(x || '').replace(/\s+/g, '');
+          const matches = list.filter((o) => {
+            if (o.orderNo && text.includes(String(o.orderNo))) return true;
+            const tail = (text.match(/(\d{4})/) || [])[1];
+            if (tail && String(o.orderNo || '').endsWith(tail)) return true;
+            return (o.items || []).some((it) => {
+              const core = norm(it.title).replace(/^\d{2,4}年/, '');
+              if (!core) return false;
+              if (text.includes(core.slice(0, 4))) return true;
+              for (let i = 0; i + 2 <= core.length; i++) if (text.includes(core.slice(i, i + 2))) return true;
+              return false;
+            });
+          });
+          const exact = list.filter((o) => o.orderNo && text.includes(String(o.orderNo)));
+          if (exact.length !== 1 && matches.length !== 1) {
+            const names = list.slice(0, 5).map((o) => {
+              const it = (o.items && o.items[0]) || {};
+              return (it.title || '商品').slice(0, 10) + '（' + (o.status || '状态未知') + '）';
+            }).join('、');
+            result.suggestions = [{ tone: '标准', text: '您有' + list.length + '笔订单：' + names + '。您要退哪一单呀？' }];
+            result.source = 'action';
+            result.reason = '多订单退款，先确认订单';
+            result.decision = 'suggest';
+            result.action = null;
+          }
+        }
+      } catch (_) {}
 
       // 会话状态：记下这一轮聊了什么、答了什么，供下一轮与模型参考
       result.sessionSummary = session.summary(ctx.storeId || 'default', conversationId);

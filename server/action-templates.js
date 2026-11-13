@@ -38,7 +38,8 @@ const refund = {
       received,
       type: action.refundType,
       reason,
-      amount: Number(action.amount) || (order && order.paid) || 0,
+      amount: Number(action.amount) || (order && order.paid) || (order && order.amount)
+        || Number(String((order && order.items && order.items[0] && order.items[0].price) || '').replace(/[^\d.]/g, '')) || 0,
     });
     if (!plan.reason || !REFUND_REASONS.includes(plan.reason)) plan.missing = [...new Set([...(plan.missing || []), 'reason'])];
     if (plan.type && !REFUND_TYPES[plan.type]) plan.missing = [...new Set([...(plan.missing || []), 'type'])];

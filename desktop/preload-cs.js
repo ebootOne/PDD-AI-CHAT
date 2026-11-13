@@ -193,7 +193,7 @@ function parseActionCards(rows) {
   return out.slice(-6);
 }
 
-function pddCapture() {
+async function pddCapture() {
   const list = document.querySelector('ul.msg-list');
   if (!list) return null;
 
@@ -228,7 +228,7 @@ function pddCapture() {
     || document.querySelector('.header-box .base-info .name')
     || document.querySelector('.chat-nickname .nickname-span');
 
-  const orderList = pddOrdersCapture();
+  const orderList = await pddOrdersCaptureAll();
   const firstOrder = orderList[0] || pddOrderCapture();
   return {
     ok: true,
@@ -264,6 +264,24 @@ function parseOrderCard(card) {
   const t = txt.match(/下单时间[:：]\s*([0-9/\- :]+)/);
   parsed.createdAt = t ? t[1].trim() : '';
   return parsed;
+}
+
+async function pddOrdersCaptureAll() {
+  const panel = document.querySelector('.right-panel-container');
+  if (!panel) return [];
+  const tabs = [...panel.querySelectorAll('li.order-panel-second-bar')].filter(isVisible);
+  const collect = () => pddOrdersCapture();
+  const current = tabs.find((t) => t.classList.contains('bar-select')) || tabs[0];
+  const seen = new Map();
+  for (const o of collect()) seen.set(o.orderNo || JSON.stringify(o), o);
+  for (const tab of tabs) {
+    if (tab === current) continue;
+    tab.click();
+    await sleep(700);
+    for (const o of collect()) seen.set(o.orderNo || JSON.stringify(o), o);
+  }
+  if (current && current.isConnected) { current.click(); await sleep(300); }
+  return [...seen.values()];
 }
 
 function pddOrdersCapture() {
@@ -347,7 +365,7 @@ async function capture() {
 
   if (isPddChat()) {
     await ensureOrderDetail();
-    const pdd = pddCapture();
+    const pdd = await pddCapture();
     if (pdd) return pdd;
   }
 
