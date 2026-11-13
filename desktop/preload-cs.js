@@ -219,6 +219,7 @@ function pddCapture() {
     const box = row.querySelector('.msg-content-box') || row.querySelector('.msg-content');
     const text = box ? box.innerText.trim() : '';
     if (!text) continue;
+    if (/消费者申请售后/.test(text) && /去处理/.test(text)) { messages.push({ role: 'system', text }); continue; }
     messages.push({ role: isBuyer ? 'buyer' : 'seller', text });
   }
 
