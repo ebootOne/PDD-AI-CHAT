@@ -454,6 +454,13 @@ async function executeAction(result, cap) {
   try {
     if (a.kind === 'refund') {
       const p = a.plan || {};
+      const cards = (cap && cap.actionCards) || [];
+      const waiting = cards.find((c) => c.kind === 'refund' && c.status === 'waiting_buyer');
+      if (waiting) {
+        logAuto('action_skip', { runId: state.autoRunId, kind: 'refund', reason: '已有退款申请等待买家确认' });
+        toast('已有退款申请等待买家确认，不重复提交');
+        return;
+      }
       const open = await B.page.openRefund();
       if (!open || !open.ok) { logAuto('action_fail', { runId: state.autoRunId, kind: 'refund', error: open && open.error }); return; }
       if (p.orderNo) await B.page.refundSelect(p.orderNo);
