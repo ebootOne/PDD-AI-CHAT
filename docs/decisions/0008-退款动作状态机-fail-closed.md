@@ -45,3 +45,12 @@ RESOLVED → FORM_OPEN → ORDER_SELECTED → FILLED → SUBMITTED
 - 找不到时最多向下滚动 6 次，每次 500ms；
 - 仍找不到返回 ORDER_NOT_FOUND，关闭弹窗并兜底；
 - 不按“第几张”选，不无限滚动。
+
+## 第 2 步：动作信封/幂等/串行队列
+
+- 每个动作带 actionId/storeId/conversationId/buyerName；
+- 动作串行队列，避免多个退款/邀请同时操作同一页面；
+- 动作开始及每个关键步骤前校验 store/买家；
+- 店铺或会话被切走：立即中止，不发送兜底到错误买家；
+- 成功提交后写 actionDone，防同一订单重复执行；
+- 失败不写幂等，允许人工重试。

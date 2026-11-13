@@ -11,6 +11,8 @@ const B = window.bridge;
 const state = {
   stores: [],
   activeId: null,
+  actionChain: Promise.resolve(),
+  actionDone: new Set(),
   capture: null,
   result: null,
   busy: false,
@@ -433,7 +435,9 @@ async function generate(isAuto = false, runId = '', sessionGapMinutes = state.se
         await sleep(500);
         await sendHolding(runId);
       }
-      if (result.action) await executeAction(result, cap);
+      if (result.action) {
+        await queueAction(() => executeAction(result, cap, ctx));
+      }
     }
   } catch (e) {
     if (isAuto) {
@@ -448,6 +452,23 @@ async function generate(isAuto = false, runId = '', sessionGapMinutes = state.se
   }
 }
 
+function actionKey(env, a) {
+  const id = a.kind === 'refund' ? (a.plan && a.plan.orderNo) : (a.spec || (a.product && a.product.goodsId) || '');
+  return [env.storeId || '', env.conversationId || '', a.kind || '', id].join('|');
+}
+
+function actionContextOk(env) {
+  if (env.storeId && state.activeId !== env.storeId) return false;
+  const currentBuyer = state.capture && state.capture.buyerName;
+  if (env.buyerName && currentBuyer && env.buyerName !== currentBuyer) return false;
+  return true;
+}
+
+function queueAction(fn) {
+  state.actionChain = state.actionChain.then(fn, fn);
+  return state.actionChain;
+}
+
 function runIdForAction() { return state.autoRunId; }
 
 async function sendActionFallback(runId, stage) {
@@ -456,9 +477,25 @@ async function sendActionFallback(runId, stage) {
   await doSend(text, true, runId).catch(() => {});
 }
 
-async function executeAction(result, cap) {
+async function executeAction(result, cap, context = {}) {
   const a = result && result.action;
   if (!a || state.dryRun) return;
+  const env = {
+    actionId: state.autoRunId,
+    storeId: context.storeId || state.activeId,
+    conversationId: context.conversationId || '',
+    buyerName: context.buyerName || (cap && cap.buyerName) || '',
+  };
+  const key = actionKey(env, a);
+  if (state.actionDone.has(key)) {
+    logAuto('action_dedupe', { runId: state.autoRunId, key });
+    toast('这笔动作已执行过，不重复执行');
+    return;
+  }
+  if (!actionContextOk(env)) {
+    logAuto('action_context_abort', { runId: state.autoRunId, stage: 'START', env });
+    return;
+  }
   try {
     if (a.kind === 'refund') {
       const p = a.plan || {};
@@ -471,14 +508,20 @@ async function executeAction(result, cap) {
       }
       const fail = async (stage, error) => {
         logAuto('action_abort', { runId: state.autoRunId, stage, error: String(error || ''), orderNo: p.orderNo || '' });
+        if (!actionContextOk(env)) {
+          logAuto('action_context_abort', { runId: state.autoRunId, stage, env });
+          return;
+        }
         await B.page.refundCancel().catch(() => {});
         await sendActionFallback(runIdForAction(), stage);
       };
       let st = 'RESOLVED';
+      if (!actionContextOk(env)) return fail(st, '动作开始前店铺/会话已变化');
       const open = await B.page.openRefund();
       if (!open || !open.ok) return fail(st, (open && open.error) || '打开售后失败');
       st = 'FORM_OPEN';
       if (p.orderNo) {
+        if (!actionContextOk(env)) return fail(st, '选择订单前店铺/会话已变化');
         const sel = await B.page.refundSelect(p.orderNo);
         if (!sel || !sel.ok) return fail(st, (sel && sel.error) || '选择订单失败');
         st = 'ORDER_SELECTED';
@@ -486,6 +529,7 @@ async function executeAction(result, cap) {
         const s1 = await B.page.refundState();
         if (!s1 || !s1.ok) return fail(st, '选择后表单不存在');
       }
+      if (!actionContextOk(env)) return fail(st, '填单前店铺/会话已变化');
       const fill = await B.page.refundFill({ type: p.type, received: p.received, reason: p.reason, amount: p.amount, note: '' });
       if (!fill || !fill.ok) return fail(st, (fill && fill.error) || '填单失败');
       st = 'FILLED';
@@ -494,6 +538,7 @@ async function executeAction(result, cap) {
       if (p.amount && Number(fill.amount) && Math.abs(Number(fill.amount) - Number(p.amount)) > 0.01) return fail(st, '退款金额与预期不一致：' + fill.amount);
       logAuto('action_refund', { runId: state.autoRunId, orderNo: p.orderNo, type: p.type, received: p.received, reason: p.reason, amount: p.amount, fillOk: true, canAuto: !!a.canAuto, state: st, verified: { type: fill.type, received: fill.received, reason: fill.reason, amount: fill.amount } });
       if (a.canAuto) {
+        if (!actionContextOk(env)) return fail(st, '提交前店铺/会话已变化');
         const sub = await B.page.refundSubmit();
         if (!sub || !sub.ok) return fail(st, (sub && sub.error) || '提交失败');
         st = 'SUBMITTED';
@@ -504,7 +549,8 @@ async function executeAction(result, cap) {
           && !beforeTexts.has(c.text)
           && String(c.amount || '').replace(/[^\d.]/g, '') === amountNum);
         if (!newCard) return fail(st, '提交后未看到新的退款卡');
-        logAuto('action_refund_submit', { runId: state.autoRunId, ok: true, state: st, orderNo: p.orderNo, card: newCard.status });
+        state.actionDone.add(key);
+        logAuto('action_refund_submit', { runId: state.autoRunId, ok: true, state: st, orderNo: p.orderNo, card: newCard.status, key });
         toast('退款申请已提交，等待买家确认');
       } else {
         toast('退款单已填好，缺少：' + ((p.missing || []).join('、') || '确认') + '，请人工确认');
@@ -523,6 +569,7 @@ async function executeAction(result, cap) {
         toast('同规格邀请卡已存在，不重复发送');
         return;
       }
+      if (!actionContextOk(env)) return;
       const draft = await B.page.inviteDraft(title, spec);
       logAuto('action_invite', { runId: state.autoRunId, title, spec, ok: !!(draft && draft.ok), chosen: draft && draft.chosen });
       if (!draft || !draft.ok) {
@@ -530,8 +577,10 @@ async function executeAction(result, cap) {
         return;
       }
       if (a.canAuto) {
+        if (!actionContextOk(env)) return;
         const sent = await B.page.sendInvite();
-        logAuto('action_invite_send', { runId: state.autoRunId, ok: !!(sent && sent.ok), error: sent && sent.error });
+        if (sent && sent.ok) state.actionDone.add(key);
+        logAuto('action_invite_send', { runId: state.autoRunId, ok: !!(sent && sent.ok), error: sent && sent.error, key });
         toast(sent && sent.ok ? '邀请下单已发送' : '邀请发送失败：' + ((sent && sent.error) || ''));
       } else {
         toast('邀请清单已加入，等待确认发送');
