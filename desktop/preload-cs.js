@@ -647,11 +647,19 @@ async function inviteDraft(title, spec) {
 }
 
 async function sendInvite() {
-  const btn = [...document.querySelectorAll('button,div,span')].find((x) => isVisible(x) && /^发送$/.test(textOf(x)));
-  if (!btn) return { ok: false, error: '没找到发送按钮' };
-  btn.click();
-  await sleep(600);
-  return { ok: true };
+  const bs = [...document.querySelectorAll('button')].filter((x) => isVisible(x) && /^发送$/.test(textOf(x)));
+  for (const b of bs) {
+    let p = b.parentElement;
+    for (let i = 0; i < 8 && p; i++) {
+      if (/邀请下单的商品清单/.test(p.innerText || '')) {
+        b.click();
+        await sleep(800);
+        return { ok: true, source: 'invite-modal' };
+      }
+      p = p.parentElement;
+    }
+  }
+  return { ok: false, error: '没找到邀请清单的发送按钮' };
 }
 
 async function sendProductCard(goodsId) {
