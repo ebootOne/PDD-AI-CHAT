@@ -31,6 +31,7 @@ const focus = require('./focus');
 const session = require('./session');
 const policy = require('./policy');
 const context = require('./context');
+const actionRouter = require('./action-router');
 const blockRegistry = require('./block-registry');
 const answerGuard = require('./answer-guard');
 const answerContract = require('./answer-contract');
@@ -1156,6 +1157,19 @@ const cfg = store.getConfig();
       if (Array.isArray(result.suggestions)) {
         result.suggestions = result.suggestions.map((x) => ({ ...x, text: professionalTone(x.text) }));
       }
+
+      // 明确动作请求：只生成计划，不在这里执行页面操作
+      try {
+        const product = (result.products && result.products[0]) || null;
+        const plan = actionRouter.plan({
+          buyerText: result.buyerText,
+          order: ctx.order || (ctx.orders && ctx.orders[0]) || null,
+          orders: ctx.orders || [],
+          product,
+          spec: (ctx.order && ctx.order.items && ctx.order.items[0] && ctx.order.items[0].spec) || '',
+        });
+        if (plan) result.action = plan;
+      } catch (_) {}
 
       // 会话状态：记下这一轮聊了什么、答了什么，供下一轮与模型参考
       result.sessionSummary = session.summary(ctx.storeId || 'default', conversationId);
