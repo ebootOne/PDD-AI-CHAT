@@ -288,8 +288,12 @@ async function generate(ctx, cfg, knowledge, opts = {}) {
   }
 
   // 商品已知，且是用品类：把种子/种植口径的知识剔掉，宁可兜底也不答错域
-  if (goodsInfo) {
-    const kept = hits.filter((h) => !domainMismatch(h.entry, goodsInfo));
+  // 不依赖 goodsId：只有商品标题（商品卡未匹配目录）也要过滤，否则种子知识会串到用品
+  const goodsDomain = goodsInfo || (ctx.goods && ctx.goods.title
+    ? { title: String(ctx.goods.title), category: '' }
+    : null);
+  if (goodsDomain) {
+    const kept = hits.filter((h) => !domainMismatch(h.entry, goodsDomain));
     if (kept.length !== hits.length) hits = kept;
   }
   const route = router.classify(queryText, { productKnown: Boolean(goodsId) });
