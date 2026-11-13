@@ -516,6 +516,69 @@ async function send() {
  * 关键点：搜索框必须锁定在「含商品项的那个弹层」里。
  * 页面左上角还有一个「搜索会话/订单号」的输入框，按 placeholder 找会打错地方。
  */
+async function openInvitePicker() {
+  const tool = [...document.querySelectorAll('span,button,div,a')].find((el) => isVisible(el) && /^邀请下单$/.test(textOf(el)));
+  if (!tool) return { ok: false, error: '没找到「邀请下单」' };
+  tool.click();
+  await sleep(700);
+  const items = [...document.querySelectorAll('.goods-item')].filter(isVisible);
+  if (!items.length) return { ok: false, error: '邀请下单商品列表未打开' };
+  return { ok: true, items };
+}
+
+async function inviteCatalog() {
+  const opened = await openInvitePicker();
+  if (!opened.ok) return opened;
+  const items = opened.items.map((el) => ({
+    title: ((el.querySelector('.goods-name') || {}).innerText || '').trim(),
+    price: ((el.querySelector('[class*=groupPrice],[class*=goods-price]') || {}).innerText || '').trim(),
+  })).filter((x) => x.title);
+  return { ok: true, items };
+}
+
+async function inviteDraft(title, spec) {
+  const opened = await openInvitePicker();
+  if (!opened.ok) return opened;
+  const key = String(title || '').replace(/\s+/g, '');
+  const item = opened.items.find((el) => {
+    const t = ((el.querySelector('.goods-name') || {}).innerText || '').replace(/\s+/g, '');
+    return t && (t.includes(key) || key.includes(t.slice(0, 8)));
+  });
+  if (!item) return { ok: false, error: '邀请列表没找到该商品' };
+  const add = [...item.querySelectorAll('button,a,div,span')].find((x) => /^加入清单$/.test(textOf(x)));
+  if (!add) return { ok: false, error: '没找到加入清单' };
+  add.click();
+  await sleep(600);
+  const modal = [...document.querySelectorAll('.sku-select-modal')].find(isVisible);
+  if (!modal) return { ok: false, error: 'SKU 弹窗未打开' };
+  const groups = [...modal.querySelectorAll('.sku-group')];
+  const chosen = [];
+  for (const g of groups) {
+    const name = ((g.querySelector('.sku-type-name') || {}).innerText || '').replace(/[:：]/g, '').trim();
+    const opts = [...g.querySelectorAll('.sku-item')].filter(isVisible);
+    if (!opts.length) continue;
+    let pick = opts.find((o) => textOf(o).includes(String(spec || '')));
+    if (!pick && opts.length === 1) pick = opts[0];
+    if (!pick) return { ok: false, error: '规格不唯一，需要买家确认：' + name, options: opts.map(textOf) };
+    pick.click();
+    await sleep(200);
+    chosen.push({ name, value: textOf(pick) });
+  }
+  const okBtn = [...modal.querySelectorAll('button')].find((x) => /^确定$/.test(textOf(x)) && isVisible(x));
+  if (!okBtn) return { ok: false, error: 'SKU 弹窗没有确定' };
+  okBtn.click();
+  await sleep(600);
+  return { ok: true, chosen, sent: false };
+}
+
+async function sendInvite() {
+  const btn = [...document.querySelectorAll('button,div,span')].find((x) => isVisible(x) && /^发送$/.test(textOf(x)));
+  if (!btn) return { ok: false, error: '没找到发送按钮' };
+  btn.click();
+  await sleep(600);
+  return { ok: true };
+}
+
 async function sendProductCard(goodsId) {
   const tool = [...document.querySelectorAll('span, button, div, a')].find(
     (el) => isVisible(el) && textOf(el) === '商品' && !el.querySelector('textarea') && !el.querySelector('input')
