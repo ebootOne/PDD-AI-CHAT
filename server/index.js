@@ -688,7 +688,9 @@ const cfg = store.getConfig();
         && (!result.buffer || (engineMode === 'pro' && refundBuffer)) && !highRisk && !willReplace
         && result.decision !== 'handoff'
         && askKey0 !== 'greeting' && askKey0 !== 'privacy';
-      const callModel = contextFirst || (lowLocal && !result.orderClarify && !result.buffer && !highRisk && !authoritative && !willReplace && !(noGround && askKey0 === 'privacy') && result.decision !== 'handoff');
+      const localMatch0 = actionTemplates.matchLocal(result.buyerText);
+      let callModel = contextFirst || (lowLocal && !result.orderClarify && !result.buffer && !highRisk && !authoritative && !willReplace && !(noGround && askKey0 === 'privacy') && result.decision !== 'handoff');
+      if (localMatch0) callModel = false;
       if (bcfg.url && callModel) {
         const kbAll = store.getKnowledge();
         const hits = (result.knowledge || [])
@@ -1175,6 +1177,9 @@ const cfg = store.getConfig();
           result.source = 'policy';
           result.reason = '退款咨询，不触发退款动作';
           result.decision = 'suggest';
+        } else if (localMatch && localMatch.template === 'invite') {
+          const p = actionTemplates.invite.fromModel({}, { product: (result.products && result.products[0]) || null });
+          plan = { kind: 'invite', product: p.product, spec: p.spec, needs: p.needs, canAuto: false, reason: '本地邀请模板命中' };
         } else if (localMatch && localMatch.template === 'refund') {
           const p = actionTemplates.refund.fromModel({}, { orders: ctx.orders || [], order: ctx.order, buyerText: result.buyerText });
           plan = { kind: 'refund', plan: p, needs: p.needs, canAuto: p.canAuto, reason: '本地退款模板命中' };
@@ -1201,6 +1206,15 @@ const cfg = store.getConfig();
         }
         if (plan) {
           result.action = plan;
+          if (plan.kind === 'invite') {
+            const needs = plan.needs || [];
+            if (needs.length) {
+              result.suggestions = [{ tone: '标准', text: '您要哪款商品、什么规格呢？我帮您加到邀请清单。' }];
+              result.source = 'action';
+              result.reason = '邀请前补齐商品/规格';
+              result.decision = 'suggest';
+            }
+          }
           if (plan.kind === 'refund' && result.suggestions && result.suggestions[0]) {
             if (plan.canAuto) {
               result.suggestions = [{ tone: '标准', text: '这边帮您申请' + (plan.plan.typeName || '退款') + '，请在下方卡片里确认一下。' }];
