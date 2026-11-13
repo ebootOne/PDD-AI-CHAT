@@ -15,6 +15,37 @@ function specFromText(text) {
   return (String(text || '').match(/\d+mm(?:左右)?|\d+条装[^，,。\s]*|\d+头[^，,。\s]*/g) || []).join(' ').trim();
 }
 
+function contextRefund(input, text, recent, messages) {
+  const list = (input.orders || []).filter((o) => o && o.hasOrder);
+  if (!list.length) return null;
+  const lastSeller = [...(messages || [])].reverse().find((m) => m && m.role === 'seller');
+  const askedOrder = lastSeller && /哪一单|哪一单呀|哪一单呢/.test(String(lastSeller.text || ''));
+  const refundTalk = /退款|退下款|退个款|不想要|买错/.test(recent);
+  if (!askedOrder || !refundTalk) return null;
+  const allText = (messages || []).map((m) => String(m && m.text || '')).join(' ');
+  const paidHint = /已经下单|已下单/.test(allText);
+  const statusHint = paidHint
+    ? (/待发货/.test(allText) ? '待发货' : /待签收|已发货/.test(allText) ? '已发货' : /已签收/.test(allText) ? '已签收' : '')
+    : (/待支付/.test(allText) ? '待支付' : /待发货/.test(allText) ? '待发货' : /待签收|已发货/.test(allText) ? '已发货' : /已签收/.test(allText) ? '已签收' : '');
+  const tokenHit = (title) => {
+    const c = String(title || '').replace(/^\d{2,4}年/, '').replace(/\s+/g, '');
+    if (!c) return false;
+    if (text.includes(c.slice(0, 4))) return true;
+    for (let i = 0; i + 2 <= c.length; i++) if (text.includes(c.slice(i, i + 2))) return true;
+    return false;
+  };
+  let matches = list.filter((o) => (o.items || []).some((it) => tokenHit(it.title)));
+  if (!matches.length) matches = list;
+  if (statusHint) {
+    const byStatus = matches.filter((o) => String(o.status || '').includes(statusHint));
+    if (byStatus.length) matches = byStatus;
+  }
+  if (matches.length !== 1) return null;
+  const order = matches[0];
+  const p = refundPlan({ order, buyerText: text + ' ' + recent });
+  return { kind: 'refund', plan: p, needs: p.missing, canAuto: !p.closed && p.missing.length === 0, reason: '上一轮问哪一单，本轮回答商品/状态' };
+}
+
 function plan(input = {}) {
   const text = String(input.buyerText || '');
   if (!text) return null;
@@ -23,6 +54,9 @@ function plan(input = {}) {
     .slice(-4).map((m) => String(m.text || '')).join(' ');
   const confirmReceived = /收到了|已经收到|已收到|到了|没收到|未收到|还没到|拒收/.test(text);
   const previousRefund = REFUND_ACTION.test(recent) && !REFUND_INFO.test(text);
+
+  const ctxRefund = contextRefund(input, text, recent, input.messages);
+  if (ctxRefund) return ctxRefund;
 
   if (!REFUND_INFO.test(text) && (REFUND_ACTION.test(text) || (previousRefund && confirmReceived))) {
     const order = input.order || (Array.isArray(input.orders) ? input.orders[0] : null);

@@ -33,7 +33,8 @@ function reasonFromText(text) {
   if (/空包/.test(t)) return '空包裹';
   if (/少发|漏发|少件|少配件/.test(t)) return '收到商品少件（含少配件）';
   if (/破损|污渍|坏了|裂/.test(t)) return '商品破损或污渍';
-  if (/错发|发错|拍错|买错/.test(t)) return '卖家发错货';
+  if (/错发|发错/.test(t)) return '卖家发错货';
+  if (/拍错|买错/.test(t)) return '不想要了';
   if (/质量/.test(t)) return '质量问题';
   if (/不喜欢|效果不好|不满意/.test(t)) return '不喜欢、效果不好';
   if (/不想要|不需要|多买/.test(t)) return '不想要了';
@@ -48,7 +49,8 @@ function refundPlan(input = {}) {
   const order = input.order || null;
   const status = String((order && order.status) || '');
   const received = input.received === true || input.received === false ? input.received : (buyerReceived != null ? buyerReceived : inferReceived(order));
-  const amount = Number(input.amount != null ? input.amount : (order && order.paid) || (order && order.amount) || 0);
+  const amount = Number(input.amount != null ? input.amount : (order && order.paid) || (order && order.amount)
+    || Number(String((order && order.items && order.items[0] && order.items[0].price) || '').replace(/[^\d.]/g, '')) || 0);
   const type = input.type || (received === false ? 'refund_only' : received === true ? 'return_refund' : null);
   const reason = String(buyerReason || '').trim();
   const missing = [];

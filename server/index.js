@@ -1173,12 +1173,18 @@ const cfg = store.getConfig();
         const ma = ma0 && explicitOrder ? { ...ma0, orderNo: explicitOrder.orderNo } : ma0;
         const refundInfo = /退款|退货|售后|退钱/.test(result.buyerText) && /怎么|如何|能退吗|可以退吗|退款流程|退款多久|退货规则|怎么申请/.test(result.buyerText);
         const localMatch = actionTemplates.matchLocal(result.buyerText);
+        const ctxPlan = actionRouter.plan({
+          buyerText: result.buyerText, messages: ctx.messages || [], orders: ctx.orders || [], order: ctx.order || null,
+          product: (result.products && result.products[0]) || null,
+        });
         let plan = null;
         if (refundInfo) {
           result.suggestions = [{ tone: '标准', text: '在订单页找到这笔订单，点「申请退款」，按提示选择退款类型和原因提交即可。' }];
           result.source = 'policy';
           result.reason = '退款咨询，不触发退款动作';
           result.decision = 'suggest';
+        } else if (ctxPlan && /上一轮问哪一单/.test(ctxPlan.reason || '')) {
+          plan = ctxPlan;
         } else if (localMatch && localMatch.template === 'invite') {
           const p = actionTemplates.invite.fromModel({}, { product: (result.products && result.products[0]) || null });
           plan = { kind: 'invite', product: p.product, spec: p.spec, needs: p.needs, canAuto: false, reason: '本地邀请模板命中' };
@@ -1199,7 +1205,7 @@ const cfg = store.getConfig();
           result.source = 'action';
           result.reason = '模型先追问动作所需信息';
           result.decision = 'suggest';
-        } else if (!ma && result.source !== 'backend') {
+        } else if ((!ma || ma.kind === 'none') && result.source !== 'backend') {
           plan = actionRouter.plan({
             buyerText: result.buyerText, messages: ctx.messages || [], order: ctx.order || (ctx.orders && ctx.orders[0]) || null,
             orders: ctx.orders || [], product: (result.products && result.products[0]) || null,
