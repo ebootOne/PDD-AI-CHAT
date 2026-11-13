@@ -154,13 +154,13 @@ function build(input = {}) {
   const seen = new Set();
   const add = (x) => { if (x && !seen.has(x.id) && core.length < 8) { seen.add(x.id); core.push(x); } };
   items.filter((x) => x.block === 'product' && x.id === 'P0').forEach(add);
+  items.filter((x) => x.id === 'N1').forEach(add);
+  items.filter((x) => x.id === 'D1').forEach(add);
   items.filter((x) => x.block === 'order').forEach(add);
   items.filter((x) => x.block === 'conversation').slice(-2).forEach(add);
-  items.filter((x) => x.block === 'product' && x.id !== 'P0').forEach(add);
-  items.filter((x) => x.block === 'profile').forEach(add);
-  items.filter((x) => x.id === 'D1').forEach(add);
+  items.filter((x) => x.block === 'product' && x.id !== 'P0' && x.id !== 'N1').forEach(add);
+  items.filter((x) => x.block === 'profile' && x.id !== 'D1').forEach(add);
   items.filter((x) => x.block === 'topic').forEach(add);
-  items.filter((x) => x.block === 'product' && x.id === 'N1').forEach(add);
   return {
     items: core,
     allItems: items,
